@@ -1,0 +1,1260 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.Serialization;
+
+public class PrototypeUnitVitals : MonoBehaviour
+{
+    private const float HealthEpsilon = 0.001f;
+    private const string FallbackHeadPartId = "head";
+    private const string FallbackTorsoPartId = "torso";
+    private const string FallbackLegsPartId = "legs";
+
+    private enum DamageOrigin
+    {
+        DirectHit = 0,
+        OverflowShare = 1,
+        StatusEffect = 2
+    }
+
+    [Serializable]
+    public struct DamageInfo
+    {
+        [Min(0f)] public float damage;
+        [Min(0f)] public float penetrationPower;
+        [Min(0f)] public float armorDamage;
+        [Range(0f, 1f)] public float lightBleedChance;
+        [Range(0f, 1f)] public float heavyBleedChance;
+        [Range(0f, 1f)] public float fractureChance;
+        public bool bypassArmor;
+        public bool canApplyAfflictions;
+
+        public static DamageInfo CreateDefault(float amount)
+        {
+            return new DamageInfo
+            {
+                damage = Mathf.Max(0f, amount),
+                penetrationPower = 0f,
+                armorDamage = 0f,
+                lightBleedChance = 0f,
+                heavyBleedChance = 0f,
+                fractureChance = 0f,
+                bypassArmor = false,
+                canApplyAfflictions = false
+            };
+        }
+    }
+
+    [Serializable]
+    public class ArmorState
+    {
+        public ArmorDefinition definition;
+        public string displayName = string.Empty;
+        [Min(1f)] public float maxDurability = 1f;
+        [Min(0f)] public float currentDurability = 1f;
+
+        public void ApplyDefinition(ArmorDefinition armorDefinition, float preservedDurability)
+        {
+            definition = armorDefinition;
+            displayName = armorDefinition != null ? armorDefinition.DisplayName : string.Empty;
+            maxDurability = armorDefinition != null ? armorDefinition.MaxDurability : 1f;
+            currentDurability = Mathf.Clamp(preservedDurability, 0f, maxDurability);
+        }
+
+        public void Sanitize()
+        {
+            displayName = string.IsNullOrWhiteSpace(displayName) && definition != null ? definition.DisplayName : displayName;
+            maxDurability = definition != null ? definition.MaxDurability : Mathf.Max(1f, maxDurability);
+            currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);
+        }
+
+        public bool CoversPart(string partId)
+        {
+            return definition != null && currentDurability > HealthEpsilon && definition.CoversPart(partId);
+        }
+
+        public float DurabilityNormalized => maxDurability > HealthEpsilon ? Mathf.Clamp01(currentDurability / maxDurability) : 0f;
+    }
+
+    [Serializable]
+    public class PartAfflictionState
+    {
+        public string partId = string.Empty;
+        public bool lightBleeding;
+        public bool heavyBleeding;
+        public bool fractured;
+
+        public void Sanitize()
+        {
+            partId = NormalizePartId(partId);
+        }
+    }
+
+    [Serializable]
+    public class OverflowRouteState
+    {
+        public string partId = string.Empty;
+        [Min(0f)] public float weight = 1f;
+
+        public void ApplyDefinition(PrototypeUnitDefinition.OverflowTarget definition)
+        {
+            partId = NormalizePartId(definition != null ? definition.partId : string.Empty);
+            weight = Mathf.Max(0f, definition != null ? definition.weight : 0f);
+        }
+
+        public void Sanitize()
+        {
+            partId = NormalizePartId(partId);
+            weight = Mathf.Max(0f, weight);
+        }
+    }
+
+    [Serializable]
+    public class PartState
+    {
+        [FormerlySerializedAs("bodyPart")]
+        public PrototypeBodyPartType legacyBodyPart = PrototypeBodyPartType.Torso;
+        public string partId = string.Empty;
+        public string displayName = string.Empty;
+        [Min(1f)] public float maxHealth = 1f;
+        [Min(0f)] public float currentHealth = 1f;
+        [Min(0f)] public float overflowMultiplier = 1f;
+        public bool contributesToUnitHealth = true;
+        public bool receivesOverflowDamage = true;
+        public bool receivesOverflowFollowUpDamage = false;
+        public PrototypeUnitDefinition.ZeroKillMode zeroKillMode = PrototypeUnitDefinition.ZeroKillMode.Never;
+        public bool killUnitWhenBlackedAndDamagedAgain = false;
+        [Min(0f)] public float blackedFollowUpDamageThreshold = 0f;
+        public List<OverflowRouteState> overflowTargets = new List<OverflowRouteState>();
+
+        public void ApplyDefinition(PrototypeUnitDefinition.PartDefinition definition, float preservedCurrentHealth)
+        {
+            partId = NormalizePartId(definition != null ? definition.partId : string.Empty);
+            displayName = string.IsNullOrWhiteSpace(definition != null ? definition.displayName : string.Empty)
+                ? partId
+                : definition.displayName.Trim();
+            legacyBodyPart = MapLegacyBodyPart(partId);
+            maxHealth = Mathf.Max(1f, definition != null ? definition.maxHealth : 1f);
+            currentHealth = Mathf.Clamp(preservedCurrentHealth, 0f, maxHealth);
+            overflowMultiplier = Mathf.Max(0f, definition != null ? definition.overflowMultiplier : 0f);
+            contributesToUnitHealth = definition != null && definition.contributesToUnitHealth;
+            receivesOverflowDamage = definition == null || definition.receivesOverflowDamage;
+            receivesOverflowFollowUpDamage = definition != null && definition.receivesOverflowFollowUpDamage;
+            zeroKillMode = definition != null ? definition.zeroKillMode : PrototypeUnitDefinition.ZeroKillMode.Never;
+            killUnitWhenBlackedAndDamagedAgain = definition != null && definition.killUnitWhenBlackedAndDamagedAgain;
+            blackedFollowUpDamageThreshold = Mathf.Max(0f, definition != null ? definition.blackedFollowUpDamageThreshold : 0f);
+
+            overflowTargets = new List<OverflowRouteState>();
+            if (definition != null && definition.overflowTargets != null)
+            {
+                foreach (PrototypeUnitDefinition.OverflowTarget overflowTarget in definition.overflowTargets)
+                {
+                    if (overflowTarget == null)
+                    {
+                        continue;
+                    }
+
+                    var runtimeRoute = new OverflowRouteState();
+                    runtimeRoute.ApplyDefinition(overflowTarget);
+                    if (!string.IsNullOrWhiteSpace(runtimeRoute.partId) && runtimeRoute.weight > 0f)
+                    {
+                        overflowTargets.Add(runtimeRoute);
+                    }
+                }
+            }
+        }
+
+        public void Sanitize()
+        {
+            if (string.IsNullOrWhiteSpace(partId))
+            {
+                partId = MapLegacyPartId(legacyBodyPart);
+            }
+
+            partId = NormalizePartId(partId);
+            displayName = string.IsNullOrWhiteSpace(displayName) ? partId : displayName.Trim();
+            maxHealth = Mathf.Max(1f, maxHealth);
+            currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+            overflowMultiplier = Mathf.Max(0f, overflowMultiplier);
+            blackedFollowUpDamageThreshold = Mathf.Max(0f, blackedFollowUpDamageThreshold);
+
+            if (overflowTargets == null)
+            {
+                overflowTargets = new List<OverflowRouteState>();
+                return;
+            }
+
+            for (int index = overflowTargets.Count - 1; index >= 0; index--)
+            {
+                OverflowRouteState overflowRoute = overflowTargets[index];
+                if (overflowRoute == null)
+                {
+                    overflowTargets.RemoveAt(index);
+                    continue;
+                }
+
+                overflowRoute.Sanitize();
+                if (string.IsNullOrWhiteSpace(overflowRoute.partId) || overflowRoute.weight <= 0f)
+                {
+                    overflowTargets.RemoveAt(index);
+                }
+            }
+        }
+    }
+
+    private struct PendingDamage
+    {
+        public string partId;
+        public float amount;
+        public DamageOrigin origin;
+        public float penetrationPower;
+        public float armorDamage;
+        public float lightBleedChance;
+        public float heavyBleedChance;
+        public float fractureChance;
+        public bool bypassArmor;
+        public bool canApplyAfflictions;
+
+        public PendingDamage(string partId, float amount, DamageOrigin origin)
+        {
+            this.partId = NormalizePartId(partId);
+            this.amount = amount;
+            this.origin = origin;
+            penetrationPower = 0f;
+            armorDamage = 0f;
+            lightBleedChance = 0f;
+            heavyBleedChance = 0f;
+            fractureChance = 0f;
+            bypassArmor = origin != DamageOrigin.DirectHit;
+            canApplyAfflictions = false;
+        }
+
+        public PendingDamage(string partId, DamageInfo damageInfo, DamageOrigin origin)
+        {
+            this.partId = NormalizePartId(partId);
+            amount = Mathf.Max(0f, damageInfo.damage);
+            this.origin = origin;
+            penetrationPower = Mathf.Max(0f, damageInfo.penetrationPower);
+            armorDamage = Mathf.Max(0f, damageInfo.armorDamage);
+            lightBleedChance = Mathf.Clamp01(damageInfo.lightBleedChance);
+            heavyBleedChance = Mathf.Clamp01(damageInfo.heavyBleedChance);
+            fractureChance = Mathf.Clamp01(damageInfo.fractureChance);
+            bypassArmor = damageInfo.bypassArmor || origin != DamageOrigin.DirectHit;
+            canApplyAfflictions = damageInfo.canApplyAfflictions && origin == DamageOrigin.DirectHit;
+        }
+    }
+
+    [Header("Tarkov-Inspired Health")]
+    [SerializeField] private PrototypeUnitDefinition unitDefinition;
+    [SerializeField] private List<PartState> bodyParts = new List<PartState>();
+    [SerializeField] private List<ArmorState> equippedArmor = new List<ArmorState>();
+    [SerializeField] private PrototypeStatusEffectController statusEffects;
+    [SerializeField] private bool allowImpactForceWhenAlive = true;
+    [SerializeField] private UnityEvent onDied = new UnityEvent();
+
+    private readonly Queue<PendingDamage> pendingDamage = new Queue<PendingDamage>();
+    private bool isApplyingDamage;
+
+    public event Action<PrototypeUnitVitals> Died;
+
+    public PrototypeUnitDefinition UnitDefinition => unitDefinition;
+    public IReadOnlyList<PartState> BodyParts => bodyParts;
+    public IReadOnlyList<ArmorState> EquippedArmor => equippedArmor;
+    public PrototypeStatusEffectController StatusEffects => statusEffects;
+    public bool IsDead { get; private set; }
+    public bool ShouldReceiveImpactForce => IsDead || allowImpactForceWhenAlive;
+    public string HealthBarAnchorPartId => ResolveHealthBarAnchorPartId();
+    public bool HasLightBleed => statusEffects != null && statusEffects.HasLightBleed;
+    public bool HasHeavyBleed => statusEffects != null && statusEffects.HasHeavyBleed;
+    public bool HasAnyBleed => HasLightBleed || HasHeavyBleed;
+    public bool HasFracture => statusEffects != null && statusEffects.HasFracture;
+    public bool IsPainkillerActive => statusEffects != null && statusEffects.IsPainkillerActive;
+    public float PainkillerRemaining => statusEffects != null ? statusEffects.PainkillerRemaining : 0f;
+    public float MovementPenaltyMultiplier => statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f;
+    public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
+
+    public float TotalCurrentHealth
+    {
+        get
+        {
+            float total = 0f;
+            foreach (PartState state in bodyParts)
+            {
+                if (state.contributesToUnitHealth)
+                {
+                    total += state.currentHealth;
+                }
+            }
+
+            return total;
+        }
+    }
+
+    public float TotalMaxHealth
+    {
+        get
+        {
+            float total = 0f;
+            foreach (PartState state in bodyParts)
+            {
+                if (state.contributesToUnitHealth)
+                {
+                    total += state.maxHealth;
+                }
+            }
+
+            return total;
+        }
+    }
+
+    public float TotalHealthNormalized
+    {
+        get
+        {
+            float totalMaxHealth = TotalMaxHealth;
+            if (totalMaxHealth <= HealthEpsilon)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(TotalCurrentHealth / totalMaxHealth);
+        }
+    }
+
+    private void Reset()
+    {
+        EnsureBodyPartSetup(true);
+    }
+
+    private void Awake()
+    {
+        EnsureBodyPartSetup(true);
+    }
+
+    private void OnValidate()
+    {
+        EnsureBodyPartSetup(false);
+    }
+
+    [ContextMenu("Reset Health To Full")]
+    public void ResetHealthToFull()
+    {
+        EnsureBodyPartSetup(true);
+    }
+
+    public void SetUnitDefinition(PrototypeUnitDefinition definition, bool resetHealth = true)
+    {
+        unitDefinition = definition;
+        EnsureBodyPartSetup(resetHealth);
+    }
+
+    public void SetArmorLoadout(params ArmorDefinition[] armorDefinitions)
+    {
+        SyncArmorLoadout(armorDefinitions, true);
+    }
+
+    public void ApplyDamage(string partId, float damage)
+    {
+        ApplyDamage(partId, DamageInfo.CreateDefault(damage));
+    }
+
+    public void ApplyDamage(PrototypeBodyPartType bodyPart, float damage)
+    {
+        ApplyDamage(MapLegacyPartId(bodyPart), damage);
+    }
+
+    public void ApplyDamage(string partId, DamageInfo damageInfo)
+    {
+        if (IsDead || damageInfo.damage <= 0f)
+        {
+            return;
+        }
+
+        EnsureBodyPartSetup(false);
+        pendingDamage.Enqueue(new PendingDamage(partId, damageInfo, DamageOrigin.DirectHit));
+        FlushPendingDamage();
+    }
+
+    public void ApplyDamage(PrototypeBodyPartType bodyPart, DamageInfo damageInfo)
+    {
+        ApplyDamage(MapLegacyPartId(bodyPart), damageInfo);
+    }
+
+    public float GetCurrentHealth(string partId)
+    {
+        PartState state = GetBodyPartState(partId);
+        return state != null ? state.currentHealth : 0f;
+    }
+
+    public float GetCurrentHealth(PrototypeBodyPartType bodyPart)
+    {
+        return GetCurrentHealth(MapLegacyPartId(bodyPart));
+    }
+
+    public bool HasPart(string partId)
+    {
+        return GetBodyPartState(partId) != null;
+    }
+
+    public bool IsPartDestroyed(string partId)
+    {
+        PartState state = GetBodyPartState(partId);
+        return state == null || state.currentHealth <= HealthEpsilon;
+    }
+
+    public float GetArmorDurabilityNormalized(string partId)
+    {
+        ArmorState armorState = GetCoveringArmor(partId);
+        return armorState != null ? armorState.DurabilityNormalized : 0f;
+    }
+
+    public void SetAllowImpactForceWhenAlive(bool allow)
+    {
+        allowImpactForceWhenAlive = allow;
+    }
+
+    public bool TryUseMedicalItem(MedicalItemDefinition medicalItem)
+    {
+        if (medicalItem == null)
+        {
+            return false;
+        }
+
+        EnsureBodyPartSetup(false);
+        ResolveStatusEffects(false);
+
+        bool used = false;
+        if (medicalItem.RemovesHeavyBleeds > 0 && statusEffects != null)
+        {
+            used |= statusEffects.RemoveHeavyBleeds(medicalItem.RemovesHeavyBleeds);
+        }
+
+        if (medicalItem.RemovesLightBleeds > 0 && statusEffects != null)
+        {
+            used |= statusEffects.RemoveLightBleeds(medicalItem.RemovesLightBleeds);
+        }
+
+        if (medicalItem.CuresFractures > 0 && statusEffects != null)
+        {
+            used |= statusEffects.RemoveFractures(medicalItem.CuresFractures);
+        }
+
+        if (medicalItem.HealAmount > HealthEpsilon)
+        {
+            used |= RestoreHealth(medicalItem.HealAmount);
+        }
+
+        if (medicalItem.PainkillerDuration > HealthEpsilon && statusEffects != null)
+        {
+            used |= statusEffects.ApplyPainkiller(medicalItem.PainkillerDuration);
+        }
+
+        return used;
+    }
+
+    public void ApplyGlobalDamage(float damage)
+    {
+        if (IsDead || damage <= HealthEpsilon)
+        {
+            return;
+        }
+
+        EnsureBodyPartSetup(false);
+
+        var recipients = new List<PartState>();
+        foreach (PartState state in bodyParts)
+        {
+            if (state != null && state.contributesToUnitHealth && state.currentHealth > HealthEpsilon)
+            {
+                recipients.Add(state);
+            }
+        }
+
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        float sharedDamage = damage / recipients.Count;
+        foreach (PartState state in recipients)
+        {
+            var damageInfo = DamageInfo.CreateDefault(sharedDamage);
+            damageInfo.bypassArmor = true;
+            pendingDamage.Enqueue(new PendingDamage(state.partId, damageInfo, DamageOrigin.StatusEffect));
+        }
+
+        FlushPendingDamage();
+    }
+
+    private void ProcessDamageChunk(PendingDamage chunk)
+    {
+        if (chunk.amount <= 0f || string.IsNullOrWhiteSpace(chunk.partId))
+        {
+            return;
+        }
+
+        PartState state = GetBodyPartState(chunk.partId);
+        if (state == null)
+        {
+            return;
+        }
+
+        float finalDamage = chunk.amount;
+        bool penetratedArmor = true;
+        ArmorState blockingArmor = null;
+
+        if (chunk.origin == DamageOrigin.DirectHit && !chunk.bypassArmor)
+        {
+            finalDamage = ResolveArmorMitigation(state, chunk, out blockingArmor, out penetratedArmor);
+            if (finalDamage <= HealthEpsilon && blockingArmor == null)
+            {
+                return;
+            }
+        }
+
+        if (ShouldTriggerBlackedFollowUpDeath(state, finalDamage, chunk.origin))
+        {
+            KillAllBodyParts();
+            return;
+        }
+
+        float damageAppliedToHealth = 0f;
+        float overflowDamage = finalDamage;
+
+        if (state.currentHealth > HealthEpsilon)
+        {
+            float absorbedDamage = Mathf.Min(state.currentHealth, overflowDamage);
+            state.currentHealth = Mathf.Max(state.currentHealth - absorbedDamage, 0f);
+            overflowDamage -= absorbedDamage;
+            damageAppliedToHealth += absorbedDamage;
+
+            if (state.currentHealth <= HealthEpsilon && ShouldTriggerZeroKill(state, chunk.origin))
+            {
+                KillAllBodyParts();
+                return;
+            }
+        }
+
+        if (chunk.canApplyAfflictions && damageAppliedToHealth > HealthEpsilon)
+        {
+            TryApplyAfflictions(state.partId, chunk, penetratedArmor, blockingArmor, damageAppliedToHealth);
+        }
+
+        if (overflowDamage <= HealthEpsilon || state.overflowMultiplier <= HealthEpsilon)
+        {
+            return;
+        }
+
+        float distributedDamage = overflowDamage * state.overflowMultiplier;
+        DistributeOverflowDamage(state, distributedDamage);
+    }
+
+    private void DistributeOverflowDamage(PartState sourceState, float damage)
+    {
+        if (damage <= HealthEpsilon || sourceState == null)
+        {
+            return;
+        }
+
+        var recipientParts = new List<PartState>();
+        var recipientWeights = new List<float>();
+        float totalWeight = 0f;
+
+        if (sourceState.overflowTargets != null && sourceState.overflowTargets.Count > 0)
+        {
+            foreach (OverflowRouteState overflowRoute in sourceState.overflowTargets)
+            {
+                if (overflowRoute == null || overflowRoute.weight <= 0f)
+                {
+                    continue;
+                }
+
+                PartState targetState = GetBodyPartState(overflowRoute.partId);
+                if (!CanReceiveOverflowDamage(targetState, sourceState.partId))
+                {
+                    continue;
+                }
+
+                recipientParts.Add(targetState);
+                recipientWeights.Add(overflowRoute.weight);
+                totalWeight += overflowRoute.weight;
+            }
+        }
+        else
+        {
+            foreach (PartState candidateState in bodyParts)
+            {
+                if (!CanReceiveOverflowDamage(candidateState, sourceState.partId))
+                {
+                    continue;
+                }
+
+                recipientParts.Add(candidateState);
+                recipientWeights.Add(1f);
+                totalWeight += 1f;
+            }
+        }
+
+        if (totalWeight <= HealthEpsilon)
+        {
+            return;
+        }
+
+        for (int index = 0; index < recipientParts.Count; index++)
+        {
+            float sharedDamage = damage * (recipientWeights[index] / totalWeight);
+            pendingDamage.Enqueue(new PendingDamage(recipientParts[index].partId, sharedDamage, DamageOrigin.OverflowShare));
+        }
+    }
+
+    private float ResolveArmorMitigation(PartState targetPart, PendingDamage chunk, out ArmorState blockingArmor, out bool penetratedArmor)
+    {
+        blockingArmor = GetCoveringArmor(targetPart != null ? targetPart.partId : string.Empty);
+        penetratedArmor = true;
+
+        if (targetPart == null || blockingArmor == null || blockingArmor.definition == null)
+        {
+            return chunk.amount;
+        }
+
+        float durabilityRatio = blockingArmor.DurabilityNormalized;
+        float effectiveArmorStrength = blockingArmor.definition.ArmorClass * 10f * Mathf.Lerp(0.45f, 1f, durabilityRatio);
+        float penetrationRatio = chunk.penetrationPower / Mathf.Max(1f, effectiveArmorStrength);
+        float penetrationChance = Mathf.Clamp01(Mathf.InverseLerp(0.58f, 1.12f, penetrationRatio));
+        penetratedArmor = penetrationRatio >= 1f || UnityEngine.Random.value < penetrationChance;
+
+        float durabilityLossMultiplier = penetratedArmor
+            ? blockingArmor.definition.PenetratedDurabilityLossMultiplier
+            : blockingArmor.definition.BlockedDurabilityLossMultiplier;
+        float durabilityLoss = Mathf.Max(chunk.armorDamage, chunk.amount * 0.35f) * durabilityLossMultiplier;
+        blockingArmor.currentDurability = Mathf.Max(0f, blockingArmor.currentDurability - durabilityLoss);
+
+        if (penetratedArmor)
+        {
+            float penetrationDamageFactor = Mathf.Lerp(0.45f, 1f, penetrationChance);
+            return chunk.amount * penetrationDamageFactor;
+        }
+
+        float bluntFactor = Mathf.Lerp(0.35f, 1f, Mathf.Clamp01(penetrationRatio));
+        return chunk.amount * blockingArmor.definition.BluntDamageMultiplier * bluntFactor;
+    }
+
+    private void TryApplyAfflictions(string partId, PendingDamage chunk, bool penetratedArmor, ArmorState blockingArmor, float damageAppliedToHealth)
+    {
+        ResolveStatusEffects(false);
+        if (statusEffects == null)
+        {
+            return;
+        }
+
+        float armorBleedProtection = blockingArmor != null && blockingArmor.definition != null
+            ? blockingArmor.definition.BleedProtection
+            : 0f;
+        float armorFractureProtection = blockingArmor != null && blockingArmor.definition != null
+            ? blockingArmor.definition.FractureProtection
+            : 0f;
+        float mitigationFactor = penetratedArmor ? 0.5f : 1f;
+
+        statusEffects.TryApplyCombatDebuffs(
+            chunk.lightBleedChance * (1f - armorBleedProtection * mitigationFactor),
+            chunk.heavyBleedChance * (1f - armorBleedProtection * mitigationFactor),
+            chunk.fractureChance * (1f - armorFractureProtection * mitigationFactor),
+            damageAppliedToHealth);
+    }
+
+    private bool CanReceiveOverflowDamage(PartState state, string sourcePartId)
+    {
+        if (state == null || PartIdEquals(state.partId, sourcePartId))
+        {
+            return false;
+        }
+
+        if (state.currentHealth > HealthEpsilon)
+        {
+            return state.receivesOverflowDamage;
+        }
+
+        return state.receivesOverflowFollowUpDamage;
+    }
+
+    private bool ShouldTriggerZeroKill(PartState state, DamageOrigin origin)
+    {
+        switch (state.zeroKillMode)
+        {
+            case PrototypeUnitDefinition.ZeroKillMode.OnAnyDamage:
+                return true;
+            case PrototypeUnitDefinition.ZeroKillMode.OnDirectHitOnly:
+                return origin == DamageOrigin.DirectHit;
+            default:
+                return false;
+        }
+    }
+
+    private bool ShouldTriggerBlackedFollowUpDeath(PartState state, float damage, DamageOrigin origin)
+    {
+        return state != null
+            && state.killUnitWhenBlackedAndDamagedAgain
+            && state.currentHealth <= HealthEpsilon
+            && origin != DamageOrigin.StatusEffect
+            && damage > state.blackedFollowUpDamageThreshold;
+    }
+
+    private void KillAllBodyParts()
+    {
+        foreach (PartState state in bodyParts)
+        {
+            state.currentHealth = 0f;
+        }
+
+        pendingDamage.Clear();
+        TryTriggerDeath();
+    }
+
+    private void TryTriggerDeath()
+    {
+        if (IsDead)
+        {
+            return;
+        }
+
+        bool hasVitalParts = false;
+        foreach (PartState state in bodyParts)
+        {
+            if (!state.contributesToUnitHealth)
+            {
+                continue;
+            }
+
+            hasVitalParts = true;
+            if (state.currentHealth > HealthEpsilon)
+            {
+                return;
+            }
+        }
+
+        if (!hasVitalParts)
+        {
+            return;
+        }
+
+        IsDead = true;
+        onDied.Invoke();
+        Died?.Invoke(this);
+    }
+
+    private void FlushPendingDamage()
+    {
+        if (isApplyingDamage)
+        {
+            return;
+        }
+
+        isApplyingDamage = true;
+
+        while (pendingDamage.Count > 0 && !IsDead)
+        {
+            PendingDamage chunk = pendingDamage.Dequeue();
+            ProcessDamageChunk(chunk);
+        }
+
+        pendingDamage.Clear();
+        isApplyingDamage = false;
+        TryTriggerDeath();
+    }
+
+    private PartState GetBodyPartState(string partId)
+    {
+        string normalizedPartId = NormalizePartId(partId);
+        if (string.IsNullOrWhiteSpace(normalizedPartId))
+        {
+            return null;
+        }
+
+        foreach (PartState state in bodyParts)
+        {
+            if (PartIdEquals(state.partId, normalizedPartId))
+            {
+                return state;
+            }
+        }
+
+        return null;
+    }
+
+    private ArmorState GetCoveringArmor(string partId)
+    {
+        string normalizedPartId = NormalizePartId(partId);
+        if (string.IsNullOrWhiteSpace(normalizedPartId))
+        {
+            return null;
+        }
+
+        ArmorState bestArmor = null;
+        foreach (ArmorState armorState in equippedArmor)
+        {
+            if (armorState == null || !armorState.CoversPart(normalizedPartId))
+            {
+                continue;
+            }
+
+            if (bestArmor == null
+                || (armorState.definition != null && bestArmor.definition != null && armorState.definition.ArmorClass > bestArmor.definition.ArmorClass)
+                || (armorState.definition == bestArmor.definition && armorState.currentDurability > bestArmor.currentDurability))
+            {
+                bestArmor = armorState;
+            }
+        }
+
+        return bestArmor;
+    }
+
+    private void EnsureBodyPartSetup(bool resetHealth)
+    {
+        if (bodyParts == null)
+        {
+            bodyParts = new List<PartState>();
+        }
+
+        if (equippedArmor == null)
+        {
+            equippedArmor = new List<ArmorState>();
+        }
+
+        if (unitDefinition != null && unitDefinition.Parts.Count > 0)
+        {
+            SyncFromDefinition(resetHealth);
+        }
+        else if (bodyParts.Count == 0)
+        {
+            BuildFallbackHumanoidParts();
+        }
+
+        SanitizeBodyParts();
+        SanitizeArmor();
+        ResolveStatusEffects(resetHealth);
+
+        if (resetHealth)
+        {
+            ResetPartHealthToFull();
+        }
+        else
+        {
+            IsDead = !HasLivingVitalPart();
+        }
+    }
+
+    private void SyncFromDefinition(bool resetHealth)
+    {
+        var preservedHealthByPartId = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        foreach (PartState existingState in bodyParts)
+        {
+            string normalizedPartId = NormalizePartId(existingState.partId);
+            if (!string.IsNullOrWhiteSpace(normalizedPartId))
+            {
+                preservedHealthByPartId[normalizedPartId] = existingState.currentHealth;
+            }
+        }
+
+        var updatedStates = new List<PartState>();
+        foreach (PrototypeUnitDefinition.PartDefinition partDefinition in unitDefinition.Parts)
+        {
+            if (partDefinition == null || string.IsNullOrWhiteSpace(partDefinition.partId))
+            {
+                continue;
+            }
+
+            float currentHealth = partDefinition.maxHealth;
+            if (!resetHealth && preservedHealthByPartId.TryGetValue(partDefinition.partId, out float preservedHealth))
+            {
+                currentHealth = preservedHealth;
+            }
+
+            var runtimeState = new PartState();
+            runtimeState.ApplyDefinition(partDefinition, currentHealth);
+            updatedStates.Add(runtimeState);
+        }
+
+        bodyParts = updatedStates;
+    }
+
+    private void SyncArmorLoadout(IEnumerable<ArmorDefinition> armorDefinitions, bool resetDurability)
+    {
+        if (equippedArmor == null)
+        {
+            equippedArmor = new List<ArmorState>();
+        }
+
+        var preservedDurability = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        foreach (ArmorState existingArmor in equippedArmor)
+        {
+            if (existingArmor == null || existingArmor.definition == null)
+            {
+                continue;
+            }
+
+            preservedDurability[existingArmor.definition.ItemId] = existingArmor.currentDurability;
+        }
+
+        var updatedArmor = new List<ArmorState>();
+        if (armorDefinitions != null)
+        {
+            foreach (ArmorDefinition armorDefinition in armorDefinitions)
+            {
+                if (armorDefinition == null)
+                {
+                    continue;
+                }
+
+                float currentDurability = armorDefinition.MaxDurability;
+                if (!resetDurability && preservedDurability.TryGetValue(armorDefinition.ItemId, out float preservedValue))
+                {
+                    currentDurability = preservedValue;
+                }
+
+                var armorState = new ArmorState();
+                armorState.ApplyDefinition(armorDefinition, currentDurability);
+                updatedArmor.Add(armorState);
+            }
+        }
+
+        equippedArmor = updatedArmor;
+    }
+
+    private void SyncAfflictionStates(bool resetStatuses)
+    {
+        ResolveStatusEffects(resetStatuses);
+    }
+
+    private void ApplyAfflictionDamage(float deltaTime)
+    {
+        ResolveStatusEffects(false);
+    }
+
+    private bool RemoveBleeds(bool heavy, int count)
+    {
+        if (statusEffects == null || count <= 0)
+        {
+            return false;
+        }
+
+        return heavy ? statusEffects.RemoveHeavyBleeds(count) : statusEffects.RemoveLightBleeds(count);
+    }
+
+    private bool CureFractures(int count)
+    {
+        return statusEffects != null && count > 0 && statusEffects.RemoveFractures(count);
+    }
+
+    private bool RestoreHealth(float amount)
+    {
+        if (amount <= HealthEpsilon || bodyParts == null || bodyParts.Count == 0)
+        {
+            return false;
+        }
+
+        var healableParts = new List<PartState>();
+        foreach (PartState state in bodyParts)
+        {
+            if (state == null
+                || !state.contributesToUnitHealth
+                || state.currentHealth <= HealthEpsilon
+                || state.currentHealth >= state.maxHealth - HealthEpsilon)
+            {
+                continue;
+            }
+
+            healableParts.Add(state);
+        }
+
+        if (healableParts.Count == 0)
+        {
+            return false;
+        }
+
+        healableParts.Sort((left, right) =>
+        {
+            float leftRatio = left.maxHealth > HealthEpsilon ? left.currentHealth / left.maxHealth : 1f;
+            float rightRatio = right.maxHealth > HealthEpsilon ? right.currentHealth / right.maxHealth : 1f;
+            return leftRatio.CompareTo(rightRatio);
+        });
+
+        float remaining = amount;
+        bool healedAny = false;
+        foreach (PartState state in healableParts)
+        {
+            if (remaining <= HealthEpsilon)
+            {
+                break;
+            }
+
+            float missingHealth = state.maxHealth - state.currentHealth;
+            if (missingHealth <= HealthEpsilon)
+            {
+                continue;
+            }
+
+            float restored = Mathf.Min(missingHealth, remaining);
+            state.currentHealth = Mathf.Clamp(state.currentHealth + restored, 0f, state.maxHealth);
+            remaining -= restored;
+            healedAny = true;
+        }
+
+        if (healedAny)
+        {
+            IsDead = false;
+        }
+
+        return healedAny;
+    }
+
+    private bool HasAnyAffliction(Func<PartAfflictionState, bool> predicate)
+    {
+        return false;
+    }
+
+    private bool CanPartFracture(string partId)
+    {
+        return !string.IsNullOrWhiteSpace(NormalizePartId(partId));
+    }
+
+    private void SanitizeArmor()
+    {
+        if (equippedArmor == null)
+        {
+            equippedArmor = new List<ArmorState>();
+            return;
+        }
+
+        var seenArmorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = equippedArmor.Count - 1; index >= 0; index--)
+        {
+            ArmorState armorState = equippedArmor[index];
+            if (armorState == null || armorState.definition == null)
+            {
+                equippedArmor.RemoveAt(index);
+                continue;
+            }
+
+            armorState.Sanitize();
+            string armorId = armorState.definition.ItemId;
+            if (string.IsNullOrWhiteSpace(armorId) || !seenArmorIds.Add(armorId))
+            {
+                equippedArmor.RemoveAt(index);
+            }
+        }
+    }
+
+    private void BuildFallbackHumanoidParts()
+    {
+        bodyParts = new List<PartState>
+        {
+            CreateFallbackPart(
+                FallbackHeadPartId,
+                "Head",
+                35f,
+                1f,
+                true,
+                true,
+                true,
+                PrototypeUnitDefinition.ZeroKillMode.OnDirectHitOnly,
+                true,
+                0f),
+            CreateFallbackPart(
+                FallbackTorsoPartId,
+                "Torso",
+                155f,
+                1.05f,
+                true,
+                true,
+                false,
+                PrototypeUnitDefinition.ZeroKillMode.Never,
+                false,
+                0f),
+            CreateFallbackPart(
+                FallbackLegsPartId,
+                "Legs",
+                130f,
+                0.7f,
+                true,
+                true,
+                false,
+                PrototypeUnitDefinition.ZeroKillMode.Never,
+                false,
+                0f)
+        };
+    }
+
+    private PartState CreateFallbackPart(
+        string partId,
+        string displayName,
+        float maxHealth,
+        float overflowMultiplier,
+        bool contributesToUnitHealth,
+        bool receivesOverflowDamage,
+        bool receivesOverflowFollowUpDamage,
+        PrototypeUnitDefinition.ZeroKillMode zeroKillMode,
+        bool killUnitWhenBlackedAndDamagedAgain,
+        float blackedFollowUpDamageThreshold)
+    {
+        return new PartState
+        {
+            legacyBodyPart = MapLegacyBodyPart(partId),
+            partId = NormalizePartId(partId),
+            displayName = displayName,
+            maxHealth = maxHealth,
+            currentHealth = maxHealth,
+            overflowMultiplier = overflowMultiplier,
+            contributesToUnitHealth = contributesToUnitHealth,
+            receivesOverflowDamage = receivesOverflowDamage,
+            receivesOverflowFollowUpDamage = receivesOverflowFollowUpDamage,
+            zeroKillMode = zeroKillMode,
+            killUnitWhenBlackedAndDamagedAgain = killUnitWhenBlackedAndDamagedAgain,
+            blackedFollowUpDamageThreshold = blackedFollowUpDamageThreshold,
+            overflowTargets = new List<OverflowRouteState>()
+        };
+    }
+
+    private void SanitizeBodyParts()
+    {
+        var seenPartIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = bodyParts.Count - 1; index >= 0; index--)
+        {
+            PartState state = bodyParts[index];
+            if (state == null)
+            {
+                bodyParts.RemoveAt(index);
+                continue;
+            }
+
+            state.Sanitize();
+            if (string.IsNullOrWhiteSpace(state.partId) || !seenPartIds.Add(state.partId))
+            {
+                bodyParts.RemoveAt(index);
+            }
+        }
+    }
+
+    private void ResetPartHealthToFull()
+    {
+        foreach (PartState state in bodyParts)
+        {
+            state.currentHealth = state.maxHealth;
+        }
+
+        if (statusEffects != null)
+        {
+            statusEffects.ResetAllEffects();
+        }
+
+        pendingDamage.Clear();
+        isApplyingDamage = false;
+        IsDead = false;
+    }
+
+    private bool HasLivingVitalPart()
+    {
+        bool hasVitalParts = false;
+        foreach (PartState state in bodyParts)
+        {
+            if (!state.contributesToUnitHealth)
+            {
+                continue;
+            }
+
+            hasVitalParts = true;
+            if (state.currentHealth > HealthEpsilon)
+            {
+                return true;
+            }
+        }
+
+        return !hasVitalParts;
+    }
+
+    private string ResolveHealthBarAnchorPartId()
+    {
+        string preferredPartId = unitDefinition != null
+            ? NormalizePartId(unitDefinition.HealthBarAnchorPartId)
+            : string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(preferredPartId) && GetBodyPartState(preferredPartId) != null)
+        {
+            return preferredPartId;
+        }
+
+        foreach (PartState state in bodyParts)
+        {
+            if (state.contributesToUnitHealth)
+            {
+                return state.partId;
+            }
+        }
+
+        return bodyParts.Count > 0 ? bodyParts[0].partId : string.Empty;
+    }
+
+    private void ResolveStatusEffects(bool resetStatuses)
+    {
+        if (statusEffects == null)
+        {
+            statusEffects = GetComponent<PrototypeStatusEffectController>();
+
+            if (statusEffects == null && Application.isPlaying)
+            {
+                statusEffects = gameObject.AddComponent<PrototypeStatusEffectController>();
+            }
+        }
+
+        if (statusEffects == null)
+        {
+            return;
+        }
+
+        statusEffects.Bind(this);
+        if (resetStatuses)
+        {
+            statusEffects.ResetAllEffects();
+        }
+    }
+
+    private static string NormalizePartId(string partId)
+    {
+        return PrototypeUnitDefinition.NormalizePartId(partId);
+    }
+
+    private static bool PartIdEquals(string left, string right)
+    {
+        return string.Equals(NormalizePartId(left), NormalizePartId(right), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string MapLegacyPartId(PrototypeBodyPartType bodyPart)
+    {
+        switch (bodyPart)
+        {
+            case PrototypeBodyPartType.Head:
+                return FallbackHeadPartId;
+            case PrototypeBodyPartType.Torso:
+                return FallbackTorsoPartId;
+            case PrototypeBodyPartType.Legs:
+                return FallbackLegsPartId;
+            default:
+                return string.Empty;
+        }
+    }
+
+    private static PrototypeBodyPartType MapLegacyBodyPart(string partId)
+    {
+        switch (NormalizePartId(partId))
+        {
+            case FallbackHeadPartId:
+                return PrototypeBodyPartType.Head;
+            case FallbackTorsoPartId:
+                return PrototypeBodyPartType.Torso;
+            case FallbackLegsPartId:
+                return PrototypeBodyPartType.Legs;
+            default:
+                return PrototypeBodyPartType.Torso;
+        }
+    }
+}

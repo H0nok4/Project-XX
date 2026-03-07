@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: Weapon_Sidearm
+  m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
+  weaponId: sidearm_9mm
+  displayName: VX-9 Sidearm
+  description: A reliable semi-auto backup pistol.
+  meleeWeapon: 0
+  ammoDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
+  magazineSize: 15
+  reloadDuration: 1.45
+  roundsPerMinute: 360
+  fireModes: 00000000
+  burstCount: 1
+  effectiveRange: 48
+  spreadAngle: 0.08
+  addedImpactForce: 1
+  lightBleedChance: 0.16
+  heavyBleedChance: 0.04
+  fractureChance: 0.08
+  penetrationPower: 12
+  meleeDamage: 55
+  meleeRange: 2.2
+  meleeRadius: 0.45
+  meleeCooldown: 0.55
