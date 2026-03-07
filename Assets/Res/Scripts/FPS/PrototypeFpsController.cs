@@ -5,6 +5,8 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController), typeof(PrototypeFpsInput))]
 public class PrototypeFpsController : MonoBehaviour
 {
+    private const float StaminaEpsilon = 0.001f;
+
     private enum WeaponSlot
     {
         Primary = 0,
@@ -37,7 +39,10 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private Transform meleeViewModel;
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 5.5f;
+    [SerializeField] private float moveSpeed = 4.4f;
+    [SerializeField] private float sprintSpeedMultiplier = 1.65f;
+    [SerializeField] private float sprintStaminaPerSecond = 21f;
+    [SerializeField] private float jumpStaminaCost = 15f;
     [SerializeField] private float jumpHeight = 1.25f;
     [SerializeField] private float gravity = -20f;
     [SerializeField] private float groundAcceleration = 52f;
@@ -51,7 +56,7 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private float jumpBufferTime = 0.12f;
     [SerializeField] private float coyoteTime = 0.08f;
     [SerializeField] private float groundedSnapForce = 2f;
-    [SerializeField] private float walkSpeedMultiplier = 0.48f;
+    [SerializeField, HideInInspector] private float walkSpeedMultiplier = 0.48f;
     [SerializeField] private float crouchSpeedMultiplier = 0.58f;
     [SerializeField] private float crouchHeight = 1.1f;
     [SerializeField] private float crouchCameraDrop = 0.32f;
@@ -70,12 +75,23 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private float baseDamage = 42f;
     [SerializeField] private float shootForce = 18f;
     [SerializeField] private float meleeImpactForce = 9f;
+    [SerializeField] private float meleeStaminaCost = 22f;
     [SerializeField] private float impactMarkerLifetime = 0.2f;
     [SerializeField] private LayerMask shootMask = Physics.DefaultRaycastLayers;
 
     [Header("Medical")]
     [SerializeField] private float medicalUseCooldown = 0.28f;
     [SerializeField] private float medicalFeedbackLifetime = 1.4f;
+
+    [Header("AI Awareness")]
+    [SerializeField] private float firearmNoiseRadius = 26f;
+    [SerializeField] private float meleeNoiseRadius = 8f;
+    [SerializeField] private float walkNoiseRadius = 4.8f;
+    [SerializeField] private float sprintNoiseRadius = 11.5f;
+    [SerializeField] private float jumpNoiseRadius = 7.5f;
+    [SerializeField] private float landingNoiseRadius = 12f;
+    [SerializeField] private float movementNoiseInterval = 0.42f;
+    [SerializeField, Range(0.1f, 1f)] private float crouchNoiseMultiplier = 0.45f;
 
     private CharacterController characterController;
     private PrototypeFpsInput fpsInput;
@@ -97,13 +113,16 @@ public class PrototypeFpsController : MonoBehaviour
     private float standingCameraLocalY;
     private float standingStepOffset;
     private bool isCrouching;
+    private bool isSprinting;
     private bool wasGroundedLastFrame;
     private bool pendingLandingSpeedLoss;
     private float nextMedicalUseTime;
     private float medicalFeedbackTimer;
+    private float nextMovementNoiseTime;
     private string medicalFeedbackMessage = string.Empty;
     private GUIStyle hudStyle;
     private GUIStyle centerStyle;
+    private GUIStyle barLabelStyle;
 
     private void Awake()
     {
@@ -170,6 +189,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (interactionState != null && interactionState.IsUiFocused)
         {
+            isSprinting = false;
             if (Cursor.lockState != CursorLockMode.None)
             {
                 LockCursor(false);
@@ -243,6 +263,14 @@ public class PrototypeFpsController : MonoBehaviour
         UpdateJumpTimers(grounded, deltaTime);
 
         Vector2 moveInput = Vector2.ClampMagnitude(fpsInput.Move, 1f);
+        bool wasSprinting = isSprinting;
+        isSprinting = CanSprint(moveInput, grounded, wasSprinting);
+        if (isSprinting && playerVitals != null && sprintStaminaPerSecond > 0f)
+        {
+            float drained = playerVitals.DrainStamina(sprintStaminaPerSecond * deltaTime);
+            isSprinting = drained > StaminaEpsilon;
+        }
+
         Vector3 wishDirection = GetWishDirection(moveInput, grounded);
         bool jumpedThisFrame = TryConsumeJump(ref grounded);
         bool appliedLandingSpeedLoss = false;
@@ -293,13 +321,27 @@ public class PrototypeFpsController : MonoBehaviour
             verticalVelocity = -groundedSnapForce;
         }
 
-        if (!wasGroundedLastFrame && groundedAfterMove)
+        bool landedThisFrame = !wasGroundedLastFrame && groundedAfterMove;
+        if (landedThisFrame)
         {
             pendingLandingSpeedLoss = true;
+            float landingRadius = landingNoiseRadius + Mathf.Min(planarVelocity.magnitude * 0.45f, 4f);
+            if (isCrouching)
+            {
+                landingRadius *= crouchNoiseMultiplier;
+            }
+
+            ReportCombatNoise(landingRadius);
+            nextMovementNoiseTime = Time.time + movementNoiseInterval * 0.75f;
         }
         else if (!groundedAfterMove)
         {
             pendingLandingSpeedLoss = false;
+        }
+
+        if (groundedAfterMove && !landedThisFrame)
+        {
+            ReportMovementNoise();
         }
 
         wasGroundedLastFrame = groundedAfterMove;
@@ -331,9 +373,9 @@ public class PrototypeFpsController : MonoBehaviour
     {
         float targetSpeed = moveSpeed;
 
-        if (fpsInput.WalkHeld)
+        if (isSprinting)
         {
-            targetSpeed = Mathf.Min(targetSpeed, moveSpeed * walkSpeedMultiplier);
+            targetSpeed = Mathf.Max(targetSpeed, moveSpeed * sprintSpeedMultiplier);
         }
 
         if (isCrouching)
@@ -402,12 +444,17 @@ public class PrototypeFpsController : MonoBehaviour
         if (playerVitals != null)
         {
             effectiveJumpHeight *= playerVitals.JumpPenaltyMultiplier;
+            if (jumpStaminaCost > 0f && (!playerVitals.CanStartStaminaAction(jumpStaminaCost) || !playerVitals.TryConsumeStamina(jumpStaminaCost)))
+            {
+                return false;
+            }
         }
 
         verticalVelocity = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
         jumpBufferTimer = 0f;
         groundedTimer = 0f;
         grounded = false;
+        ReportCombatNoise(isCrouching ? jumpNoiseRadius * crouchNoiseMultiplier : jumpNoiseRadius);
         return true;
     }
 
@@ -483,6 +530,26 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         return Mathf.Clamp01((absYawDelta - airStrafeMouseThreshold) / airStrafeBuildRange);
+    }
+
+    private bool CanSprint(Vector2 moveInput, bool grounded, bool wasSprinting)
+    {
+        if (!grounded || isCrouching || fpsInput == null || !fpsInput.SprintHeld || moveInput.sqrMagnitude <= 0.01f)
+        {
+            return false;
+        }
+
+        if (playerVitals == null)
+        {
+            return true;
+        }
+
+        if (playerVitals.CurrentStamina <= StaminaEpsilon)
+        {
+            return false;
+        }
+
+        return wasSprinting || playerVitals.CanStartStaminaAction();
     }
 
     private void HandleWeaponInput()
@@ -809,6 +876,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         runtime.MagazineAmmo--;
         runtime.NextAttackTime = Time.time + runtime.Definition.SecondsPerShot;
+        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
 
         AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
         float shotDamage = ammo != null ? ammo.DirectDamage : baseDamage;
@@ -832,7 +900,14 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
+        if (playerVitals != null && meleeStaminaCost > 0f && (!playerVitals.CanStartStaminaAction(meleeStaminaCost) || !playerVitals.TryConsumeStamina(meleeStaminaCost)))
+        {
+            return;
+        }
+
         runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown;
+        float meleeRadius = Mathf.Max(meleeNoiseRadius, runtime.Definition.MeleeRange * 3.8f);
+        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, meleeRadius);
 
         if (TryGetMeleeHit(runtime.Definition.MeleeRange, runtime.Definition.MeleeRadius, out RaycastHit hit))
         {
@@ -1199,6 +1274,48 @@ public class PrototypeFpsController : MonoBehaviour
         Destroy(marker, impactMarkerLifetime);
     }
 
+    private void ReportMovementNoise()
+    {
+        if (Time.time < nextMovementNoiseTime)
+        {
+            return;
+        }
+
+        float movementSpeed = planarVelocity.magnitude;
+        if (movementSpeed <= 0.65f)
+        {
+            return;
+        }
+
+        float targetTopSpeed = Mathf.Max(moveSpeed * sprintSpeedMultiplier, moveSpeed);
+        float speedFactor = Mathf.InverseLerp(0.65f, targetTopSpeed, movementSpeed);
+        float noiseRadius = isSprinting
+            ? sprintNoiseRadius
+            : Mathf.Lerp(walkNoiseRadius * 0.72f, walkNoiseRadius, speedFactor);
+        if (isCrouching)
+        {
+            noiseRadius *= crouchNoiseMultiplier;
+        }
+
+        ReportCombatNoise(noiseRadius);
+        nextMovementNoiseTime = Time.time + movementNoiseInterval * (isSprinting ? 0.72f : 1f);
+    }
+
+    private void ReportCombatNoise(float radius)
+    {
+        ReportCombatNoise(transform.position + Vector3.up * 0.9f, radius);
+    }
+
+    private void ReportCombatNoise(Vector3 position, float radius)
+    {
+        if (radius <= 0f)
+        {
+            return;
+        }
+
+        PrototypeCombatNoiseSystem.ReportNoise(position, radius, gameObject);
+    }
+
     private void LockCursor(bool shouldLock)
     {
         Cursor.lockState = shouldLock ? CursorLockMode.Locked : CursorLockMode.None;
@@ -1217,7 +1334,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         GUI.Label(
             new Rect(18f, 100f, 380f, 280f),
-            "Move\nLook\nAttack\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nWalk\nCrouch\nToggle Cursor",
+            "Move\nLook\nAttack\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint\nCrouch\nToggle Cursor",
             hudStyle);
 
         if (activeWeapon == null || !activeWeapon.IsConfigured)
@@ -1243,7 +1360,8 @@ public class PrototypeFpsController : MonoBehaviour
             stateLine = $"{activeWeapon.CurrentFireMode}  {activeWeapon.MagazineAmmo}/{activeWeapon.Definition.MagazineSize}  Reserve {GetReserveAmmoCount(activeWeapon)}";
         }
 
-        GUI.Box(new Rect(Screen.width - 370f, 18f, 340f, 150f), $"{weaponLine}\n{stateLine}\n{BuildCombatStatusText()}", hudStyle);
+        DrawStaminaBar(new Rect(18f, 394f, 280f, 24f));
+        GUI.Box(new Rect(Screen.width - 370f, 18f, 340f, 172f), $"{weaponLine}\n{stateLine}\n{BuildCombatStatusText()}", hudStyle);
     }
 
     private string BuildCombatStatusText()
@@ -1258,6 +1376,16 @@ public class PrototypeFpsController : MonoBehaviour
         builder.Append(Mathf.RoundToInt(playerVitals.TotalCurrentHealth));
         builder.Append('/');
         builder.Append(Mathf.RoundToInt(playerVitals.TotalMaxHealth));
+        builder.Append("\nSTA ");
+        builder.Append(Mathf.RoundToInt(playerVitals.CurrentStamina));
+        builder.Append('/');
+        builder.Append(Mathf.RoundToInt(playerVitals.MaxStamina));
+        if (playerVitals.StaminaRecoveryBlockedRemaining > 0f)
+        {
+            builder.Append(playerVitals.IsExhausted ? "  Exhausted " : "  Recover ");
+            builder.Append(playerVitals.StaminaRecoveryBlockedRemaining.ToString("0.0"));
+            builder.Append('s');
+        }
 
         float headArmor = playerVitals.GetArmorDurabilityNormalized("head");
         float torsoArmor = playerVitals.GetArmorDurabilityNormalized("torso");
@@ -1307,6 +1435,38 @@ public class PrototypeFpsController : MonoBehaviour
         return builder.ToString();
     }
 
+    private void DrawStaminaBar(Rect rect)
+    {
+        if (playerVitals == null)
+        {
+            return;
+        }
+
+        GUI.Box(rect, GUIContent.none);
+
+        float normalized = playerVitals.StaminaNormalized;
+        Rect fillRect = new Rect(rect.x + 3f, rect.y + 3f, Mathf.Max(0f, (rect.width - 6f) * normalized), rect.height - 6f);
+        bool recoveryBlocked = playerVitals.IsStaminaRecoveryBlocked;
+        bool lowStamina = playerVitals.IsBelowStaminaActionThreshold;
+        Color fillColor = lowStamina
+            ? new Color(0.8f, 0.2f, 0.18f, 0.95f)
+            : recoveryBlocked
+                ? (playerVitals.IsExhausted ? new Color(0.78f, 0.28f, 0.2f, 0.95f) : new Color(0.88f, 0.58f, 0.14f, 0.95f))
+            : Color.Lerp(new Color(0.94f, 0.68f, 0.16f, 0.95f), new Color(0.27f, 0.82f, 0.38f, 0.95f), normalized);
+
+        Color previousColor = GUI.color;
+        GUI.color = fillColor;
+        GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
+        GUI.color = previousColor;
+
+        string label = recoveryBlocked
+            ? playerVitals.IsExhausted
+                ? $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  Exhausted {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
+                : $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  Recover {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
+            : $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
+        GUI.Label(rect, label, barLabelStyle);
+    }
+
     private void EnsureHudStyles()
     {
         if (hudStyle == null)
@@ -1325,6 +1485,16 @@ public class PrototypeFpsController : MonoBehaviour
             centerStyle = new GUIStyle(GUI.skin.label)
             {
                 fontSize = 26,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = Color.white }
+            };
+        }
+
+        if (barLabelStyle == null)
+        {
+            barLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
                 alignment = TextAnchor.MiddleCenter,
                 normal = { textColor = Color.white }
             };
@@ -1393,6 +1563,9 @@ public class PrototypeFpsController : MonoBehaviour
     private void EnsureMovementSettings()
     {
         moveSpeed = Mathf.Max(moveSpeed, 0.1f);
+        sprintSpeedMultiplier = Mathf.Max(1f, sprintSpeedMultiplier);
+        sprintStaminaPerSecond = Mathf.Max(0f, sprintStaminaPerSecond);
+        jumpStaminaCost = Mathf.Max(0f, jumpStaminaCost);
         jumpHeight = Mathf.Max(jumpHeight, 0.1f);
         gravity = gravity < -0.1f ? gravity : -20f;
         groundAcceleration = groundAcceleration > 0f ? groundAcceleration : 52f;
@@ -1420,9 +1593,18 @@ public class PrototypeFpsController : MonoBehaviour
         baseDamage = Mathf.Max(baseDamage, 1f);
         shootForce = Mathf.Max(shootForce, 0f);
         meleeImpactForce = Mathf.Max(meleeImpactForce, 0f);
+        meleeStaminaCost = Mathf.Max(0f, meleeStaminaCost);
         impactMarkerLifetime = Mathf.Max(impactMarkerLifetime, 0.05f);
         medicalUseCooldown = Mathf.Max(0.05f, medicalUseCooldown);
         medicalFeedbackLifetime = Mathf.Max(0.25f, medicalFeedbackLifetime);
+        firearmNoiseRadius = Mathf.Max(0f, firearmNoiseRadius);
+        meleeNoiseRadius = Mathf.Max(0f, meleeNoiseRadius);
+        walkNoiseRadius = Mathf.Max(0f, walkNoiseRadius);
+        sprintNoiseRadius = Mathf.Max(walkNoiseRadius, sprintNoiseRadius);
+        jumpNoiseRadius = Mathf.Max(0f, jumpNoiseRadius);
+        landingNoiseRadius = Mathf.Max(0f, landingNoiseRadius);
+        movementNoiseInterval = Mathf.Max(0.05f, movementNoiseInterval);
+        crouchNoiseMultiplier = Mathf.Clamp(crouchNoiseMultiplier, 0.1f, 1f);
 
         if (shootMask.value == 0 || shootMask.value == ~0)
         {

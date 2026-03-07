@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: e8c1ed751ad4eae4eb5a554fa1d63c94, type: 3}
   m_Name: Item_PistolAmmo
   m_EditorClassIdentifier: Assembly-CSharp::AmmoDefinition
   itemId: pistol_ammo

@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e42de7f9440456419a024aca4aaea79, type: 3}
+  m_Name: Unit_Player
+  m_EditorClassIdentifier: 
+  parts:
+  - partId: head
+    displayName: Head
+    maxHealth: 10000
+    overflowMultiplier: 1
+    contributesToUnitHealth: 1
+    receivesOverflowDamage: 1
+    receivesOverflowFollowUpDamage: 1
+    zeroKillMode: 2
+    killUnitWhenBlackedAndDamagedAgain: 1
+    blackedFollowUpDamageThreshold: 0
+    overflowTargets: []
+  - partId: torso
+    displayName: Torso
+    maxHealth: 10000
+    overflowMultiplier: 1.05
+    contributesToUnitHealth: 1
+    receivesOverflowDamage: 1
+    receivesOverflowFollowUpDamage: 0
+    zeroKillMode: 0
+    killUnitWhenBlackedAndDamagedAgain: 0
+    blackedFollowUpDamageThreshold: 0
+    overflowTargets: []
+  - partId: legs
+    displayName: Legs
+    maxHealth: 10000
+    overflowMultiplier: 0.7
+    contributesToUnitHealth: 1
+    receivesOverflowDamage: 1
+    receivesOverflowFollowUpDamage: 0
+    zeroKillMode: 0
+    killUnitWhenBlackedAndDamagedAgain: 0
+    blackedFollowUpDamageThreshold: 0
+    overflowTargets: []
+  healthBarAnchorPartId: head

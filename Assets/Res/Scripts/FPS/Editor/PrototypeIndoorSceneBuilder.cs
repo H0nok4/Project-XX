@@ -157,11 +157,20 @@ public static class PrototypeIndoorSceneBuilder
         CreateBox("Pillar_Left", root.transform, new Vector3(-6.1f, 1.5f, 5.8f), new Vector3(0.9f, 3f, 0.9f), wallMat);
         CreateBox("Pillar_Right", root.transform, new Vector3(6.2f, 1.5f, -5.5f), new Vector3(0.9f, 3f, 0.9f), wallMat);
         CreateBox("Bench", root.transform, new Vector3(0f, 0.45f, -6.5f), new Vector3(4f, 0.9f, 0.9f), accentMat);
-
-        CreateTarget(root.transform, new Vector3(0f, 1.1f, 7f), targetMat, humanoidDefinition);
-        CreateTarget(root.transform, new Vector3(5.2f, 1.1f, 6.2f), targetMat, humanoidDefinition, helmetArmor);
-        CreateTarget(root.transform, new Vector3(-5.4f, 1.1f, 4.5f), targetMat, humanoidDefinition, vestArmor);
-        CreateTarget(root.transform, new Vector3(2.8f, 1.1f, -6.2f), targetMat, humanoidDefinition, helmetArmor, vestArmor);
+        CreateCoverPoint(root.transform, "CoverPoint_Center_SouthLeft", new Vector3(-0.88f, 0f, 2.96f), Vector3.back);
+        CreateCoverPoint(root.transform, "CoverPoint_Center_SouthRight", new Vector3(0.88f, 0f, 2.96f), Vector3.back);
+        CreateCoverPoint(root.transform, "CoverPoint_Center_NorthLeft", new Vector3(-0.88f, 0f, 4.04f), Vector3.forward);
+        CreateCoverPoint(root.transform, "CoverPoint_Center_NorthRight", new Vector3(0.88f, 0f, 4.04f), Vector3.forward);
+        CreateCoverPoint(root.transform, "CoverPoint_LeftCrate_East", new Vector3(-4.28f, 0f, -1.5f), Vector3.right);
+        CreateCoverPoint(root.transform, "CoverPoint_LeftCrate_West", new Vector3(-6.12f, 0f, -1.5f), Vector3.left);
+        CreateCoverPoint(root.transform, "CoverPoint_LeftCrate_South", new Vector3(-5.2f, 0f, -2.42f), Vector3.back);
+        CreateCoverPoint(root.transform, "CoverPoint_RightCrate_West", new Vector3(3.92f, 0f, 2.4f), Vector3.left);
+        CreateCoverPoint(root.transform, "CoverPoint_RightCrate_East", new Vector3(6.28f, 0f, 2.4f), Vector3.right);
+        CreateCoverPoint(root.transform, "CoverPoint_RightCrate_North", new Vector3(5.1f, 0f, 3.18f), Vector3.forward);
+        CreateCoverPoint(root.transform, "CoverPoint_PillarLeft_South", new Vector3(-6.1f, 0f, 4.98f), Vector3.back);
+        CreateCoverPoint(root.transform, "CoverPoint_PillarLeft_East", new Vector3(-5.28f, 0f, 5.8f), Vector3.right);
+        CreateCoverPoint(root.transform, "CoverPoint_PillarRight_North", new Vector3(6.2f, 0f, -4.68f), Vector3.forward);
+        CreateCoverPoint(root.transform, "CoverPoint_PillarRight_West", new Vector3(5.38f, 0f, -5.5f), Vector3.left);
 
         CreatePointLight(root.transform, new Vector3(-4.8f, 3.2f, -4.8f), new Color(1f, 0.87f, 0.72f), 4.5f, 14f);
         CreatePointLight(root.transform, new Vector3(0f, 3.3f, 0.5f), new Color(0.95f, 0.96f, 1f), 4.2f, 15f);
@@ -202,6 +211,7 @@ public static class PrototypeIndoorSceneBuilder
         playerVitals.SetUnitDefinition(humanoidDefinition);
         PrototypeStatusEffectController playerStatusEffects = GetOrAddComponent<PrototypeStatusEffectController>(player);
         playerStatusEffects.Bind(playerVitals);
+        GetOrAddComponent<PrototypeCombatTextController>(player);
         playerVitals.SetArmorLoadout(helmetArmor, vestArmor);
         CreatePlayerHitboxes(player.transform, playerVitals);
 
@@ -226,6 +236,72 @@ public static class PrototypeIndoorSceneBuilder
         interactor.Configure(camera, inventory);
         GetOrAddComponent<LootContainerWindowController>(player);
         GetOrAddComponent<PlayerInventoryWindowController>(player);
+
+        CreateTarget(root.transform, new Vector3(0f, 1.1f, 7f), targetMat, humanoidDefinition);
+        CreateBot(
+            root.transform,
+            "Zombie_Regular",
+            PrototypeEnemyArchetype.RegularZombie,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            new Vector3(1.6f, 1.1f, 6.4f),
+            targetMat,
+            humanoidDefinition,
+            player.transform,
+            knifeWeapon,
+            new[]
+            {
+                new Vector3(1.6f, 1.1f, 6.4f),
+                new Vector3(-0.2f, 1.1f, 5.4f),
+                new Vector3(2.6f, 1.1f, 4.8f)
+            });
+        CreateBot(
+            root.transform,
+            "Zombie_Police",
+            PrototypeEnemyArchetype.PoliceZombie,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            new Vector3(5.8f, 1.1f, 5f),
+            wallMat,
+            humanoidDefinition,
+            player.transform,
+            sidearmWeapon,
+            new[]
+            {
+                new Vector3(5.8f, 1.1f, 5f),
+                new Vector3(6.4f, 1.1f, 1.6f),
+                new Vector3(3.7f, 1.1f, 3.4f)
+            });
+        CreateBot(
+            root.transform,
+            "Zombie_Soldier",
+            PrototypeEnemyArchetype.SoldierZombie,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            new Vector3(-5.4f, 1.1f, 5.3f),
+            propMat,
+            humanoidDefinition,
+            player.transform,
+            carbineWeapon,
+            new[]
+            {
+                new Vector3(-5.4f, 1.1f, 5.3f),
+                new Vector3(-6.2f, 1.1f, 2.2f),
+                new Vector3(-3.5f, 1.1f, 3.8f)
+            });
+        CreateBot(
+            root.transform,
+            "Zombie_Dog",
+            PrototypeEnemyArchetype.ZombieDog,
+            new Vector3(0.68f, 0.72f, 1.05f),
+            new Vector3(-3.1f, 0.76f, -4.8f),
+            accentMat,
+            humanoidDefinition,
+            player.transform,
+            knifeWeapon,
+            new[]
+            {
+                new Vector3(-3.1f, 0.76f, -4.8f),
+                new Vector3(-0.8f, 0.76f, -5.8f),
+                new Vector3(-4.8f, 0.76f, -2.7f)
+            });
 
         GameObject raidSystems = new GameObject("RaidSystems");
         raidSystems.transform.SetParent(root.transform, false);
@@ -590,6 +666,19 @@ public static class PrototypeIndoorSceneBuilder
         return box;
     }
 
+    private static void CreateCoverPoint(Transform parent, string name, Vector3 localPosition, Vector3 exposedDirection)
+    {
+        GameObject coverPoint = new GameObject(name);
+        coverPoint.transform.SetParent(parent, false);
+        coverPoint.transform.localPosition = localPosition;
+
+        Vector3 flatDirection = Vector3.ProjectOnPlane(exposedDirection, Vector3.up).normalized;
+        if (flatDirection.sqrMagnitude > 0.001f)
+        {
+            coverPoint.transform.localRotation = Quaternion.LookRotation(flatDirection, Vector3.up);
+        }
+    }
+
     private static void CreateWeaponPiece(string name, Transform parent, Vector3 localPosition, Vector3 localScale, Material material)
     {
         GameObject piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -663,12 +752,58 @@ public static class PrototypeIndoorSceneBuilder
         vitals.SetUnitDefinition(unitDefinition);
         PrototypeStatusEffectController statusEffects = GetOrAddComponent<PrototypeStatusEffectController>(target);
         statusEffects.Bind(vitals);
+        GetOrAddComponent<PrototypeCombatTextController>(target);
         vitals.SetArmorLoadout(armorLoadout);
         vitals.SetAllowImpactForceWhenAlive(false);
         CreateTargetHitboxes(target.transform, vitals);
 
         PrototypeTargetHealthBar targetHealthBar = target.AddComponent<PrototypeTargetHealthBar>();
         targetHealthBar.Configure(vitals, null, unitDefinition != null ? unitDefinition.HealthBarAnchorPartId : HeadPartId);
+    }
+
+    private static void CreateBot(
+        Transform parent,
+        string botName,
+        PrototypeEnemyArchetype archetype,
+        Vector3 localScale,
+        Vector3 localPosition,
+        Material material,
+        PrototypeUnitDefinition unitDefinition,
+        Transform combatTarget,
+        PrototypeWeaponDefinition weaponDefinition,
+        Vector3[] patrolPoints,
+        params ArmorDefinition[] armorLoadout)
+    {
+        GameObject bot = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        bot.name = botName;
+        bot.transform.SetParent(parent, false);
+        bot.transform.localPosition = localPosition;
+        bot.transform.localScale = localScale;
+        bot.layer = IgnoreRaycastLayer;
+        bot.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        Rigidbody rigidbody = bot.AddComponent<Rigidbody>();
+        rigidbody.mass = 1.6f;
+        rigidbody.angularDamping = 1.8f;
+        rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        PrototypeUnitVitals vitals = bot.AddComponent<PrototypeUnitVitals>();
+        vitals.SetUnitDefinition(unitDefinition);
+        PrototypeStatusEffectController statusEffects = GetOrAddComponent<PrototypeStatusEffectController>(bot);
+        statusEffects.Bind(vitals);
+        GetOrAddComponent<PrototypeCombatTextController>(bot);
+        vitals.SetArmorLoadout(armorLoadout);
+        vitals.SetAllowImpactForceWhenAlive(false);
+        CreateTargetHitboxes(bot.transform, vitals);
+
+        PrototypeTargetHealthBar targetHealthBar = bot.AddComponent<PrototypeTargetHealthBar>();
+        targetHealthBar.Configure(vitals, null, unitDefinition != null ? unitDefinition.HealthBarAnchorPartId : HeadPartId);
+
+        PrototypeBotController botController = bot.AddComponent<PrototypeBotController>();
+        botController.Configure(combatTarget, archetype, weaponDefinition, patrolPoints);
+        SetSerializedReference(botController, "combatTarget", combatTarget);
+        SetSerializedReference(botController, "primaryWeapon", weaponDefinition);
+        SetSerializedInt(botController, "archetype", (int)archetype);
     }
 
     private static void CreateRaidPickup(
@@ -804,6 +939,14 @@ public static class PrototypeIndoorSceneBuilder
         SerializedObject serializedObject = new SerializedObject(target);
         SerializedProperty property = serializedObject.FindProperty(propertyName);
         property.objectReferenceValue = reference;
+        serializedObject.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetSerializedInt(Object target, string propertyName, int value)
+    {
+        SerializedObject serializedObject = new SerializedObject(target);
+        SerializedProperty property = serializedObject.FindProperty(propertyName);
+        property.intValue = value;
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 

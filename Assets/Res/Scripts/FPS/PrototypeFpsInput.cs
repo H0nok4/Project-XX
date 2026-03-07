@@ -78,7 +78,8 @@ public class PrototypeFpsInput : MonoBehaviour
     public bool PainkillerPressedThisFrame => painkillerAction?.WasPressedThisFrame() ?? false;
     public bool JumpPressedThisFrame => jumpAction?.WasPressedThisFrame() ?? false;
     public bool CrouchHeld => crouchAction?.IsPressed() ?? false;
-    public bool WalkHeld => walkAction?.IsPressed() ?? false;
+    public bool SprintHeld => walkAction?.IsPressed() ?? false;
+    public bool WalkHeld => SprintHeld;
     public bool ToggleCursorPressedThisFrame => toggleCursorAction?.WasPressedThisFrame() ?? false;
 
     private void Awake()

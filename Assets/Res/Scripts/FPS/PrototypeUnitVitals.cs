@@ -46,6 +46,57 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
     }
 
+    public enum CombatFeedbackKind
+    {
+        ArmorDamage = 0,
+        HealthDamage = 1,
+        ArmorBroken = 2
+    }
+
+    [Serializable]
+    public struct CombatFeedback
+    {
+        public CombatFeedbackKind kind;
+        public string partId;
+        public float amount;
+        public string text;
+
+        public static CombatFeedback CreateArmorDamage(string targetPartId, float durabilityDamage)
+        {
+            float clampedAmount = Mathf.Max(0f, durabilityDamage);
+            return new CombatFeedback
+            {
+                kind = CombatFeedbackKind.ArmorDamage,
+                partId = NormalizePartId(targetPartId),
+                amount = clampedAmount,
+                text = $"-{Mathf.RoundToInt(clampedAmount)}"
+            };
+        }
+
+        public static CombatFeedback CreateHealthDamage(string targetPartId, float healthDamage)
+        {
+            float clampedAmount = Mathf.Max(0f, healthDamage);
+            return new CombatFeedback
+            {
+                kind = CombatFeedbackKind.HealthDamage,
+                partId = NormalizePartId(targetPartId),
+                amount = clampedAmount,
+                text = $"-{Mathf.RoundToInt(clampedAmount)}"
+            };
+        }
+
+        public static CombatFeedback CreateArmorBroken(string targetPartId)
+        {
+            return new CombatFeedback
+            {
+                kind = CombatFeedbackKind.ArmorBroken,
+                partId = NormalizePartId(targetPartId),
+                amount = 0f,
+                text = "-护甲损坏"
+            };
+        }
+    }
+
     [Serializable]
     public class ArmorState
     {
@@ -248,18 +299,37 @@ public class PrototypeUnitVitals : MonoBehaviour
     [Header("Tarkov-Inspired Health")]
     [SerializeField] private PrototypeUnitDefinition unitDefinition;
     [SerializeField] private List<PartState> bodyParts = new List<PartState>();
-    [SerializeField] private List<ArmorState> equippedArmor = new List<ArmorState>();
+    [Header("Armor Setup")]
+    [SerializeField] private List<ArmorDefinition> armorLoadout = new List<ArmorDefinition>();
+    [Header("Stamina")]
+    [Min(1f)]
+    [SerializeField] private float maxStamina = 100f;
+    [Min(0f)]
+    [SerializeField] private float currentStamina = 100f;
+    [Min(0f)]
+    [SerializeField] private float staminaRecoveryPerSecond = 24f;
+    [Range(0f, 1f)]
+    [SerializeField] private float staminaActionThresholdNormalized = 0.05f;
+    [Min(0f)]
+    [SerializeField] private float staminaRecoveryDelay = 0.45f;
+    [Min(0f)]
+    [SerializeField] private float exhaustionRecoveryDelay = 1.4f;
+    [Header("Runtime State")]
+    [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
     [SerializeField] private bool allowImpactForceWhenAlive = true;
     [SerializeField] private UnityEvent onDied = new UnityEvent();
 
     private readonly Queue<PendingDamage> pendingDamage = new Queue<PendingDamage>();
     private bool isApplyingDamage;
+    private float staminaRecoveryBlockedTimer;
 
     public event Action<PrototypeUnitVitals> Died;
+    public event Action<CombatFeedback> CombatFeedbackGenerated;
 
     public PrototypeUnitDefinition UnitDefinition => unitDefinition;
     public IReadOnlyList<PartState> BodyParts => bodyParts;
+    public IReadOnlyList<ArmorDefinition> ArmorLoadout => armorLoadout;
     public IReadOnlyList<ArmorState> EquippedArmor => equippedArmor;
     public PrototypeStatusEffectController StatusEffects => statusEffects;
     public bool IsDead { get; private set; }
@@ -273,6 +343,14 @@ public class PrototypeUnitVitals : MonoBehaviour
     public float PainkillerRemaining => statusEffects != null ? statusEffects.PainkillerRemaining : 0f;
     public float MovementPenaltyMultiplier => statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f;
     public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
+    public float MaxStamina => Mathf.Max(1f, maxStamina);
+    public float CurrentStamina => Mathf.Clamp(currentStamina, 0f, MaxStamina);
+    public float StaminaNormalized => MaxStamina > HealthEpsilon ? Mathf.Clamp01(CurrentStamina / MaxStamina) : 0f;
+    public float StaminaActionThresholdNormalized => Mathf.Clamp01(staminaActionThresholdNormalized);
+    public bool IsExhausted => CurrentStamina <= HealthEpsilon;
+    public bool IsBelowStaminaActionThreshold => StaminaNormalized + HealthEpsilon < StaminaActionThresholdNormalized;
+    public bool IsStaminaRecoveryBlocked => staminaRecoveryBlockedTimer > HealthEpsilon;
+    public float StaminaRecoveryBlockedRemaining => Mathf.Max(0f, staminaRecoveryBlockedTimer);
 
     public float TotalCurrentHealth
     {
@@ -332,6 +410,11 @@ public class PrototypeUnitVitals : MonoBehaviour
         EnsureBodyPartSetup(true);
     }
 
+    private void Update()
+    {
+        UpdateStamina(Time.deltaTime);
+    }
+
     private void OnValidate()
     {
         EnsureBodyPartSetup(false);
@@ -351,7 +434,49 @@ public class PrototypeUnitVitals : MonoBehaviour
 
     public void SetArmorLoadout(params ArmorDefinition[] armorDefinitions)
     {
-        SyncArmorLoadout(armorDefinitions, true);
+        armorLoadout = CopyArmorLoadoutDefinitions(armorDefinitions);
+        SyncArmorLoadout(armorLoadout, true);
+    }
+
+    public bool TryConsumeStamina(float amount)
+    {
+        float requiredAmount = Mathf.Max(0f, amount);
+        if (requiredAmount <= HealthEpsilon)
+        {
+            return true;
+        }
+
+        if (CurrentStamina + HealthEpsilon < requiredAmount)
+        {
+            return false;
+        }
+
+        SpendStamina(requiredAmount);
+        return true;
+    }
+
+    public bool CanStartStaminaAction(float requiredAmount = 0f)
+    {
+        if (CurrentStamina <= HealthEpsilon || IsBelowStaminaActionThreshold)
+        {
+            return false;
+        }
+
+        float staminaRequirement = Mathf.Max(0f, requiredAmount);
+        return staminaRequirement <= HealthEpsilon || CurrentStamina + HealthEpsilon >= staminaRequirement;
+    }
+
+    public float DrainStamina(float amount)
+    {
+        float requestedAmount = Mathf.Max(0f, amount);
+        if (requestedAmount <= HealthEpsilon || CurrentStamina <= HealthEpsilon)
+        {
+            return 0f;
+        }
+
+        float drained = Mathf.Min(CurrentStamina, requestedAmount);
+        SpendStamina(drained);
+        return drained;
     }
 
     public void ApplyDamage(string partId, float damage)
@@ -503,13 +628,25 @@ public class PrototypeUnitVitals : MonoBehaviour
         float finalDamage = chunk.amount;
         bool penetratedArmor = true;
         ArmorState blockingArmor = null;
+        float armorDamageApplied = 0f;
+        bool armorBroken = false;
 
         if (chunk.origin == DamageOrigin.DirectHit && !chunk.bypassArmor)
         {
-            finalDamage = ResolveArmorMitigation(state, chunk, out blockingArmor, out penetratedArmor);
+            finalDamage = ResolveArmorMitigation(state, chunk, out blockingArmor, out penetratedArmor, out armorDamageApplied, out armorBroken);
             if (finalDamage <= HealthEpsilon && blockingArmor == null)
             {
                 return;
+            }
+
+            if (armorDamageApplied > HealthEpsilon)
+            {
+                EmitCombatFeedback(CombatFeedback.CreateArmorDamage(state.partId, armorDamageApplied), chunk.origin);
+            }
+
+            if (armorBroken)
+            {
+                EmitCombatFeedback(CombatFeedback.CreateArmorBroken(state.partId), chunk.origin);
             }
         }
 
@@ -528,6 +665,11 @@ public class PrototypeUnitVitals : MonoBehaviour
             state.currentHealth = Mathf.Max(state.currentHealth - absorbedDamage, 0f);
             overflowDamage -= absorbedDamage;
             damageAppliedToHealth += absorbedDamage;
+
+            if (absorbedDamage > HealthEpsilon)
+            {
+                EmitCombatFeedback(CombatFeedback.CreateHealthDamage(state.partId, absorbedDamage), chunk.origin);
+            }
 
             if (state.currentHealth <= HealthEpsilon && ShouldTriggerZeroKill(state, chunk.origin))
             {
@@ -608,10 +750,18 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
     }
 
-    private float ResolveArmorMitigation(PartState targetPart, PendingDamage chunk, out ArmorState blockingArmor, out bool penetratedArmor)
+    private float ResolveArmorMitigation(
+        PartState targetPart,
+        PendingDamage chunk,
+        out ArmorState blockingArmor,
+        out bool penetratedArmor,
+        out float armorDamageApplied,
+        out bool armorBroken)
     {
         blockingArmor = GetCoveringArmor(targetPart != null ? targetPart.partId : string.Empty);
         penetratedArmor = true;
+        armorDamageApplied = 0f;
+        armorBroken = false;
 
         if (targetPart == null || blockingArmor == null || blockingArmor.definition == null)
         {
@@ -628,7 +778,10 @@ public class PrototypeUnitVitals : MonoBehaviour
             ? blockingArmor.definition.PenetratedDurabilityLossMultiplier
             : blockingArmor.definition.BlockedDurabilityLossMultiplier;
         float durabilityLoss = Mathf.Max(chunk.armorDamage, chunk.amount * 0.35f) * durabilityLossMultiplier;
+        float previousDurability = blockingArmor.currentDurability;
         blockingArmor.currentDurability = Mathf.Max(0f, blockingArmor.currentDurability - durabilityLoss);
+        armorDamageApplied = Mathf.Max(0f, previousDurability - blockingArmor.currentDurability);
+        armorBroken = previousDurability > HealthEpsilon && blockingArmor.currentDurability <= HealthEpsilon;
 
         if (penetratedArmor)
         {
@@ -743,6 +896,16 @@ public class PrototypeUnitVitals : MonoBehaviour
         Died?.Invoke(this);
     }
 
+    private void EmitCombatFeedback(CombatFeedback feedback, DamageOrigin origin)
+    {
+        if (origin != DamageOrigin.DirectHit)
+        {
+            return;
+        }
+
+        CombatFeedbackGenerated?.Invoke(feedback);
+    }
+
     private void FlushPendingDamage()
     {
         if (isApplyingDamage)
@@ -821,6 +984,11 @@ public class PrototypeUnitVitals : MonoBehaviour
             equippedArmor = new List<ArmorState>();
         }
 
+        if (armorLoadout == null)
+        {
+            armorLoadout = new List<ArmorDefinition>();
+        }
+
         if (unitDefinition != null && unitDefinition.Parts.Count > 0)
         {
             SyncFromDefinition(resetHealth);
@@ -831,16 +999,43 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         SanitizeBodyParts();
+        MigrateLegacyArmorLoadoutIfNeeded();
+        SanitizeArmorLoadout();
+        SyncArmorLoadout(armorLoadout, resetHealth);
         SanitizeArmor();
+        SanitizeStamina(resetHealth);
         ResolveStatusEffects(resetHealth);
 
         if (resetHealth)
         {
             ResetPartHealthToFull();
+            ResetStaminaToFull();
         }
         else
         {
             IsDead = !HasLivingVitalPart();
+        }
+    }
+
+    private void MigrateLegacyArmorLoadoutIfNeeded()
+    {
+        if (armorLoadout != null && armorLoadout.Count > 0)
+        {
+            return;
+        }
+
+        if (equippedArmor == null || equippedArmor.Count == 0)
+        {
+            return;
+        }
+
+        armorLoadout = new List<ArmorDefinition>();
+        foreach (ArmorState armorState in equippedArmor)
+        {
+            if (armorState?.definition != null)
+            {
+                armorLoadout.Add(armorState.definition);
+            }
         }
     }
 
@@ -919,6 +1114,11 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         equippedArmor = updatedArmor;
+    }
+
+    private void SanitizeArmorLoadout()
+    {
+        armorLoadout = CopyArmorLoadoutDefinitions(armorLoadout);
     }
 
     private void SyncAfflictionStates(bool resetStatuses)
@@ -1043,6 +1243,96 @@ public class PrototypeUnitVitals : MonoBehaviour
                 equippedArmor.RemoveAt(index);
             }
         }
+    }
+
+    private void SanitizeStamina(bool resetToFull)
+    {
+        maxStamina = Mathf.Max(1f, maxStamina);
+        staminaRecoveryPerSecond = Mathf.Max(0f, staminaRecoveryPerSecond);
+        staminaActionThresholdNormalized = Mathf.Clamp01(staminaActionThresholdNormalized);
+        staminaRecoveryDelay = Mathf.Max(0f, staminaRecoveryDelay);
+        exhaustionRecoveryDelay = Mathf.Max(0f, exhaustionRecoveryDelay);
+        staminaRecoveryBlockedTimer = Mathf.Max(0f, staminaRecoveryBlockedTimer);
+        currentStamina = resetToFull ? maxStamina : Mathf.Clamp(currentStamina, 0f, maxStamina);
+    }
+
+    private void ResetStaminaToFull()
+    {
+        currentStamina = MaxStamina;
+        staminaRecoveryBlockedTimer = 0f;
+    }
+
+    private void SpendStamina(float amount)
+    {
+        float staminaCost = Mathf.Max(0f, amount);
+        if (staminaCost <= HealthEpsilon)
+        {
+            return;
+        }
+
+        currentStamina = Mathf.Clamp(currentStamina - staminaCost, 0f, MaxStamina);
+        if (currentStamina <= HealthEpsilon)
+        {
+            currentStamina = 0f;
+            staminaRecoveryBlockedTimer = exhaustionRecoveryDelay;
+        }
+        else
+        {
+            staminaRecoveryBlockedTimer = staminaRecoveryDelay;
+        }
+    }
+
+    private void UpdateStamina(float deltaTime)
+    {
+        if (deltaTime <= 0f || IsDead)
+        {
+            return;
+        }
+
+        if (staminaRecoveryBlockedTimer > 0f)
+        {
+            staminaRecoveryBlockedTimer = Mathf.Max(0f, staminaRecoveryBlockedTimer - deltaTime);
+            return;
+        }
+
+        if (currentStamina >= MaxStamina - HealthEpsilon)
+        {
+            currentStamina = MaxStamina;
+            return;
+        }
+
+        currentStamina = Mathf.Min(MaxStamina, currentStamina + staminaRecoveryPerSecond * deltaTime);
+    }
+
+    private static List<ArmorDefinition> CopyArmorLoadoutDefinitions(IEnumerable<ArmorDefinition> armorDefinitions)
+    {
+        var sanitizedDefinitions = new List<ArmorDefinition>();
+        if (armorDefinitions == null)
+        {
+            return sanitizedDefinitions;
+        }
+
+        var seenArmorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ArmorDefinition armorDefinition in armorDefinitions)
+        {
+            if (armorDefinition == null)
+            {
+                continue;
+            }
+
+            string armorId = string.IsNullOrWhiteSpace(armorDefinition.ItemId)
+                ? armorDefinition.name
+                : armorDefinition.ItemId;
+
+            if (!seenArmorIds.Add(armorId))
+            {
+                continue;
+            }
+
+            sanitizedDefinitions.Add(armorDefinition);
+        }
+
+        return sanitizedDefinitions;
     }
 
     private void BuildFallbackHumanoidParts()
