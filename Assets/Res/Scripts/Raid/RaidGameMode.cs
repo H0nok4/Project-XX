@@ -22,6 +22,7 @@ public class RaidGameMode : MonoBehaviour
     [Header("Player")]
     [SerializeField] private PlayerInteractor playerInteractor;
     [SerializeField] private PrototypeUnitVitals playerVitals;
+    [SerializeField] private PlayerInteractionState interactionState;
 
     [Header("Runtime")]
     [SerializeField] private RaidState currentState = RaidState.Idle;
@@ -43,6 +44,7 @@ public class RaidGameMode : MonoBehaviour
     {
         ResolveReferences();
         remainingSeconds = Mathf.Max(0f, raidDurationSeconds);
+        ApplyResultUiFocus(currentState != RaidState.Running && currentState != RaidState.Idle);
 
         if (startOnAwake)
         {
@@ -57,6 +59,8 @@ public class RaidGameMode : MonoBehaviour
         {
             playerVitals.Died += HandlePlayerDied;
         }
+
+        ApplyResultUiFocus(currentState != RaidState.Running && currentState != RaidState.Idle);
     }
 
     private void OnDisable()
@@ -65,6 +69,8 @@ public class RaidGameMode : MonoBehaviour
         {
             playerVitals.Died -= HandlePlayerDied;
         }
+
+        ApplyResultUiFocus(false);
     }
 
     private void Update()
@@ -238,6 +244,13 @@ public class RaidGameMode : MonoBehaviour
             return;
         }
 
+        string damageSourceSummary = vitals != null ? vitals.GetLastDamageSourceSummary() : string.Empty;
+        if (!string.IsNullOrWhiteSpace(damageSourceSummary))
+        {
+            FailRaid($"Player died.\nSource: {damageSourceSummary}");
+            return;
+        }
+
         FailRaid("Player died.");
     }
 
@@ -249,6 +262,7 @@ public class RaidGameMode : MonoBehaviour
         }
 
         currentState = nextState;
+        ApplyResultUiFocus(currentState != RaidState.Running && currentState != RaidState.Idle);
         StateChanged?.Invoke(currentState);
     }
 
@@ -263,6 +277,33 @@ public class RaidGameMode : MonoBehaviour
         {
             playerVitals = playerInteractor.GetComponent<PrototypeUnitVitals>();
         }
+
+        if (interactionState == null)
+        {
+            if (playerInteractor != null)
+            {
+                interactionState = playerInteractor.GetComponent<PlayerInteractionState>();
+            }
+
+            if (interactionState == null && playerVitals != null)
+            {
+                interactionState = playerVitals.GetComponent<PlayerInteractionState>();
+            }
+        }
+    }
+
+    private void ApplyResultUiFocus(bool focused)
+    {
+        if (interactionState == null)
+        {
+            return;
+        }
+
+        interactionState.SetUiFocused(this, focused);
+
+        bool keepCursorFree = focused || interactionState.IsUiFocused;
+        Cursor.lockState = keepCursorFree ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = keepCursorFree;
     }
 
     private void EnsureHudStyles()

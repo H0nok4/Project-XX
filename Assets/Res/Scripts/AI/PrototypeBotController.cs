@@ -53,6 +53,9 @@ public class PrototypeBotController : MonoBehaviour
 
     [Header("Identity")]
     [SerializeField] private PrototypeEnemyArchetype archetype = PrototypeEnemyArchetype.RegularZombie;
+    [SerializeField] private bool useArchetypeDefaults = true;
+    [SerializeField, HideInInspector] private PrototypeEnemyArchetype lastConfiguredArchetype = (PrototypeEnemyArchetype)(-1);
+    [SerializeField, HideInInspector] private bool previousUseArchetypeDefaults;
 
     [Header("References")]
     [SerializeField] private Transform combatTarget;
@@ -106,6 +109,22 @@ public class PrototypeBotController : MonoBehaviour
     [SerializeField] private float attackSpreadMultiplier = 1.25f;
     [Min(0f)]
     [SerializeField] private float attackCadenceJitter = 0.03f;
+    [Min(1)]
+    [SerializeField] private int rangedAttackBurstMinShots = 1;
+    [Min(1)]
+    [SerializeField] private int rangedAttackBurstMaxShots = 1;
+    [Min(0.1f)]
+    [SerializeField] private float rangedBurstShotIntervalMultiplier = 1f;
+    [Min(0f)]
+    [SerializeField] private float rangedAttackRecoveryCooldown = 0.9f;
+    [Min(0f)]
+    [SerializeField] private float rangedAttackRecoveryJitter = 0.08f;
+    [Min(0f)]
+    [SerializeField] private float rangedAimLockRadius = 0.45f;
+    [Min(0.05f)]
+    [SerializeField] private float rangedAimLockRefreshIntervalMin = 0.85f;
+    [Min(0.05f)]
+    [SerializeField] private float rangedAimLockRefreshIntervalMax = 1.2f;
     [Min(0f)]
     [SerializeField] private float fallbackDamage = 18f;
     [Min(0f)]
@@ -118,18 +137,24 @@ public class PrototypeBotController : MonoBehaviour
     private Quaternion desiredRotation;
     private Vector3 lastKnownTargetPosition;
     private Vector3 currentAimPoint;
+    private Vector3 lockedAimPoint;
     private Vector3 lastAwarenessDirection = Vector3.forward;
     private int patrolIndex;
     private int magazineAmmo;
     private int searchPointIndex;
+    private int currentBurstShotsRemaining;
     private float patrolWaitTimer;
     private float searchTimer;
     private float timeSinceTargetConfirmed = float.PositiveInfinity;
     private float nextAttackTime;
+    private float nextBurstShotTime;
     private float reloadEndTime;
+    private float attackSequenceCooldownUntil;
+    private float nextAimLockRefreshTime;
     private float searchPauseTimer;
     private bool isReloading;
     private bool hasInvestigationPoint;
+    private bool hasLockedAimPoint;
     private BotState state;
     private readonly List<Vector3> searchPoints = new List<Vector3>();
 
@@ -141,7 +166,7 @@ public class PrototypeBotController : MonoBehaviour
         botRigidbody = GetComponent<Rigidbody>();
         vitals = GetComponent<PrototypeUnitVitals>();
         ResolveReferences();
-        ApplyArchetypeDefaults();
+        RefreshArchetypeDefaults(true);
         EnsureSettings();
         InitializeWeaponState();
         desiredRotation = transform.rotation;
@@ -151,7 +176,6 @@ public class PrototypeBotController : MonoBehaviour
     private void OnEnable()
     {
         ResolveReferences();
-        ApplyArchetypeDefaults();
         EnsureSettings();
         PrototypeCombatNoiseSystem.NoiseReported += HandleNoiseReported;
 
@@ -174,7 +198,7 @@ public class PrototypeBotController : MonoBehaviour
     private void OnValidate()
     {
         ResolveReferences();
-        ApplyArchetypeDefaults();
+        RefreshArchetypeDefaults();
         EnsureSettings();
     }
 
@@ -197,7 +221,7 @@ public class PrototypeBotController : MonoBehaviour
             }
         }
 
-        ApplyArchetypeDefaults();
+        RefreshArchetypeDefaults(true);
         EnsureSettings();
         InitializeWeaponState();
         ResolveReferences();
@@ -212,6 +236,7 @@ public class PrototypeBotController : MonoBehaviour
         }
 
         ResolveTargetIfNeeded();
+        bool hasRangedWeapon = primaryWeapon != null && !primaryWeapon.IsMeleeWeapon;
 
         bool hasVisibleTarget = TryGetVisibleTarget(out Vector3 visiblePoint, out float visibleDistance);
         bool hasSmellTarget = TryGetSmellTarget(out float smellDistance);
@@ -220,7 +245,16 @@ public class PrototypeBotController : MonoBehaviour
 
         if (hasPerceivedTarget)
         {
-            currentAimPoint = hasVisibleTarget ? visiblePoint : GetTargetAimPoint();
+            if (hasVisibleTarget && hasRangedWeapon)
+            {
+                currentAimPoint = GetOrRefreshRangedAimPoint(visiblePoint, false);
+            }
+            else
+            {
+                currentAimPoint = hasVisibleTarget ? visiblePoint : GetTargetAimPoint();
+                ClearRangedAimLock();
+            }
+
             lastKnownTargetPosition = combatTarget.position;
             hasInvestigationPoint = true;
             timeSinceTargetConfirmed = 0f;
@@ -241,6 +275,8 @@ public class PrototypeBotController : MonoBehaviour
         }
         else
         {
+            ResetRangedAttackSequence(false);
+            ClearRangedAimLock();
             timeSinceTargetConfirmed += Time.deltaTime;
             bool hasLivingTarget = combatTarget != null && targetVitals != null && !targetVitals.IsDead;
             if (hasLivingTarget && timeSinceTargetConfirmed <= loseSightGraceTime)
@@ -332,6 +368,8 @@ public class PrototypeBotController : MonoBehaviour
 
         if (!hasVisibleTarget)
         {
+            ResetRangedAttackSequence(false);
+            ClearRangedAimLock();
             state = BotState.Chase;
             return;
         }
@@ -626,7 +664,7 @@ public class PrototypeBotController : MonoBehaviour
             return;
         }
 
-        if (Time.time < nextAttackTime)
+        if (Time.time < attackSequenceCooldownUntil)
         {
             return;
         }
@@ -637,10 +675,21 @@ public class PrototypeBotController : MonoBehaviour
             return;
         }
 
+        if (currentBurstShotsRemaining <= 0)
+        {
+            BeginRangedAttackSequence(aimPoint);
+        }
+
+        if (currentBurstShotsRemaining <= 0 || Time.time < nextBurstShotTime)
+        {
+            return;
+        }
+
         Vector3 shotOrigin = GetEyePosition();
-        Vector3 shotDirection = (aimPoint - shotOrigin).normalized;
+        Vector3 shotAimPoint = BuildRangedShotAimPoint(aimPoint, shotOrigin);
+        Vector3 shotDirection = (shotAimPoint - shotOrigin).normalized;
         magazineAmmo--;
-        nextAttackTime = Time.time + primaryWeapon.SecondsPerShot + UnityEngine.Random.Range(0f, attackCadenceJitter);
+        currentBurstShotsRemaining--;
         ReportAttackNoise(primaryWeapon, shotOrigin, false);
 
         float spread = primaryWeapon.SpreadAngle * attackSpreadMultiplier;
@@ -648,6 +697,21 @@ public class PrototypeBotController : MonoBehaviour
         if (TryGetCombatHit(shotOrigin, spreadDirection, primaryWeapon.EffectiveRange, out RaycastHit hit))
         {
             ResolveCombatHit(hit, BuildFirearmDamageInfo(primaryWeapon), ResolveImpactForce(primaryWeapon));
+        }
+
+        if (currentBurstShotsRemaining > 0)
+        {
+            nextBurstShotTime = Time.time
+                + primaryWeapon.SecondsPerShot * rangedBurstShotIntervalMultiplier
+                + UnityEngine.Random.Range(0f, attackCadenceJitter);
+        }
+        else
+        {
+            attackSequenceCooldownUntil = Time.time
+                + rangedAttackRecoveryCooldown
+                + UnityEngine.Random.Range(0f, rangedAttackRecoveryJitter);
+            nextBurstShotTime = 0f;
+            ClearRangedAimLock();
         }
 
         if (magazineAmmo <= 0)
@@ -742,7 +806,10 @@ public class PrototypeBotController : MonoBehaviour
             heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.02f,
             fractureChance = ammo != null ? ammo.FractureChance : weaponDefinition != null ? weaponDefinition.FractureChance : 0.04f,
             bypassArmor = false,
-            canApplyAfflictions = true
+            canApplyAfflictions = true,
+            sourceUnit = vitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
         };
     }
 
@@ -757,7 +824,10 @@ public class PrototypeBotController : MonoBehaviour
             heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.06f,
             fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.08f,
             bypassArmor = false,
-            canApplyAfflictions = true
+            canApplyAfflictions = true,
+            sourceUnit = vitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
         };
     }
 
@@ -801,7 +871,25 @@ public class PrototypeBotController : MonoBehaviour
         isReloading = false;
         magazineAmmo = primaryWeapon != null && !primaryWeapon.IsMeleeWeapon ? primaryWeapon.MagazineSize : 0;
         nextAttackTime = 0f;
+        nextBurstShotTime = 0f;
         reloadEndTime = 0f;
+        attackSequenceCooldownUntil = 0f;
+        currentBurstShotsRemaining = 0;
+        ClearRangedAimLock();
+    }
+
+    private void RefreshArchetypeDefaults(bool force = false)
+    {
+        bool shouldApply = useArchetypeDefaults
+            && (force || !previousUseArchetypeDefaults || lastConfiguredArchetype != archetype);
+
+        if (shouldApply)
+        {
+            ApplyArchetypeDefaults();
+        }
+
+        lastConfiguredArchetype = archetype;
+        previousUseArchetypeDefaults = useArchetypeDefaults;
     }
 
     private void ApplyArchetypeDefaults()
@@ -827,6 +915,14 @@ public class PrototypeBotController : MonoBehaviour
                 preferredCombatDistance = 11f;
                 attackSpreadMultiplier = 1.3f;
                 attackCadenceJitter = 0.04f;
+                rangedAttackBurstMinShots = 1;
+                rangedAttackBurstMaxShots = 1;
+                rangedBurstShotIntervalMultiplier = 1f;
+                rangedAttackRecoveryCooldown = 1.1f;
+                rangedAttackRecoveryJitter = 0.18f;
+                rangedAimLockRadius = 0.72f;
+                rangedAimLockRefreshIntervalMin = 1.05f;
+                rangedAimLockRefreshIntervalMax = 1.45f;
                 break;
 
             case PrototypeEnemyArchetype.SoldierZombie:
@@ -848,6 +944,14 @@ public class PrototypeBotController : MonoBehaviour
                 preferredCombatDistance = 13.5f;
                 attackSpreadMultiplier = 1.05f;
                 attackCadenceJitter = 0.03f;
+                rangedAttackBurstMinShots = 3;
+                rangedAttackBurstMaxShots = 4;
+                rangedBurstShotIntervalMultiplier = 0.92f;
+                rangedAttackRecoveryCooldown = 1.45f;
+                rangedAttackRecoveryJitter = 0.2f;
+                rangedAimLockRadius = 0.5f;
+                rangedAimLockRefreshIntervalMin = 1.2f;
+                rangedAimLockRefreshIntervalMax = 1.65f;
                 break;
 
             case PrototypeEnemyArchetype.ZombieDog:
@@ -869,6 +973,14 @@ public class PrototypeBotController : MonoBehaviour
                 preferredCombatDistance = 1.15f;
                 attackSpreadMultiplier = 1f;
                 attackCadenceJitter = 0.02f;
+                rangedAttackBurstMinShots = 1;
+                rangedAttackBurstMaxShots = 1;
+                rangedBurstShotIntervalMultiplier = 1f;
+                rangedAttackRecoveryCooldown = 0.7f;
+                rangedAttackRecoveryJitter = 0.05f;
+                rangedAimLockRadius = 0.35f;
+                rangedAimLockRefreshIntervalMin = 0.65f;
+                rangedAimLockRefreshIntervalMax = 0.95f;
                 break;
 
             default:
@@ -890,6 +1002,14 @@ public class PrototypeBotController : MonoBehaviour
                 preferredCombatDistance = 1f;
                 attackSpreadMultiplier = 1.15f;
                 attackCadenceJitter = 0.02f;
+                rangedAttackBurstMinShots = 1;
+                rangedAttackBurstMaxShots = 1;
+                rangedBurstShotIntervalMultiplier = 1f;
+                rangedAttackRecoveryCooldown = 0.85f;
+                rangedAttackRecoveryJitter = 0.08f;
+                rangedAimLockRadius = 0.45f;
+                rangedAimLockRefreshIntervalMin = 0.85f;
+                rangedAimLockRefreshIntervalMax = 1.2f;
                 break;
         }
 
@@ -919,6 +1039,65 @@ public class PrototypeBotController : MonoBehaviour
             ? Mathf.Max(4f, weaponDefinition.MeleeRange * 4.5f)
             : Mathf.Max(10f, weaponDefinition.EffectiveRange * 0.52f);
         PrototypeCombatNoiseSystem.ReportNoise(origin, radius, gameObject);
+    }
+
+    private void BeginRangedAttackSequence(Vector3 aimPoint)
+    {
+        int burstMin = Mathf.Max(1, rangedAttackBurstMinShots);
+        int burstMax = Mathf.Max(burstMin, rangedAttackBurstMaxShots);
+        currentBurstShotsRemaining = Mathf.Min(UnityEngine.Random.Range(burstMin, burstMax + 1), magazineAmmo);
+        nextBurstShotTime = Time.time;
+        currentAimPoint = GetOrRefreshRangedAimPoint(aimPoint, true);
+    }
+
+    private Vector3 GetOrRefreshRangedAimPoint(Vector3 visibleAimPoint, bool forceRefresh)
+    {
+        if (forceRefresh || !hasLockedAimPoint || Time.time >= nextAimLockRefreshTime)
+        {
+            lockedAimPoint = visibleAimPoint;
+            hasLockedAimPoint = true;
+            nextAimLockRefreshTime = Time.time + UnityEngine.Random.Range(
+                rangedAimLockRefreshIntervalMin,
+                rangedAimLockRefreshIntervalMax);
+        }
+
+        return lockedAimPoint;
+    }
+
+    private Vector3 BuildRangedShotAimPoint(Vector3 aimPoint, Vector3 shotOrigin)
+    {
+        if (rangedAimLockRadius <= 0f)
+        {
+            return aimPoint;
+        }
+
+        Vector3 toAimPoint = aimPoint - shotOrigin;
+        Vector3 forward = toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : transform.forward;
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        if (right.sqrMagnitude <= 0.0001f)
+        {
+            right = transform.right;
+        }
+
+        Vector2 randomOffset = UnityEngine.Random.insideUnitCircle * rangedAimLockRadius;
+        return aimPoint + right * randomOffset.x + Vector3.up * randomOffset.y;
+    }
+
+    private void ResetRangedAttackSequence(bool preserveRecoveryCooldown)
+    {
+        currentBurstShotsRemaining = 0;
+        nextBurstShotTime = 0f;
+
+        if (!preserveRecoveryCooldown)
+        {
+            attackSequenceCooldownUntil = 0f;
+        }
+    }
+
+    private void ClearRangedAimLock()
+    {
+        hasLockedAimPoint = false;
+        nextAimLockRefreshTime = 0f;
     }
 
     private Vector3 GetEyePosition()
@@ -1002,6 +1181,14 @@ public class PrototypeBotController : MonoBehaviour
         preferredCombatDistance = Mathf.Clamp(preferredCombatDistance, 0.5f, combatRange);
         attackSpreadMultiplier = Mathf.Max(0f, attackSpreadMultiplier);
         attackCadenceJitter = Mathf.Max(0f, attackCadenceJitter);
+        rangedAttackBurstMinShots = Mathf.Max(1, rangedAttackBurstMinShots);
+        rangedAttackBurstMaxShots = Mathf.Max(rangedAttackBurstMinShots, rangedAttackBurstMaxShots);
+        rangedBurstShotIntervalMultiplier = Mathf.Max(0.1f, rangedBurstShotIntervalMultiplier);
+        rangedAttackRecoveryCooldown = Mathf.Max(0f, rangedAttackRecoveryCooldown);
+        rangedAttackRecoveryJitter = Mathf.Max(0f, rangedAttackRecoveryJitter);
+        rangedAimLockRadius = Mathf.Max(0f, rangedAimLockRadius);
+        rangedAimLockRefreshIntervalMin = Mathf.Max(0.05f, rangedAimLockRefreshIntervalMin);
+        rangedAimLockRefreshIntervalMax = Mathf.Max(rangedAimLockRefreshIntervalMin, rangedAimLockRefreshIntervalMax);
         fallbackDamage = Mathf.Max(1f, fallbackDamage);
         fallbackImpactForce = Mathf.Max(0f, fallbackImpactForce);
 
@@ -1026,6 +1213,8 @@ public class PrototypeBotController : MonoBehaviour
     {
         state = BotState.Dead;
         desiredPlanarVelocity = Vector3.zero;
+        ResetRangedAttackSequence(false);
+        ClearRangedAimLock();
 
         if (botRigidbody != null)
         {

@@ -29,6 +29,9 @@ public class PrototypeUnitVitals : MonoBehaviour
         [Range(0f, 1f)] public float fractureChance;
         public bool bypassArmor;
         public bool canApplyAfflictions;
+        public PrototypeUnitVitals sourceUnit;
+        public string sourceDisplayName;
+        public string sourceEffectDisplayName;
 
         public static DamageInfo CreateDefault(float amount)
         {
@@ -41,9 +44,21 @@ public class PrototypeUnitVitals : MonoBehaviour
                 heavyBleedChance = 0f,
                 fractureChance = 0f,
                 bypassArmor = false,
-                canApplyAfflictions = false
+                canApplyAfflictions = false,
+                sourceUnit = null,
+                sourceDisplayName = string.Empty,
+                sourceEffectDisplayName = string.Empty
             };
         }
+    }
+
+    [Serializable]
+    public struct DamageSourceSnapshot
+    {
+        public string sourceDisplayName;
+        public string effectDisplayName;
+        public string partId;
+        public bool viaStatusEffect;
     }
 
     public enum CombatFeedbackKind
@@ -266,6 +281,9 @@ public class PrototypeUnitVitals : MonoBehaviour
         public float fractureChance;
         public bool bypassArmor;
         public bool canApplyAfflictions;
+        public PrototypeUnitVitals sourceUnit;
+        public string sourceDisplayName;
+        public string sourceEffectDisplayName;
 
         public PendingDamage(string partId, float amount, DamageOrigin origin)
         {
@@ -279,6 +297,9 @@ public class PrototypeUnitVitals : MonoBehaviour
             fractureChance = 0f;
             bypassArmor = origin != DamageOrigin.DirectHit;
             canApplyAfflictions = false;
+            sourceUnit = null;
+            sourceDisplayName = string.Empty;
+            sourceEffectDisplayName = string.Empty;
         }
 
         public PendingDamage(string partId, DamageInfo damageInfo, DamageOrigin origin)
@@ -293,6 +314,9 @@ public class PrototypeUnitVitals : MonoBehaviour
             fractureChance = Mathf.Clamp01(damageInfo.fractureChance);
             bypassArmor = damageInfo.bypassArmor || origin != DamageOrigin.DirectHit;
             canApplyAfflictions = damageInfo.canApplyAfflictions && origin == DamageOrigin.DirectHit;
+            sourceUnit = damageInfo.sourceUnit;
+            sourceDisplayName = damageInfo.sourceDisplayName;
+            sourceEffectDisplayName = damageInfo.sourceEffectDisplayName;
         }
     }
 
@@ -318,11 +342,13 @@ public class PrototypeUnitVitals : MonoBehaviour
     [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
     [SerializeField] private bool allowImpactForceWhenAlive = true;
+    [SerializeField, HideInInspector] private DamageSourceSnapshot lastDamageSource;
     [SerializeField] private UnityEvent onDied = new UnityEvent();
 
     private readonly Queue<PendingDamage> pendingDamage = new Queue<PendingDamage>();
     private bool isApplyingDamage;
     private float staminaRecoveryBlockedTimer;
+    [NonSerialized] private PrototypeUnitVitals lastDamageSourceUnit;
 
     public event Action<PrototypeUnitVitals> Died;
     public event Action<CombatFeedback> CombatFeedbackGenerated;
@@ -343,6 +369,8 @@ public class PrototypeUnitVitals : MonoBehaviour
     public float PainkillerRemaining => statusEffects != null ? statusEffects.PainkillerRemaining : 0f;
     public float MovementPenaltyMultiplier => statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f;
     public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
+    public DamageSourceSnapshot LastDamageSource => lastDamageSource;
+    public PrototypeUnitVitals LastDamageSourceUnit => lastDamageSourceUnit;
     public float MaxStamina => Mathf.Max(1f, maxStamina);
     public float CurrentStamina => Mathf.Clamp(currentStamina, 0f, MaxStamina);
     public float StaminaNormalized => MaxStamina > HealthEpsilon ? Mathf.Clamp01(CurrentStamina / MaxStamina) : 0f;
@@ -580,6 +608,11 @@ public class PrototypeUnitVitals : MonoBehaviour
 
     public void ApplyGlobalDamage(float damage)
     {
+        ApplyGlobalDamage(damage, null, string.Empty, string.Empty);
+    }
+
+    public void ApplyGlobalDamage(float damage, PrototypeUnitVitals sourceUnit, string sourceDisplayName, string sourceEffectDisplayName)
+    {
         if (IsDead || damage <= HealthEpsilon)
         {
             return;
@@ -606,10 +639,29 @@ public class PrototypeUnitVitals : MonoBehaviour
         {
             var damageInfo = DamageInfo.CreateDefault(sharedDamage);
             damageInfo.bypassArmor = true;
+            damageInfo.sourceUnit = sourceUnit;
+            damageInfo.sourceDisplayName = sourceDisplayName;
+            damageInfo.sourceEffectDisplayName = sourceEffectDisplayName;
             pendingDamage.Enqueue(new PendingDamage(state.partId, damageInfo, DamageOrigin.StatusEffect));
         }
 
         FlushPendingDamage();
+    }
+
+    public string GetLastDamageSourceSummary()
+    {
+        string sourceName = ResolveDamageSourceName(lastDamageSourceUnit, lastDamageSource.sourceDisplayName);
+        if (string.IsNullOrWhiteSpace(sourceName))
+        {
+            return string.Empty;
+        }
+
+        if (lastDamageSource.viaStatusEffect && !string.IsNullOrWhiteSpace(lastDamageSource.effectDisplayName))
+        {
+            return $"{sourceName} via {lastDamageSource.effectDisplayName}";
+        }
+
+        return sourceName;
     }
 
     private void ProcessDamageChunk(PendingDamage chunk)
@@ -652,6 +704,7 @@ public class PrototypeUnitVitals : MonoBehaviour
 
         if (ShouldTriggerBlackedFollowUpDeath(state, finalDamage, chunk.origin))
         {
+            RecordDamageSource(chunk, state.partId);
             KillAllBodyParts();
             return;
         }
@@ -668,11 +721,13 @@ public class PrototypeUnitVitals : MonoBehaviour
 
             if (absorbedDamage > HealthEpsilon)
             {
+                RecordDamageSource(chunk, state.partId);
                 EmitCombatFeedback(CombatFeedback.CreateHealthDamage(state.partId, absorbedDamage), chunk.origin);
             }
 
             if (state.currentHealth <= HealthEpsilon && ShouldTriggerZeroKill(state, chunk.origin))
             {
+                RecordDamageSource(chunk, state.partId);
                 KillAllBodyParts();
                 return;
             }
@@ -689,10 +744,10 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         float distributedDamage = overflowDamage * state.overflowMultiplier;
-        DistributeOverflowDamage(state, distributedDamage);
+        DistributeOverflowDamage(state, chunk, distributedDamage);
     }
 
-    private void DistributeOverflowDamage(PartState sourceState, float damage)
+    private void DistributeOverflowDamage(PartState sourceState, PendingDamage sourceChunk, float damage)
     {
         if (damage <= HealthEpsilon || sourceState == null)
         {
@@ -746,7 +801,13 @@ public class PrototypeUnitVitals : MonoBehaviour
         for (int index = 0; index < recipientParts.Count; index++)
         {
             float sharedDamage = damage * (recipientWeights[index] / totalWeight);
-            pendingDamage.Enqueue(new PendingDamage(recipientParts[index].partId, sharedDamage, DamageOrigin.OverflowShare));
+            PendingDamage overflowChunk = new PendingDamage(recipientParts[index].partId, sharedDamage, DamageOrigin.OverflowShare)
+            {
+                sourceUnit = sourceChunk.sourceUnit,
+                sourceDisplayName = sourceChunk.sourceDisplayName,
+                sourceEffectDisplayName = sourceChunk.sourceEffectDisplayName
+            };
+            pendingDamage.Enqueue(overflowChunk);
         }
     }
 
@@ -813,7 +874,9 @@ public class PrototypeUnitVitals : MonoBehaviour
             chunk.lightBleedChance * (1f - armorBleedProtection * mitigationFactor),
             chunk.heavyBleedChance * (1f - armorBleedProtection * mitigationFactor),
             chunk.fractureChance * (1f - armorFractureProtection * mitigationFactor),
-            damageAppliedToHealth);
+            damageAppliedToHealth,
+            chunk.sourceUnit,
+            ResolveDamageSourceName(chunk.sourceUnit, chunk.sourceDisplayName));
     }
 
     private bool CanReceiveOverflowDamage(PartState state, string sourcePartId)
@@ -851,6 +914,36 @@ public class PrototypeUnitVitals : MonoBehaviour
             && state.currentHealth <= HealthEpsilon
             && origin != DamageOrigin.StatusEffect
             && damage > state.blackedFollowUpDamageThreshold;
+    }
+
+    private void RecordDamageSource(PendingDamage chunk, string partId)
+    {
+        string sourceName = ResolveDamageSourceName(chunk.sourceUnit, chunk.sourceDisplayName);
+        if (string.IsNullOrWhiteSpace(sourceName))
+        {
+            return;
+        }
+
+        lastDamageSourceUnit = chunk.sourceUnit;
+        lastDamageSource = new DamageSourceSnapshot
+        {
+            sourceDisplayName = sourceName,
+            effectDisplayName = chunk.origin == DamageOrigin.StatusEffect
+                ? chunk.sourceEffectDisplayName
+                : string.Empty,
+            partId = NormalizePartId(partId),
+            viaStatusEffect = chunk.origin == DamageOrigin.StatusEffect
+        };
+    }
+
+    private static string ResolveDamageSourceName(PrototypeUnitVitals sourceUnit, string fallbackName)
+    {
+        if (sourceUnit != null)
+        {
+            return sourceUnit.gameObject != null ? sourceUnit.gameObject.name : sourceUnit.name;
+        }
+
+        return string.IsNullOrWhiteSpace(fallbackName) ? string.Empty : fallbackName.Trim();
     }
 
     private void KillAllBodyParts()
@@ -1437,6 +1530,8 @@ public class PrototypeUnitVitals : MonoBehaviour
             statusEffects.ResetAllEffects();
         }
 
+        lastDamageSource = default;
+        lastDamageSourceUnit = null;
         pendingDamage.Clear();
         isApplyingDamage = false;
         IsDead = false;

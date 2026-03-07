@@ -62,6 +62,8 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private float crouchCameraDrop = 0.32f;
     [SerializeField] private float crouchTransitionSpeed = 10f;
     [SerializeField] private float crouchStepOffsetMultiplier = 0.45f;
+    [SerializeField] private LayerMask stanceObstructionMask = Physics.DefaultRaycastLayers;
+    [SerializeField] private float stanceClearancePadding = 0.04f;
 
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
@@ -112,6 +114,7 @@ public class PrototypeFpsController : MonoBehaviour
     private float standingHeight;
     private float standingCameraLocalY;
     private float standingStepOffset;
+    private Vector3 standingCenter;
     private bool isCrouching;
     private bool isSprinting;
     private bool wasGroundedLastFrame;
@@ -349,7 +352,9 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void UpdateStance(float deltaTime, bool grounded)
     {
-        isCrouching = fpsInput.CrouchHeld;
+        bool crouchHeld = fpsInput != null && fpsInput.CrouchHeld;
+        bool canStand = CanOccupyHeight(standingHeight);
+        isCrouching = crouchHeld || !canStand;
 
         float targetHeight = isCrouching ? crouchHeight : standingHeight;
         float targetCameraY = isCrouching
@@ -358,10 +363,9 @@ public class PrototypeFpsController : MonoBehaviour
         float targetStepOffset = isCrouching
             ? standingStepOffset * crouchStepOffsetMultiplier
             : standingStepOffset;
-
         float nextHeight = Mathf.MoveTowards(characterController.height, targetHeight, crouchTransitionSpeed * deltaTime);
         characterController.height = nextHeight;
-        characterController.center = new Vector3(0f, nextHeight * 0.5f, 0f);
+        characterController.center = GetControllerCenterForHeight(nextHeight);
         characterController.stepOffset = grounded ? targetStepOffset : 0f;
 
         Vector3 cameraLocalPosition = viewCamera.transform.localPosition;
@@ -389,6 +393,36 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         return targetSpeed;
+    }
+
+    private bool CanOccupyHeight(float targetHeight)
+    {
+        if (characterController == null)
+        {
+            return true;
+        }
+
+        float radius = Mathf.Max(0.01f, characterController.radius - stanceClearancePadding);
+        float halfHeight = Mathf.Max(targetHeight * 0.5f, radius + 0.01f);
+        Vector3 targetCenter = GetControllerCenterForHeight(targetHeight);
+        Vector3 worldCenter = transform.TransformPoint(targetCenter);
+        Vector3 capsuleTop = worldCenter + Vector3.up * (halfHeight - radius);
+        Vector3 capsuleBottom = worldCenter - Vector3.up * (halfHeight - radius);
+
+        return !Physics.CheckCapsule(
+            capsuleBottom,
+            capsuleTop,
+            radius,
+            stanceObstructionMask,
+            QueryTriggerInteraction.Ignore);
+    }
+
+    private Vector3 GetControllerCenterForHeight(float targetHeight)
+    {
+        float heightOffset = standingHeight - targetHeight;
+        Vector3 targetCenter = standingCenter;
+        targetCenter.y = standingCenter.y - heightOffset * 0.5f;
+        return targetCenter;
     }
 
     private Vector3 GetWishDirection(Vector2 moveInput, bool grounded)
@@ -981,7 +1015,10 @@ public class PrototypeFpsController : MonoBehaviour
             heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : runtime.Definition.HeavyBleedChance,
             fractureChance = ammo != null ? ammo.FractureChance : runtime.Definition.FractureChance,
             bypassArmor = false,
-            canApplyAfflictions = true
+            canApplyAfflictions = true,
+            sourceUnit = playerVitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
         };
     }
 
@@ -996,7 +1033,10 @@ public class PrototypeFpsController : MonoBehaviour
             heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.1f,
             fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.12f,
             bypassArmor = false,
-            canApplyAfflictions = true
+            canApplyAfflictions = true,
+            sourceUnit = playerVitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
         };
     }
 
@@ -1585,6 +1625,12 @@ public class PrototypeFpsController : MonoBehaviour
         crouchCameraDrop = Mathf.Max(crouchCameraDrop, 0.05f);
         crouchTransitionSpeed = Mathf.Max(crouchTransitionSpeed, 0.1f);
         crouchStepOffsetMultiplier = Mathf.Clamp(crouchStepOffsetMultiplier, 0f, 1f);
+        stanceClearancePadding = Mathf.Clamp(stanceClearancePadding, 0f, 0.2f);
+
+        if (stanceObstructionMask.value == 0 || stanceObstructionMask.value == ~0)
+        {
+            stanceObstructionMask = Physics.DefaultRaycastLayers;
+        }
     }
 
     private void EnsureCombatSettings()
@@ -1618,11 +1664,13 @@ public class PrototypeFpsController : MonoBehaviour
         {
             standingHeight = characterController.height > 0f ? characterController.height : 1.8f;
             standingStepOffset = characterController.stepOffset > 0f ? characterController.stepOffset : 0.3f;
+            standingCenter = characterController.center;
         }
         else
         {
             standingHeight = 1.8f;
             standingStepOffset = 0.3f;
+            standingCenter = new Vector3(0f, standingHeight * 0.5f, 0f);
         }
 
         if (viewCamera != null)

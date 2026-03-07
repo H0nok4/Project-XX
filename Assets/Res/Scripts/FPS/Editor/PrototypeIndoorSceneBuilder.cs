@@ -16,6 +16,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string UnitDefinitionFolder = "Assets/Res/Data/PrototypeFPS/UnitDefinitions";
     private const string ItemDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Items";
     private const string WeaponDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Weapons";
+    private const string ItemCatalogPath = "Assets/Resources/PrototypeItemCatalog.asset";
     private const string HumanoidDefinitionPath = "Assets/Res/Data/PrototypeFPS/UnitDefinitions/Unit_Humanoid.asset";
     private const string CashItemPath = "Assets/Res/Data/PrototypeFPS/Items/Item_Cash.asset";
     private const string MedkitItemPath = "Assets/Res/Data/PrototypeFPS/Items/Item_Medkit.asset";
@@ -307,6 +308,12 @@ public static class PrototypeIndoorSceneBuilder
         raidSystems.transform.SetParent(root.transform, false);
         RaidGameMode raidGameMode = raidSystems.AddComponent<RaidGameMode>();
         raidGameMode.Configure(interactor, playerVitals, 420f);
+        PrototypeRaidProfileFlow raidProfileFlow = raidSystems.AddComponent<PrototypeRaidProfileFlow>();
+        raidProfileFlow.Configure(
+            raidGameMode,
+            interactor,
+            AssetDatabase.LoadAssetAtPath<PrototypeItemCatalog>(ItemCatalogPath),
+            "MainMenu");
 
         CreateRaidPickup(root.transform, "Pickup_Cash", PrimitiveType.Cube, new Vector3(0f, 0.98f, 3.5f), new Vector3(0.32f, 0.12f, 0.22f), lootMat, cashItem, 3);
         CreateRaidPickup(root.transform, "Pickup_Medkit", PrimitiveType.Cube, new Vector3(-5.25f, 1.57f, -1.45f), new Vector3(0.28f, 0.2f, 0.22f), medicalMat, medkitItem, 1);

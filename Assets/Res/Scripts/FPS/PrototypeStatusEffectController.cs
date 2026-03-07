@@ -19,6 +19,8 @@ public class PrototypeStatusEffectController : MonoBehaviour
         [Min(0f)] public float remainingDuration;
         public bool isPersistent;
         [Min(0f)] public float tickDamagePerSecond;
+        [SerializeField, HideInInspector] public string sourceDisplayName = string.Empty;
+        [NonSerialized] public PrototypeUnitVitals sourceUnit;
 
         public void Configure(string id, string label, bool debuff, float durationSeconds, bool persistent, float tickDamage)
         {
@@ -39,6 +41,16 @@ public class PrototypeStatusEffectController : MonoBehaviour
         }
 
         public bool IsExpired => !isPersistent && remainingDuration <= 0f;
+
+        public string ResolveSourceDisplayName()
+        {
+            if (sourceUnit != null)
+            {
+                return sourceUnit.gameObject != null ? sourceUnit.gameObject.name : sourceUnit.name;
+            }
+
+            return string.IsNullOrWhiteSpace(sourceDisplayName) ? string.Empty : sourceDisplayName.Trim();
+        }
     }
 
     [Header("References")]
@@ -148,7 +160,13 @@ public class PrototypeStatusEffectController : MonoBehaviour
         return true;
     }
 
-    public void TryApplyCombatDebuffs(float lightBleedChance, float heavyBleedChance, float fractureChance, float appliedDamage)
+    public void TryApplyCombatDebuffs(
+        float lightBleedChance,
+        float heavyBleedChance,
+        float fractureChance,
+        float appliedDamage,
+        PrototypeUnitVitals sourceUnit = null,
+        string sourceDisplayName = "")
     {
         if (appliedDamage <= 0f)
         {
@@ -158,29 +176,56 @@ public class PrototypeStatusEffectController : MonoBehaviour
         if (appliedDamage >= heavyBleedMinDamage && !HasHeavyBleed && UnityEngine.Random.value < Mathf.Clamp01(heavyBleedChance))
         {
             RemoveEffect(LightBleedEffectId);
-            ApplyOrRefreshPersistentEffect(HeavyBleedEffectId, "Heavy Bleed", true, heavyBleedDamagePerSecond);
+            ApplyOrRefreshPersistentEffect(HeavyBleedEffectId, "Heavy Bleed", true, heavyBleedDamagePerSecond, sourceUnit, sourceDisplayName);
         }
         else if (appliedDamage >= lightBleedMinDamage && !HasAnyBleed && UnityEngine.Random.value < Mathf.Clamp01(lightBleedChance))
         {
-            ApplyOrRefreshPersistentEffect(LightBleedEffectId, "Light Bleed", true, lightBleedDamagePerSecond);
+            ApplyOrRefreshPersistentEffect(LightBleedEffectId, "Light Bleed", true, lightBleedDamagePerSecond, sourceUnit, sourceDisplayName);
         }
 
         if (appliedDamage >= fractureMinDamage && !HasFracture && UnityEngine.Random.value < Mathf.Clamp01(fractureChance))
         {
-            ApplyOrRefreshPersistentEffect(FractureEffectId, "Fracture", true, 0f);
+            ApplyOrRefreshPersistentEffect(FractureEffectId, "Fracture", true, 0f, sourceUnit, sourceDisplayName);
         }
     }
 
     public void ApplyOrRefreshTimedEffect(string effectId, string displayName, bool isDebuff, float durationSeconds, float tickDamagePerSecond = 0f)
     {
+        ApplyOrRefreshTimedEffect(effectId, displayName, isDebuff, durationSeconds, tickDamagePerSecond, null, string.Empty);
+    }
+
+    public void ApplyOrRefreshTimedEffect(
+        string effectId,
+        string displayName,
+        bool isDebuff,
+        float durationSeconds,
+        float tickDamagePerSecond,
+        PrototypeUnitVitals sourceUnit,
+        string sourceDisplayName)
+    {
         StatusEffectState effect = GetOrCreateEffect(effectId);
         effect.Configure(effectId, displayName, isDebuff, durationSeconds, false, tickDamagePerSecond);
+        effect.sourceUnit = sourceUnit;
+        effect.sourceDisplayName = string.IsNullOrWhiteSpace(sourceDisplayName) ? effect.sourceDisplayName : sourceDisplayName.Trim();
     }
 
     public void ApplyOrRefreshPersistentEffect(string effectId, string displayName, bool isDebuff, float tickDamagePerSecond = 0f)
     {
+        ApplyOrRefreshPersistentEffect(effectId, displayName, isDebuff, tickDamagePerSecond, null, string.Empty);
+    }
+
+    public void ApplyOrRefreshPersistentEffect(
+        string effectId,
+        string displayName,
+        bool isDebuff,
+        float tickDamagePerSecond,
+        PrototypeUnitVitals sourceUnit,
+        string sourceDisplayName)
+    {
         StatusEffectState effect = GetOrCreateEffect(effectId);
         effect.Configure(effectId, displayName, isDebuff, 0f, true, tickDamagePerSecond);
+        effect.sourceUnit = sourceUnit;
+        effect.sourceDisplayName = string.IsNullOrWhiteSpace(sourceDisplayName) ? effect.sourceDisplayName : sourceDisplayName.Trim();
     }
 
     public bool RemoveEffect(string effectId)
@@ -269,7 +314,6 @@ public class PrototypeStatusEffectController : MonoBehaviour
             return;
         }
 
-        float totalDamage = 0f;
         foreach (StatusEffectState effect in activeEffects)
         {
             if (effect == null || effect.tickDamagePerSecond <= 0f)
@@ -277,12 +321,17 @@ public class PrototypeStatusEffectController : MonoBehaviour
                 continue;
             }
 
-            totalDamage += effect.tickDamagePerSecond * deltaTime;
-        }
+            float tickDamage = effect.tickDamagePerSecond * deltaTime;
+            if (tickDamage <= 0f)
+            {
+                continue;
+            }
 
-        if (totalDamage > 0f)
-        {
-            vitals.ApplyGlobalDamage(totalDamage);
+            vitals.ApplyGlobalDamage(
+                tickDamage,
+                effect.sourceUnit,
+                effect.ResolveSourceDisplayName(),
+                effect.displayName);
         }
     }
 
