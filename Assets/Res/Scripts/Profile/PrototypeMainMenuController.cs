@@ -55,6 +55,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     private PrototypeWeaponDefinition equippedSecondaryWeapon;
     private PrototypeWeaponDefinition equippedMeleeWeapon;
     private MenuPage currentPage;
+    private Vector2 homeSummaryScroll;
     private Vector2 stashScroll;
     private Vector2 backpackScroll;
     private Vector2 lockerScroll;
@@ -116,7 +117,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         }
         else
         {
-            DrawHomePage();
+            DrawHomePageCompact();
         }
 
         DrawFooter();
@@ -219,6 +220,62 @@ public class PrototypeMainMenuController : MonoBehaviour
 
         GUILayout.EndHorizontal();
         GUILayout.EndArea();
+    }
+
+    private void DrawHomePageCompact()
+    {
+        float panelHeight = Mathf.Max(420f, Screen.height - 220f);
+        Rect panelRect = new Rect(292f, 140f, Mathf.Max(560f, Screen.width - 336f), panelHeight);
+        GUI.Box(panelRect, string.Empty, sectionStyle);
+
+        GUILayout.BeginArea(new Rect(panelRect.x + 18f, panelRect.y + 16f, panelRect.width - 36f, panelRect.height - 32f));
+        GUILayout.Label("Ready Room", sectionStyle);
+        GUILayout.Space(10f);
+        GUILayout.Label(
+            "Warehouse items and weapon locker weapons are safe. The raid backpack, equipped firearms, and armor are risky. The melee slot, secure container, and special equipment slots are protected and survive raid death.",
+            bodyStyle);
+
+        GUILayout.Space(18f);
+        GUILayout.Label($"Funds: {GetAvailableFunds()} {GetCurrencyLabel()}", bodyStyle);
+        GUILayout.Space(8f);
+
+        float summaryHeight = Mathf.Clamp(panelRect.height - 236f, 120f, 340f);
+        homeSummaryScroll = GUILayout.BeginScrollView(homeSummaryScroll, GUILayout.Height(summaryHeight));
+        GUILayout.Label(BuildHomePageSummaryText(), bodyStyle);
+        GUILayout.EndScrollView();
+
+        GUILayout.FlexibleSpace();
+        GUILayout.Space(16f);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Enter Battle", buttonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        {
+            StartRaid();
+        }
+
+        if (GUILayout.Button("Open Warehouse", buttonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        {
+            currentPage = MenuPage.Warehouse;
+        }
+
+        if (GUILayout.Button("Visit Merchants", buttonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        {
+            currentPage = MenuPage.Merchants;
+        }
+
+        GUILayout.EndHorizontal();
+        GUILayout.EndArea();
+    }
+
+    private string BuildHomePageSummaryText()
+    {
+        return
+            $"Funds: {GetAvailableFunds()} {GetCurrencyLabel()}\n" +
+            $"Warehouse: item stacks {GetInventoryStackCount(stashInventory)}  weapons {weaponLocker.Count}\n" +
+            $"Raid backpack: {GetInventoryStackCount(raidBackpackInventory)}  Secure: {GetInventoryStackCount(secureContainerInventory)}\n" +
+            $"Special: {GetInventoryStackCount(specialEquipmentInventory)}  Armor: {equippedArmor.Count}\n" +
+            $"Melee: {(equippedMeleeWeapon != null ? equippedMeleeWeapon.DisplayName : "Empty")}\n" +
+            $"Primary: {(equippedPrimaryWeapon != null ? equippedPrimaryWeapon.DisplayName : "Empty")}\n" +
+            $"Secondary: {(equippedSecondaryWeapon != null ? equippedSecondaryWeapon.DisplayName : "Empty")}";
     }
 
     private void DrawWarehousePage()
