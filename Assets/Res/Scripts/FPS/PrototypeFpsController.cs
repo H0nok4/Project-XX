@@ -2,11 +2,9 @@ using System;
 using System.Text;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController), typeof(PrototypeFpsInput))]
+[RequireComponent(typeof(PrototypeFpsInput), typeof(PrototypeFpsMovementModule))]
 public class PrototypeFpsController : MonoBehaviour
 {
-    private const float StaminaEpsilon = 0.001f;
-
     private enum WeaponSlot
     {
         Primary = 0,
@@ -38,36 +36,6 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private Transform secondaryViewModel;
     [SerializeField] private Transform meleeViewModel;
 
-    [Header("Movement")]
-    [SerializeField] private float moveSpeed = 4.4f;
-    [SerializeField] private float sprintSpeedMultiplier = 1.65f;
-    [SerializeField] private float sprintStaminaPerSecond = 21f;
-    [SerializeField] private float jumpStaminaCost = 15f;
-    [SerializeField] private float jumpHeight = 1.25f;
-    [SerializeField] private float gravity = -20f;
-    [SerializeField] private float groundAcceleration = 52f;
-    [SerializeField] private float groundFriction = 8f;
-    [SerializeField] private float stopSpeed = 2.2f;
-    [SerializeField] private float airAcceleration = 18f;
-    [SerializeField] private float airSpeedCap = 4.2f;
-    [SerializeField] private float airStrafeMouseThreshold = 0.08f;
-    [SerializeField] private float airStrafeBuildRange = 0.14f;
-    [SerializeField] private float landingSpeedRetention = 0.5f;
-    [SerializeField] private float jumpBufferTime = 0.12f;
-    [SerializeField] private float coyoteTime = 0.08f;
-    [SerializeField] private float groundedSnapForce = 2f;
-    [SerializeField, HideInInspector] private float walkSpeedMultiplier = 0.48f;
-    [SerializeField, Range(0.1f, 1f)] private float movementSpeedRatio = 1f;
-    [SerializeField, Range(0.1f, 1f)] private float minMovementSpeedRatio = 0.1f;
-    [SerializeField, Range(0.01f, 0.5f)] private float movementSpeedRatioStep = 0.1f;
-    [SerializeField] private float crouchSpeedMultiplier = 0.58f;
-    [SerializeField] private float crouchHeight = 1.1f;
-    [SerializeField] private float crouchCameraDrop = 0.32f;
-    [SerializeField] private float crouchTransitionSpeed = 10f;
-    [SerializeField] private float crouchStepOffsetMultiplier = 0.45f;
-    [SerializeField] private LayerMask stanceObstructionMask = Physics.DefaultRaycastLayers;
-    [SerializeField] private float stanceClearancePadding = 0.04f;
-
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
     [SerializeField] private float maxLookAngle = 85f;
@@ -91,14 +59,8 @@ public class PrototypeFpsController : MonoBehaviour
     [Header("AI Awareness")]
     [SerializeField] private float firearmNoiseRadius = 26f;
     [SerializeField] private float meleeNoiseRadius = 8f;
-    [SerializeField] private float walkNoiseRadius = 4.8f;
-    [SerializeField] private float sprintNoiseRadius = 11.5f;
-    [SerializeField] private float jumpNoiseRadius = 7.5f;
-    [SerializeField] private float landingNoiseRadius = 12f;
-    [SerializeField] private float movementNoiseInterval = 0.42f;
-    [SerializeField, Range(0.1f, 1f)] private float crouchNoiseMultiplier = 0.45f;
 
-    private CharacterController characterController;
+    private PrototypeFpsMovementModule movementModule;
     private PrototypeFpsInput fpsInput;
     private PlayerInteractionState interactionState;
     private PrototypeUnitVitals playerVitals;
@@ -107,25 +69,10 @@ public class PrototypeFpsController : MonoBehaviour
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
     private WeaponSlot activeWeaponSlot = WeaponSlot.Primary;
-    private Vector3 planarVelocity;
-    private float verticalVelocity;
     private float pitch;
-    private float lookYawDelta;
     private float hitMarkerTimer;
-    private float jumpBufferTimer;
-    private float groundedTimer;
-    private float standingHeight;
-    private float standingCameraLocalY;
-    private float standingStepOffset;
-    private Vector3 standingCenter;
-    private bool crouchToggleRequested;
-    private bool isCrouching;
-    private bool isSprinting;
-    private bool wasGroundedLastFrame;
-    private bool pendingLandingSpeedLoss;
     private float nextMedicalUseTime;
     private float medicalFeedbackTimer;
-    private float nextMovementNoiseTime;
     private string medicalFeedbackMessage = string.Empty;
     private GUIStyle hudStyle;
     private GUIStyle centerStyle;
@@ -137,12 +84,11 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void Awake()
     {
-        characterController = GetComponent<CharacterController>();
+        movementModule = GetOrCreateMovementModule();
         fpsInput = GetOrCreateInput();
         interactionState = GetOrCreateInteractionState();
         playerVitals = GetComponent<PrototypeUnitVitals>();
         inventory = GetComponent<InventoryContainer>();
-        EnsureMovementSettings();
         EnsureCombatSettings();
 
         if (viewCamera == null)
@@ -160,9 +106,8 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         ResolveViewModels();
+        movementModule?.SetViewCamera(viewCamera);
         ConfigureRuntimeWeapons();
-        CacheStanceDefaults();
-        wasGroundedLastFrame = characterController != null && characterController.isGrounded;
     }
 
     private void OnEnable()
@@ -200,7 +145,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (interactionState != null && interactionState.IsUiFocused)
         {
-            isSprinting = false;
+            movementModule?.HandleUiFocus();
             if (Cursor.lockState != CursorLockMode.None)
             {
                 LockCursor(false);
@@ -251,12 +196,11 @@ public class PrototypeFpsController : MonoBehaviour
     {
         if (Cursor.lockState != CursorLockMode.Locked)
         {
-            lookYawDelta = 0f;
             return;
         }
 
         Vector2 mouseDelta = fpsInput.LookDelta;
-        lookYawDelta = mouseDelta.x * mouseSensitivity;
+        float lookYawDelta = mouseDelta.x * mouseSensitivity;
 
         transform.Rotate(Vector3.up * lookYawDelta);
 
@@ -267,383 +211,7 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void HandleMovement()
     {
-        float deltaTime = Time.deltaTime;
-        bool grounded = characterController.isGrounded;
-        Vector2 moveInput = Vector2.ClampMagnitude(fpsInput.Move, 1f);
-
-        HandleMovementModeInput(moveInput);
-        UpdateStance(deltaTime, grounded);
-        UpdateJumpTimers(grounded, deltaTime);
-
-        bool wasSprinting = isSprinting;
-        isSprinting = CanSprint(moveInput, grounded, wasSprinting);
-        if (isSprinting && playerVitals != null && sprintStaminaPerSecond > 0f)
-        {
-            float drained = playerVitals.DrainStamina(sprintStaminaPerSecond * deltaTime);
-            isSprinting = drained > StaminaEpsilon;
-        }
-
-        Vector3 wishDirection = GetWishDirection(moveInput, grounded);
-        bool jumpedThisFrame = TryConsumeJump(ref grounded);
-        bool appliedLandingSpeedLoss = false;
-
-        if (pendingLandingSpeedLoss)
-        {
-            if (jumpedThisFrame)
-            {
-                pendingLandingSpeedLoss = false;
-            }
-            else if (grounded)
-            {
-                ApplyLandingSpeedLoss();
-                pendingLandingSpeedLoss = false;
-                appliedLandingSpeedLoss = true;
-            }
-        }
-
-        if (grounded)
-        {
-            if (!appliedLandingSpeedLoss)
-            {
-                ApplyGroundFriction(deltaTime);
-            }
-
-            if (verticalVelocity < 0f)
-            {
-                verticalVelocity = -groundedSnapForce;
-            }
-        }
-
-        float targetMoveSpeed = GetTargetMoveSpeed();
-        float wishSpeed = GetWishSpeed(moveInput, grounded, targetMoveSpeed);
-        float acceleration = grounded ? groundAcceleration : airAcceleration;
-        Accelerate(wishDirection, wishSpeed, acceleration, deltaTime);
-
-        if (!grounded || jumpedThisFrame)
-        {
-            verticalVelocity += gravity * deltaTime;
-        }
-
-        Vector3 velocity = planarVelocity + Vector3.up * verticalVelocity;
-        CollisionFlags collisionFlags = characterController.Move(velocity * deltaTime);
-        bool groundedAfterMove = (collisionFlags & CollisionFlags.Below) != 0 || characterController.isGrounded;
-
-        if (groundedAfterMove && verticalVelocity < 0f)
-        {
-            verticalVelocity = -groundedSnapForce;
-        }
-
-        bool landedThisFrame = !wasGroundedLastFrame && groundedAfterMove;
-        if (landedThisFrame)
-        {
-            pendingLandingSpeedLoss = true;
-            float landingRadius = landingNoiseRadius + Mathf.Min(planarVelocity.magnitude * 0.45f, 4f);
-            if (isCrouching)
-            {
-                landingRadius *= crouchNoiseMultiplier;
-            }
-
-            ReportCombatNoise(landingRadius);
-            nextMovementNoiseTime = Time.time + movementNoiseInterval * 0.75f;
-        }
-        else if (!groundedAfterMove)
-        {
-            pendingLandingSpeedLoss = false;
-        }
-
-        if (groundedAfterMove && !landedThisFrame)
-        {
-            ReportMovementNoise();
-        }
-
-        wasGroundedLastFrame = groundedAfterMove;
-    }
-
-    private void HandleMovementModeInput(Vector2 moveInput)
-    {
-        if (fpsInput == null)
-        {
-            return;
-        }
-
-        if (fpsInput.ToggleCrouchPressedThisFrame)
-        {
-            crouchToggleRequested = !crouchToggleRequested;
-        }
-
-        if (fpsInput.SpeedAdjustModifierHeld)
-        {
-            float scrollDelta = fpsInput.MoveSpeedScrollDelta;
-            if (Mathf.Abs(scrollDelta) > 0.01f)
-            {
-                AdjustMovementSpeedRatio(scrollDelta > 0f ? 1 : -1);
-            }
-        }
-
-        if (fpsInput.SprintHeld)
-        {
-            movementSpeedRatio = 1f;
-            crouchToggleRequested = false;
-        }
-    }
-
-    private void UpdateStance(float deltaTime, bool grounded)
-    {
-        bool canStand = CanOccupyHeight(standingHeight);
-        isCrouching = crouchToggleRequested || !canStand;
-
-        float targetHeight = isCrouching ? crouchHeight : standingHeight;
-        float targetCameraY = isCrouching
-            ? standingCameraLocalY - crouchCameraDrop
-            : standingCameraLocalY;
-        float targetStepOffset = isCrouching
-            ? standingStepOffset * crouchStepOffsetMultiplier
-            : standingStepOffset;
-        float nextHeight = Mathf.MoveTowards(characterController.height, targetHeight, crouchTransitionSpeed * deltaTime);
-        characterController.height = nextHeight;
-        characterController.center = GetControllerCenterForHeight(nextHeight);
-        characterController.stepOffset = grounded ? targetStepOffset : 0f;
-
-        Vector3 cameraLocalPosition = viewCamera.transform.localPosition;
-        cameraLocalPosition.y = Mathf.MoveTowards(cameraLocalPosition.y, targetCameraY, crouchTransitionSpeed * deltaTime);
-        viewCamera.transform.localPosition = cameraLocalPosition;
-    }
-
-    private float GetTargetMoveSpeed()
-    {
-        float selectedStandingSpeed = moveSpeed * GetSelectedMovementSpeedRatio();
-        float targetSpeed = isCrouching
-            ? selectedStandingSpeed * crouchSpeedMultiplier
-            : selectedStandingSpeed;
-
-        if (isSprinting)
-        {
-            targetSpeed = Mathf.Max(targetSpeed, moveSpeed * sprintSpeedMultiplier);
-        }
-
-        if (playerVitals != null)
-        {
-            targetSpeed *= playerVitals.MovementPenaltyMultiplier;
-        }
-
-        return targetSpeed;
-    }
-
-    private bool CanOccupyHeight(float targetHeight)
-    {
-        if (characterController == null)
-        {
-            return true;
-        }
-
-        float radius = Mathf.Max(0.01f, characterController.radius - stanceClearancePadding);
-        float halfHeight = Mathf.Max(targetHeight * 0.5f, radius + 0.01f);
-        Vector3 targetCenter = GetControllerCenterForHeight(targetHeight);
-        Vector3 worldCenter = transform.TransformPoint(targetCenter);
-        Vector3 capsuleTop = worldCenter + Vector3.up * (halfHeight - radius);
-        Vector3 capsuleBottom = worldCenter - Vector3.up * (halfHeight - radius);
-
-        return !Physics.CheckCapsule(
-            capsuleBottom,
-            capsuleTop,
-            radius,
-            stanceObstructionMask,
-            QueryTriggerInteraction.Ignore);
-    }
-
-    private Vector3 GetControllerCenterForHeight(float targetHeight)
-    {
-        float heightOffset = standingHeight - targetHeight;
-        Vector3 targetCenter = standingCenter;
-        targetCenter.y = standingCenter.y - heightOffset * 0.5f;
-        return targetCenter;
-    }
-
-    private Vector3 GetWishDirection(Vector2 moveInput, bool grounded)
-    {
-        Vector3 forward = transform.forward;
-        forward.y = 0f;
-        forward = forward.sqrMagnitude > 0f ? forward.normalized : Vector3.forward;
-
-        Vector3 right = transform.right;
-        right.y = 0f;
-        right = right.sqrMagnitude > 0f ? right.normalized : Vector3.right;
-
-        float airStrafeFactor = grounded ? 1f : GetAirStrafeFactor(moveInput.x);
-        Vector3 wishDirection = forward * moveInput.y;
-        if (grounded || airStrafeFactor > 0f)
-        {
-            wishDirection += right * (moveInput.x * airStrafeFactor);
-        }
-
-        return wishDirection.sqrMagnitude > 0f ? wishDirection.normalized : Vector3.zero;
-    }
-
-    private float GetWishSpeed(Vector2 moveInput, bool grounded, float targetMoveSpeed)
-    {
-        float allowedSideInput = grounded ? Mathf.Abs(moveInput.x) : Mathf.Abs(moveInput.x) * GetAirStrafeFactor(moveInput.x);
-        float inputMagnitude = Mathf.Clamp01(new Vector2(allowedSideInput, moveInput.y).magnitude);
-        float maxWishSpeed = grounded ? targetMoveSpeed : Mathf.Min(targetMoveSpeed, airSpeedCap);
-        return maxWishSpeed * inputMagnitude;
-    }
-
-    private void UpdateJumpTimers(bool grounded, float deltaTime)
-    {
-        if (fpsInput.JumpPressedThisFrame)
-        {
-            jumpBufferTimer = jumpBufferTime;
-        }
-        else
-        {
-            jumpBufferTimer = Mathf.Max(jumpBufferTimer - deltaTime, 0f);
-        }
-
-        groundedTimer = grounded ? coyoteTime : Mathf.Max(groundedTimer - deltaTime, 0f);
-    }
-
-    private bool TryConsumeJump(ref bool grounded)
-    {
-        if (jumpBufferTimer <= 0f || groundedTimer <= 0f)
-        {
-            return false;
-        }
-
-        float effectiveJumpHeight = jumpHeight;
-        if (playerVitals != null)
-        {
-            effectiveJumpHeight *= playerVitals.JumpPenaltyMultiplier;
-            if (jumpStaminaCost > 0f && (!playerVitals.CanStartStaminaAction(jumpStaminaCost) || !playerVitals.TryConsumeStamina(jumpStaminaCost)))
-            {
-                return false;
-            }
-        }
-
-        verticalVelocity = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
-        jumpBufferTimer = 0f;
-        groundedTimer = 0f;
-        grounded = false;
-        ReportCombatNoise(isCrouching ? jumpNoiseRadius * crouchNoiseMultiplier : jumpNoiseRadius);
-        return true;
-    }
-
-    private void ApplyGroundFriction(float deltaTime)
-    {
-        float speed = planarVelocity.magnitude;
-        if (speed <= 0f)
-        {
-            return;
-        }
-
-        float control = Mathf.Max(speed, stopSpeed);
-        float drop = control * groundFriction * deltaTime;
-        float newSpeed = Mathf.Max(speed - drop, 0f);
-
-        if (newSpeed == speed)
-        {
-            return;
-        }
-
-        planarVelocity *= newSpeed / speed;
-    }
-
-    private void ApplyLandingSpeedLoss()
-    {
-        if (planarVelocity.sqrMagnitude <= 0f)
-        {
-            return;
-        }
-
-        planarVelocity *= landingSpeedRetention;
-    }
-
-    private void Accelerate(Vector3 wishDirection, float wishSpeed, float acceleration, float deltaTime)
-    {
-        if (wishDirection.sqrMagnitude <= 0f || wishSpeed <= 0f || acceleration <= 0f)
-        {
-            return;
-        }
-
-        float currentSpeed = Vector3.Dot(planarVelocity, wishDirection);
-        float addSpeed = wishSpeed - currentSpeed;
-        if (addSpeed <= 0f)
-        {
-            return;
-        }
-
-        float accelSpeed = acceleration * deltaTime * wishSpeed;
-        if (accelSpeed > addSpeed)
-        {
-            accelSpeed = addSpeed;
-        }
-
-        planarVelocity += wishDirection * accelSpeed;
-    }
-
-    private float GetAirStrafeFactor(float sideInput)
-    {
-        if (Mathf.Abs(sideInput) <= 0.01f)
-        {
-            return 0f;
-        }
-
-        if (Mathf.Sign(sideInput) != Mathf.Sign(lookYawDelta))
-        {
-            return 0f;
-        }
-
-        float absYawDelta = Mathf.Abs(lookYawDelta);
-        if (absYawDelta <= airStrafeMouseThreshold)
-        {
-            return 0f;
-        }
-
-        return Mathf.Clamp01((absYawDelta - airStrafeMouseThreshold) / airStrafeBuildRange);
-    }
-
-    private bool CanSprint(Vector2 moveInput, bool grounded, bool wasSprinting)
-    {
-        if (!grounded || isCrouching || fpsInput == null || !fpsInput.SprintHeld || moveInput.sqrMagnitude <= 0.01f)
-        {
-            return false;
-        }
-
-        if (playerVitals == null)
-        {
-            return true;
-        }
-
-        if (playerVitals.CurrentStamina <= StaminaEpsilon)
-        {
-            return false;
-        }
-
-        return wasSprinting || playerVitals.CanStartStaminaAction();
-    }
-
-    private void AdjustMovementSpeedRatio(int stepDirection)
-    {
-        if (stepDirection == 0)
-        {
-            return;
-        }
-
-        float stepSize = Mathf.Max(0.01f, movementSpeedRatioStep);
-        float minRatio = Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f);
-        int minStep = Mathf.Max(1, Mathf.RoundToInt(minRatio / stepSize));
-        int maxStep = Mathf.Max(minStep, Mathf.RoundToInt(1f / stepSize));
-        int currentStep = Mathf.Clamp(Mathf.RoundToInt(GetSelectedMovementSpeedRatio() / stepSize), minStep, maxStep);
-        currentStep = Mathf.Clamp(currentStep + stepDirection, minStep, maxStep);
-        movementSpeedRatio = Mathf.Clamp(currentStep * stepSize, minRatio, 1f);
-    }
-
-    private float GetSelectedMovementSpeedRatio()
-    {
-        return Mathf.Clamp(movementSpeedRatio, Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f), 1f);
-    }
-
-    private float GetSelectedStandingMoveSpeed()
-    {
-        return moveSpeed * GetSelectedMovementSpeedRatio();
+        movementModule?.TickMovement();
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -1499,44 +1067,6 @@ public class PrototypeFpsController : MonoBehaviour
         Destroy(marker, impactMarkerLifetime);
     }
 
-    private void ReportMovementNoise()
-    {
-        if (Time.time < nextMovementNoiseTime)
-        {
-            return;
-        }
-
-        float movementSpeed = planarVelocity.magnitude;
-        if (movementSpeed <= 0.65f)
-        {
-            return;
-        }
-
-        float selectedTopSpeed = isSprinting
-            ? moveSpeed * sprintSpeedMultiplier
-            : Mathf.Max(0.65f, isCrouching ? GetSelectedStandingMoveSpeed() * crouchSpeedMultiplier : GetSelectedStandingMoveSpeed());
-        float selectedSpeedFactor = isSprinting
-            ? 1f
-            : Mathf.InverseLerp(moveSpeed * minMovementSpeedRatio, moveSpeed, GetSelectedStandingMoveSpeed());
-        float speedFactor = Mathf.InverseLerp(0.65f, selectedTopSpeed, movementSpeed);
-        float noiseRadius = isSprinting
-            ? sprintNoiseRadius
-            : Mathf.Lerp(walkNoiseRadius * 0.2f, walkNoiseRadius, selectedSpeedFactor);
-        noiseRadius = isSprinting
-            ? noiseRadius
-            : Mathf.Lerp(noiseRadius * 0.68f, noiseRadius, speedFactor);
-        if (isCrouching)
-        {
-            noiseRadius *= crouchNoiseMultiplier;
-        }
-
-        ReportCombatNoise(noiseRadius);
-        float intervalScale = isSprinting
-            ? 0.72f
-            : Mathf.Lerp(1.35f, 1f, selectedSpeedFactor);
-        nextMovementNoiseTime = Time.time + movementNoiseInterval * intervalScale;
-    }
-
     private void ReportCombatNoise(float radius)
     {
         ReportCombatNoise(transform.position + Vector3.up * 0.9f, radius);
@@ -1624,9 +1154,11 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         builder.Append("\nMove ");
+        bool isSprinting = movementModule != null && movementModule.IsSprinting;
+        bool isCrouching = movementModule != null && movementModule.IsCrouching;
         builder.Append(isSprinting ? "Sprint" : isCrouching ? "Crouch" : "Stand");
         builder.Append(' ');
-        builder.Append(Mathf.RoundToInt(GetSelectedMovementSpeedRatio() * 100f));
+        builder.Append(Mathf.RoundToInt((movementModule != null ? movementModule.SelectedMovementSpeedRatio : 1f) * 100f));
         builder.Append('%');
 
         float headArmor = playerVitals.GetArmorDurabilityNormalized("head");
@@ -1745,7 +1277,6 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void OnValidate()
     {
-        EnsureMovementSettings();
         EnsureCombatSettings();
 
         if (viewCamera == null)
@@ -1760,11 +1291,6 @@ public class PrototypeFpsController : MonoBehaviour
             {
                 muzzle = muzzleTransform;
             }
-        }
-
-        if (characterController == null)
-        {
-            characterController = GetComponent<CharacterController>();
         }
 
         if (fpsInput == null)
@@ -1782,7 +1308,19 @@ public class PrototypeFpsController : MonoBehaviour
             playerVitals = GetComponent<PrototypeUnitVitals>();
         }
 
+        if (movementModule == null)
+        {
+            movementModule = GetComponent<PrototypeFpsMovementModule>();
+        }
+
 #if UNITY_EDITOR
+        if (!Application.isPlaying && movementModule == null)
+        {
+            movementModule = gameObject.AddComponent<PrototypeFpsMovementModule>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
         if (!Application.isPlaying && fpsInput == null)
         {
             fpsInput = gameObject.AddComponent<PrototypeFpsInput>();
@@ -1799,43 +1337,7 @@ public class PrototypeFpsController : MonoBehaviour
 #endif
 
         ResolveViewModels();
-        CacheStanceDefaults();
-    }
-
-    private void EnsureMovementSettings()
-    {
-        moveSpeed = Mathf.Max(moveSpeed, 0.1f);
-        sprintSpeedMultiplier = Mathf.Max(1f, sprintSpeedMultiplier);
-        sprintStaminaPerSecond = Mathf.Max(0f, sprintStaminaPerSecond);
-        jumpStaminaCost = Mathf.Max(0f, jumpStaminaCost);
-        jumpHeight = Mathf.Max(jumpHeight, 0.1f);
-        gravity = gravity < -0.1f ? gravity : -20f;
-        groundAcceleration = groundAcceleration > 0f ? groundAcceleration : 52f;
-        groundFriction = groundFriction > 0f ? groundFriction : 8f;
-        stopSpeed = stopSpeed > 0f ? stopSpeed : 2.2f;
-        airAcceleration = airAcceleration > 0f ? airAcceleration : 18f;
-        airSpeedCap = airSpeedCap > 0f ? airSpeedCap : 4.2f;
-        airStrafeMouseThreshold = Mathf.Max(airStrafeMouseThreshold, 0.001f);
-        airStrafeBuildRange = Mathf.Max(airStrafeBuildRange, 0.001f);
-        landingSpeedRetention = Mathf.Clamp01(landingSpeedRetention);
-        jumpBufferTime = jumpBufferTime > 0f ? jumpBufferTime : 0.12f;
-        coyoteTime = coyoteTime > 0f ? coyoteTime : 0.08f;
-        groundedSnapForce = groundedSnapForce > 0f ? groundedSnapForce : 2f;
-        walkSpeedMultiplier = Mathf.Clamp(walkSpeedMultiplier, 0.1f, 1f);
-        minMovementSpeedRatio = Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f);
-        movementSpeedRatioStep = Mathf.Clamp(movementSpeedRatioStep, 0.01f, 0.5f);
-        movementSpeedRatio = Mathf.Clamp(movementSpeedRatio, minMovementSpeedRatio, 1f);
-        crouchSpeedMultiplier = Mathf.Clamp(crouchSpeedMultiplier, 0.1f, 1f);
-        crouchHeight = Mathf.Max(crouchHeight, 0.8f);
-        crouchCameraDrop = Mathf.Max(crouchCameraDrop, 0.05f);
-        crouchTransitionSpeed = Mathf.Max(crouchTransitionSpeed, 0.1f);
-        crouchStepOffsetMultiplier = Mathf.Clamp(crouchStepOffsetMultiplier, 0f, 1f);
-        stanceClearancePadding = Mathf.Clamp(stanceClearancePadding, 0f, 0.2f);
-
-        if (stanceObstructionMask.value == 0 || stanceObstructionMask.value == ~0)
-        {
-            stanceObstructionMask = Physics.DefaultRaycastLayers;
-        }
+        movementModule?.SetViewCamera(viewCamera);
     }
 
     private void EnsureCombatSettings()
@@ -1850,41 +1352,9 @@ public class PrototypeFpsController : MonoBehaviour
         medicalFeedbackLifetime = Mathf.Max(0.25f, medicalFeedbackLifetime);
         firearmNoiseRadius = Mathf.Max(0f, firearmNoiseRadius);
         meleeNoiseRadius = Mathf.Max(0f, meleeNoiseRadius);
-        walkNoiseRadius = Mathf.Max(0f, walkNoiseRadius);
-        sprintNoiseRadius = Mathf.Max(walkNoiseRadius, sprintNoiseRadius);
-        jumpNoiseRadius = Mathf.Max(0f, jumpNoiseRadius);
-        landingNoiseRadius = Mathf.Max(0f, landingNoiseRadius);
-        movementNoiseInterval = Mathf.Max(0.05f, movementNoiseInterval);
-        crouchNoiseMultiplier = Mathf.Clamp(crouchNoiseMultiplier, 0.1f, 1f);
-
         if (shootMask.value == 0 || shootMask.value == ~0)
         {
             shootMask = Physics.DefaultRaycastLayers;
-        }
-    }
-
-    private void CacheStanceDefaults()
-    {
-        if (characterController != null)
-        {
-            standingHeight = characterController.height > 0f ? characterController.height : 1.8f;
-            standingStepOffset = characterController.stepOffset > 0f ? characterController.stepOffset : 0.3f;
-            standingCenter = characterController.center;
-        }
-        else
-        {
-            standingHeight = 1.8f;
-            standingStepOffset = 0.3f;
-            standingCenter = new Vector3(0f, standingHeight * 0.5f, 0f);
-        }
-
-        if (viewCamera != null)
-        {
-            standingCameraLocalY = viewCamera.transform.localPosition.y;
-        }
-        else if (standingCameraLocalY <= 0f)
-        {
-            standingCameraLocalY = 0.72f;
         }
     }
 
@@ -1897,6 +1367,17 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         return input;
+    }
+
+    private PrototypeFpsMovementModule GetOrCreateMovementModule()
+    {
+        PrototypeFpsMovementModule module = GetComponent<PrototypeFpsMovementModule>();
+        if (module == null)
+        {
+            module = gameObject.AddComponent<PrototypeFpsMovementModule>();
+        }
+
+        return module;
     }
 
     private PlayerInteractionState GetOrCreateInteractionState()

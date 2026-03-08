@@ -308,6 +308,9 @@ public static class PrototypeIndoorSceneBuilder
         playerVitals.SetArmorLoadout(helmetArmor, vestArmor);
         CreatePlayerHitboxes(player.transform, playerVitals);
 
+        PrototypeFpsMovementModule movementModule = player.AddComponent<PrototypeFpsMovementModule>();
+        SetSerializedReference(movementModule, "viewCamera", camera);
+
         PrototypeFpsController fpsController = player.AddComponent<PrototypeFpsController>();
         SetSerializedReference(fpsController, "viewCamera", camera);
         SetSerializedReference(fpsController, "muzzle", muzzle.transform);

@@ -1829,7 +1829,7 @@ MonoBehaviour:
   jumpStaminaCost: 15
   jumpHeight: 1.25
   gravity: -20
-  groundAcceleration: 52
+  groundAcceleration: 30
   groundFriction: 8
   stopSpeed: 2.2
   airAcceleration: 18
