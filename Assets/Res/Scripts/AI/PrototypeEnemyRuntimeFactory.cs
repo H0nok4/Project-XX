@@ -76,6 +76,7 @@ public static class PrototypeEnemyRuntimeFactory
             profile.Archetype,
             profile.PrimaryWeapon,
             patrolPoints != null ? new List<Vector3>(patrolPoints).ToArray() : null);
+        botController.SetCarriedLootTable(profile.CarriedLootTable);
 
         return botController;
     }

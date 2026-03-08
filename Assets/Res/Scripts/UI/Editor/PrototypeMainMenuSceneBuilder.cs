@@ -14,7 +14,9 @@ public static class PrototypeMainMenuSceneBuilder
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
     private const string ResourcesFolder = "Assets/Resources";
     private const string CatalogAssetPath = "Assets/Resources/PrototypeItemCatalog.asset";
+    private const string MerchantCatalogAssetPath = "Assets/Resources/PrototypeMerchantCatalog.asset";
     private const string ItemDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Items";
+    private const string WeaponDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Weapons";
 
     static PrototypeMainMenuSceneBuilder()
     {
@@ -54,6 +56,7 @@ public static class PrototypeMainMenuSceneBuilder
         EnsureFolder(ResourcesFolder);
 
         PrototypeItemCatalog catalog = CreateOrUpdateCatalog();
+        PrototypeMerchantCatalog merchantCatalog = CreateOrUpdateMerchantCatalog();
 
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "MainMenu";
@@ -74,6 +77,7 @@ public static class PrototypeMainMenuSceneBuilder
         GameObject systems = new GameObject("MainMenuSystems");
         PrototypeMainMenuController controller = systems.AddComponent<PrototypeMainMenuController>();
         SetSerializedReference(controller, "itemCatalog", catalog);
+        SetSerializedReference(controller, "merchantCatalog", merchantCatalog);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, MainMenuScenePath);
@@ -103,8 +107,21 @@ public static class PrototypeMainMenuSceneBuilder
             }
         }
 
+        var weaponAssets = new List<PrototypeWeaponDefinition>();
+        string[] weaponGuids = AssetDatabase.FindAssets("t:PrototypeWeaponDefinition", new[] { WeaponDefinitionFolder });
+        for (int index = 0; index < weaponGuids.Length; index++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(weaponGuids[index]);
+            PrototypeWeaponDefinition weapon = AssetDatabase.LoadAssetAtPath<PrototypeWeaponDefinition>(assetPath);
+            if (weapon != null)
+            {
+                weaponAssets.Add(weapon);
+            }
+        }
+
         SerializedObject serializedCatalog = new SerializedObject(catalog);
         AssignDefinitions(serializedCatalog.FindProperty("items"), itemAssets);
+        AssignWeaponDefinitions(serializedCatalog.FindProperty("weapons"), weaponAssets);
 
         ItemDefinition rifleAmmo = FindItem(itemAssets, "rifle_ammo");
         ItemDefinition pistolAmmo = FindItem(itemAssets, "pistol_ammo");
@@ -116,6 +133,9 @@ public static class PrototypeMainMenuSceneBuilder
         ItemDefinition cash = FindItem(itemAssets, "cash_bundle");
         ItemDefinition helmet = FindItem(itemAssets, "helmet_alpha");
         ItemDefinition rig = FindItem(itemAssets, "armored_rig");
+        PrototypeWeaponDefinition carbine = FindWeapon(weaponAssets, "carbine_alpha");
+        PrototypeWeaponDefinition sidearm = FindWeapon(weaponAssets, "sidearm_9mm");
+        PrototypeWeaponDefinition knife = FindWeapon(weaponAssets, "combat_knife");
 
         AssignPresets(
             serializedCatalog.FindProperty("defaultStashItems"),
@@ -146,9 +166,115 @@ public static class PrototypeMainMenuSceneBuilder
                 (painkiller, 1)
             });
 
+        AssignWeaponPresets(
+            serializedCatalog.FindProperty("defaultStashWeapons"),
+            new[]
+            {
+                (carbine, 1),
+                (sidearm, 1),
+                (knife, 1)
+            });
+
+        serializedCatalog.FindProperty("defaultPrimaryWeapon").objectReferenceValue = carbine;
+        serializedCatalog.FindProperty("defaultSecondaryWeapon").objectReferenceValue = sidearm;
+        serializedCatalog.FindProperty("defaultMeleeWeapon").objectReferenceValue = knife;
+
         serializedCatalog.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(catalog);
         return catalog;
+    }
+
+    private static PrototypeMerchantCatalog CreateOrUpdateMerchantCatalog()
+    {
+        PrototypeMerchantCatalog merchantCatalog = AssetDatabase.LoadAssetAtPath<PrototypeMerchantCatalog>(MerchantCatalogAssetPath);
+        if (merchantCatalog == null)
+        {
+            merchantCatalog = ScriptableObject.CreateInstance<PrototypeMerchantCatalog>();
+            AssetDatabase.CreateAsset(merchantCatalog, MerchantCatalogAssetPath);
+        }
+
+        var itemAssets = new List<ItemDefinition>();
+        string[] itemGuids = AssetDatabase.FindAssets("t:ItemDefinition", new[] { ItemDefinitionFolder });
+        for (int index = 0; index < itemGuids.Length; index++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(itemGuids[index]);
+            ItemDefinition item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(assetPath);
+            if (item != null)
+            {
+                itemAssets.Add(item);
+            }
+        }
+
+        var weaponAssets = new List<PrototypeWeaponDefinition>();
+        string[] weaponGuids = AssetDatabase.FindAssets("t:PrototypeWeaponDefinition", new[] { WeaponDefinitionFolder });
+        for (int index = 0; index < weaponGuids.Length; index++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(weaponGuids[index]);
+            PrototypeWeaponDefinition weapon = AssetDatabase.LoadAssetAtPath<PrototypeWeaponDefinition>(assetPath);
+            if (weapon != null)
+            {
+                weaponAssets.Add(weapon);
+            }
+        }
+
+        ItemDefinition rifleAmmo = FindItem(itemAssets, "rifle_ammo");
+        ItemDefinition pistolAmmo = FindItem(itemAssets, "pistol_ammo");
+        ItemDefinition medkit = FindItem(itemAssets, "field_medkit");
+        ItemDefinition bandage = FindItem(itemAssets, "bandage_roll");
+        ItemDefinition tourniquet = FindItem(itemAssets, "tourniquet");
+        ItemDefinition splint = FindItem(itemAssets, "field_splint");
+        ItemDefinition painkiller = FindItem(itemAssets, "painkillers");
+        ItemDefinition helmet = FindItem(itemAssets, "helmet_alpha");
+        ItemDefinition rig = FindItem(itemAssets, "armored_rig");
+        PrototypeWeaponDefinition carbine = FindWeapon(weaponAssets, "carbine_alpha");
+        PrototypeWeaponDefinition sidearm = FindWeapon(weaponAssets, "sidearm_9mm");
+        PrototypeWeaponDefinition knife = FindWeapon(weaponAssets, "combat_knife");
+
+        merchantCatalog.Configure(
+            0.55f,
+            0.6f,
+            new PrototypeMerchantCatalog.MerchantDefinition
+            {
+                merchantId = "weapons_trader",
+                displayName = "Weapon Trader",
+                itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
+                {
+                    new PrototypeMerchantCatalog.ItemOffer { definition = rifleAmmo, quantity = 30, price = 6 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = pistolAmmo, quantity = 24, price = 4 }
+                },
+                weaponOffers = new List<PrototypeMerchantCatalog.WeaponOffer>
+                {
+                    new PrototypeMerchantCatalog.WeaponOffer { definition = carbine, price = 24 },
+                    new PrototypeMerchantCatalog.WeaponOffer { definition = sidearm, price = 16 },
+                    new PrototypeMerchantCatalog.WeaponOffer { definition = knife, price = 10 }
+                }
+            },
+            new PrototypeMerchantCatalog.MerchantDefinition
+            {
+                merchantId = "medical_vendor",
+                displayName = "Medic",
+                itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
+                {
+                    new PrototypeMerchantCatalog.ItemOffer { definition = medkit, quantity = 1, price = 10 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = bandage, quantity = 1, price = 3 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = tourniquet, quantity = 1, price = 5 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = splint, quantity = 1, price = 4 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = painkiller, quantity = 1, price = 4 }
+                }
+            },
+            new PrototypeMerchantCatalog.MerchantDefinition
+            {
+                merchantId = "armor_vendor",
+                displayName = "Armorer",
+                itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
+                {
+                    new PrototypeMerchantCatalog.ItemOffer { definition = helmet, quantity = 1, price = 14 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = rig, quantity = 1, price = 20 }
+                }
+            });
+
+        EditorUtility.SetDirty(merchantCatalog);
+        return merchantCatalog;
     }
 
     private static void CreateDirectionalLight()
@@ -220,6 +346,20 @@ public static class PrototypeMainMenuSceneBuilder
         return null;
     }
 
+    private static PrototypeWeaponDefinition FindWeapon(List<PrototypeWeaponDefinition> weapons, string weaponId)
+    {
+        for (int index = 0; index < weapons.Count; index++)
+        {
+            PrototypeWeaponDefinition weapon = weapons[index];
+            if (weapon != null && weapon.WeaponId == weaponId)
+            {
+                return weapon;
+            }
+        }
+
+        return null;
+    }
+
     private static void AssignDefinitions(SerializedProperty property, List<ItemDefinition> items)
     {
         property.arraySize = items.Count;
@@ -229,10 +369,41 @@ public static class PrototypeMainMenuSceneBuilder
         }
     }
 
+    private static void AssignWeaponDefinitions(SerializedProperty property, List<PrototypeWeaponDefinition> weapons)
+    {
+        property.arraySize = weapons.Count;
+        for (int index = 0; index < weapons.Count; index++)
+        {
+            property.GetArrayElementAtIndex(index).objectReferenceValue = weapons[index];
+        }
+    }
+
     private static void AssignPresets(SerializedProperty property, IEnumerable<(ItemDefinition definition, int quantity)> presets)
     {
         var validPresets = new List<(ItemDefinition definition, int quantity)>();
         foreach ((ItemDefinition definition, int quantity) in presets)
+        {
+            if (definition == null || quantity <= 0)
+            {
+                continue;
+            }
+
+            validPresets.Add((definition, quantity));
+        }
+
+        property.arraySize = validPresets.Count;
+        for (int index = 0; index < validPresets.Count; index++)
+        {
+            SerializedProperty element = property.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("definition").objectReferenceValue = validPresets[index].definition;
+            element.FindPropertyRelative("quantity").intValue = validPresets[index].quantity;
+        }
+    }
+
+    private static void AssignWeaponPresets(SerializedProperty property, IEnumerable<(PrototypeWeaponDefinition definition, int quantity)> presets)
+    {
+        var validPresets = new List<(PrototypeWeaponDefinition definition, int quantity)>();
+        foreach ((PrototypeWeaponDefinition definition, int quantity) in presets)
         {
             if (definition == null || quantity <= 0)
             {

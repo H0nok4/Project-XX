@@ -218,6 +218,14 @@ public static class PrototypeIndoorSceneBuilder
             knifeWeapon,
             accentMat,
             new Vector3(0.68f, 0.72f, 1.05f));
+        regularZombieProfile.SetCarriedLootTable(floorLootTable);
+        policeZombieProfile.SetCarriedLootTable(medicalLootTable);
+        soldierZombieProfile.SetCarriedLootTable(ammoLootTable);
+        zombieDogProfile.SetCarriedLootTable(null);
+        EditorUtility.SetDirty(regularZombieProfile);
+        EditorUtility.SetDirty(policeZombieProfile);
+        EditorUtility.SetDirty(soldierZombieProfile);
+        EditorUtility.SetDirty(zombieDogProfile);
 
         DeleteIfExists("PrototypeIndoorRange");
         DeleteIfExists("FpsPlayer");

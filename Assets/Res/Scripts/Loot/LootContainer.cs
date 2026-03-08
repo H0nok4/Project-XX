@@ -43,8 +43,11 @@ public class LootContainer : MonoBehaviour, IInteractable
 
     public string GetInteractionLabel(PlayerInteractor interactor)
     {
+        PrototypeCorpseLoot corpseLoot = GetComponent<PrototypeCorpseLoot>();
+        bool hasCorpseWeapons = corpseLoot != null && corpseLoot.HasWeapons;
         bool isKnownEmpty = inventory != null
             && inventory.IsEmpty
+            && !hasCorpseWeapons
             && (!populateOnFirstOpen || lootGenerated || lootTable == null);
         string suffix = isKnownEmpty ? " (Empty)" : string.Empty;
         return $"{interactionVerb} {ContainerLabel}{suffix}";

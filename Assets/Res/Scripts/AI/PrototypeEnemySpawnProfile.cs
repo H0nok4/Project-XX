@@ -9,6 +9,7 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
     [SerializeField] private PrototypeEnemyArchetype archetype = PrototypeEnemyArchetype.RegularZombie;
     [SerializeField] private PrototypeUnitDefinition unitDefinition;
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
+    [SerializeField] private LootTableDefinition carriedLootTable;
     [SerializeField] private Material bodyMaterial;
     [SerializeField] private Vector3 localScale = new Vector3(0.9f, 1.1f, 0.9f);
     [SerializeField] private List<ArmorDefinition> armorLoadout = new List<ArmorDefinition>();
@@ -18,6 +19,7 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
     public PrototypeEnemyArchetype Archetype => archetype;
     public PrototypeUnitDefinition UnitDefinition => unitDefinition;
     public PrototypeWeaponDefinition PrimaryWeapon => primaryWeapon;
+    public LootTableDefinition CarriedLootTable => carriedLootTable;
     public Material BodyMaterial => bodyMaterial;
     public Vector3 LocalScale => localScale;
     public IReadOnlyList<ArmorDefinition> ArmorLoadout => armorLoadout;
@@ -53,6 +55,11 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
                 armorLoadout.Add(armor[index]);
             }
         }
+    }
+
+    public void SetCarriedLootTable(LootTableDefinition lootTable)
+    {
+        carriedLootTable = lootTable;
     }
 
     private void OnValidate()

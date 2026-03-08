@@ -9,6 +9,8 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private Camera interactionCamera;
     [SerializeField] private PrototypeFpsInput fpsInput;
     [SerializeField] private InventoryContainer primaryInventory;
+    [SerializeField] private InventoryContainer secureInventory;
+    [SerializeField] private InventoryContainer specialInventory;
     [SerializeField] private PlayerInteractionState interactionState;
 
     [Header("Query")]
@@ -24,6 +26,8 @@ public class PlayerInteractor : MonoBehaviour
     private GUIStyle promptStyle;
 
     public InventoryContainer PrimaryInventory => primaryInventory;
+    public InventoryContainer SecureInventory => secureInventory;
+    public InventoryContainer SpecialInventory => specialInventory;
     public Camera InteractionCamera => interactionCamera;
     public IInteractable CurrentInteractable => currentQuery.Interactable;
     public bool HasInteractionTarget => currentQuery.HasValue;
@@ -97,12 +101,26 @@ public class PlayerInteractor : MonoBehaviour
         GUI.Box(new Rect(x, y, promptSize.x, promptSize.y), $"{promptPrefix} {prompt}", promptStyle);
     }
 
-    public void Configure(Camera targetCamera, InventoryContainer inventory = null)
+    public void Configure(
+        Camera targetCamera,
+        InventoryContainer inventory = null,
+        InventoryContainer secureContainer = null,
+        InventoryContainer specialContainer = null)
     {
         interactionCamera = targetCamera;
         if (inventory != null)
         {
             primaryInventory = inventory;
+        }
+
+        if (secureContainer != null)
+        {
+            secureInventory = secureContainer;
+        }
+
+        if (specialContainer != null)
+        {
+            specialInventory = specialContainer;
         }
 
         ResolveReferences();
@@ -165,6 +183,24 @@ public class PlayerInteractor : MonoBehaviour
         if (primaryInventory == null)
         {
             primaryInventory = GetComponent<InventoryContainer>();
+        }
+
+        if (secureInventory == null)
+        {
+            Transform secureTransform = transform.Find("SecureContainer_Runtime");
+            if (secureTransform != null)
+            {
+                secureInventory = secureTransform.GetComponent<InventoryContainer>();
+            }
+        }
+
+        if (specialInventory == null)
+        {
+            Transform specialTransform = transform.Find("SpecialEquipment_Runtime");
+            if (specialTransform != null)
+            {
+                specialInventory = specialTransform.GetComponent<InventoryContainer>();
+            }
         }
 
         if (interactionState == null)

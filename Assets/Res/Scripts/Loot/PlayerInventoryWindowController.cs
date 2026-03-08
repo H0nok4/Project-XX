@@ -69,13 +69,15 @@ public class PlayerInventoryWindowController : MonoBehaviour
         EnsureStyles();
 
         InventoryContainer inventory = interactor.PrimaryInventory;
-        Rect panelRect = new Rect(Screen.width * 0.5f - 310f, Screen.height * 0.5f - 190f, 620f, 380f);
+        InventoryContainer secureInventory = interactor.SecureInventory;
+        InventoryContainer specialInventory = interactor.SpecialInventory;
+        Rect panelRect = new Rect(Screen.width * 0.5f - 340f, Screen.height * 0.5f - 220f, 680f, 440f);
         GUI.Box(panelRect, string.Empty, windowStyle);
 
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
         GUILayout.Label("Raid Backpack", windowStyle);
         GUILayout.Label(
-            $"Slots {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\nPress Tab or Esc to close. Drop items to spawn them at your feet.",
+            $"Backpack {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\nSecure {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  Special {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\nPress Tab or Esc to close. Only raid backpack items can be dropped.",
             windowStyle);
 
         GUILayout.Space(6f);
@@ -86,7 +88,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
         }
         else
         {
-            scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(240f));
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(260f));
             for (int index = 0; index < inventory.Items.Count; index++)
             {
                 ItemInstance item = inventory.Items[index];
@@ -118,6 +120,9 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
             GUILayout.EndScrollView();
         }
+
+        DrawProtectedSection("Secure Container", secureInventory);
+        DrawProtectedSection("Special Equipment", specialInventory);
 
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Close", buttonStyle, GUILayout.Width(120f)))
@@ -173,6 +178,47 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
         Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
         GroundLootItem.SpawnDroppedItem(dropOrigin, extractedItem.Definition, extractedItem.Quantity);
+    }
+
+    private void DrawProtectedSection(string title, InventoryContainer inventory)
+    {
+        GUILayout.Space(8f);
+        GUILayout.Label(title, windowStyle);
+        if (inventory == null)
+        {
+            GUILayout.Label("Unavailable.", windowStyle);
+            return;
+        }
+
+        if (inventory.IsEmpty)
+        {
+            GUILayout.Label("Empty.", windowStyle);
+            return;
+        }
+
+        for (int index = 0; index < inventory.Items.Count; index++)
+        {
+            ItemInstance item = inventory.Items[index];
+            if (item == null || !item.IsDefined())
+            {
+                continue;
+            }
+
+            GUILayout.BeginVertical(listStyle);
+            GUILayout.Label($"{item.DisplayName} x{item.Quantity}", windowStyle);
+            GUILayout.Label($"Weight {item.TotalWeight:0.00}", windowStyle);
+            GUILayout.EndVertical();
+        }
+    }
+
+    private static int GetStackCount(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.Items.Count : 0;
+    }
+
+    private static int GetMaxSlots(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.MaxSlots : 0;
     }
 
     private void ResolveReferences()

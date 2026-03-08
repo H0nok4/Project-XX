@@ -1746,11 +1746,13 @@ MonoBehaviour:
   interactionCamera: {fileID: 1651475413}
   fpsInput: {fileID: 382593050}
   primaryInventory: {fileID: 382593047}
+  secureInventory: {fileID: 0}
+  specialInventory: {fileID: 0}
   interactionState: {fileID: 382593048}
   interactDistance: 3
   interactionMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   triggerInteraction: 2
   showPrompt: 1
   promptSize: {x: 320, y: 42}
@@ -1846,7 +1848,7 @@ MonoBehaviour:
   crouchStepOffsetMultiplier: 0.45
   stanceObstructionMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   stanceClearancePadding: 0.04
   mouseSensitivity: 0.14
   maxLookAngle: 85
@@ -1861,7 +1863,7 @@ MonoBehaviour:
   impactMarkerLifetime: 0.2
   shootMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   medicalUseCooldown: 0.28
   medicalFeedbackLifetime: 1.4
   firearmNoiseRadius: 26
@@ -2520,8 +2522,14 @@ MonoBehaviour:
   itemCatalog: {fileID: 11400000, guid: 8568376c312ed0b47b3532dcaf0e2bd2, type: 2}
   raidGameMode: {fileID: 394060432}
   playerInteractor: {fileID: 382593046}
+  fpsController: {fileID: 382593049}
+  playerVitals: {fileID: 382593053}
   mainMenuSceneName: MainMenu
   showReturnButton: 1
+  secureContainerSlots: 4
+  secureContainerMaxWeight: 6
+  specialEquipmentSlots: 4
+  specialEquipmentMaxWeight: 8
 --- !u!4 &394060435
 Transform:
   m_ObjectHideFlags: 0

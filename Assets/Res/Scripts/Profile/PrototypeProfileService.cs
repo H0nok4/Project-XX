@@ -20,6 +20,8 @@ public static class PrototypeProfileService
         public List<ItemStackRecord> loadoutItems = new List<ItemStackRecord>();
         public List<ItemStackRecord> extractedItems = new List<ItemStackRecord>();
         public List<ItemStackRecord> raidBackpackItems = new List<ItemStackRecord>();
+        public List<ItemStackRecord> secureContainerItems = new List<ItemStackRecord>();
+        public List<ItemStackRecord> specialEquipmentItems = new List<ItemStackRecord>();
         public List<ItemStackRecord> equippedArmorItems = new List<ItemStackRecord>();
         public List<string> stashWeaponIds = new List<string>();
         public string equippedPrimaryWeaponId = string.Empty;
@@ -227,6 +229,8 @@ public static class PrototypeProfileService
             loadoutItems = new List<ItemStackRecord>(),
             extractedItems = new List<ItemStackRecord>(),
             raidBackpackItems = new List<ItemStackRecord>(),
+            secureContainerItems = new List<ItemStackRecord>(),
+            specialEquipmentItems = new List<ItemStackRecord>(),
             equippedArmorItems = new List<ItemStackRecord>(),
             stashWeaponIds = CreateWeaponIdsFromPresets(catalog != null ? catalog.DefaultStashWeapons : null),
             equippedPrimaryWeaponId = catalog != null && catalog.DefaultPrimaryWeapon != null ? catalog.DefaultPrimaryWeapon.WeaponId : string.Empty,
@@ -253,6 +257,8 @@ public static class PrototypeProfileService
         profile.loadoutItems ??= new List<ItemStackRecord>();
         profile.extractedItems ??= new List<ItemStackRecord>();
         profile.raidBackpackItems ??= new List<ItemStackRecord>();
+        profile.secureContainerItems ??= new List<ItemStackRecord>();
+        profile.specialEquipmentItems ??= new List<ItemStackRecord>();
         profile.equippedArmorItems ??= new List<ItemStackRecord>();
         profile.stashWeaponIds ??= new List<string>();
 
@@ -261,6 +267,8 @@ public static class PrototypeProfileService
         profile.version = CurrentVersion;
         profile.stashItems = SanitizeRecords(profile.stashItems, catalog);
         profile.raidBackpackItems = SanitizeRecords(profile.raidBackpackItems, catalog);
+        profile.secureContainerItems = SanitizeRecords(profile.secureContainerItems, catalog);
+        profile.specialEquipmentItems = SanitizeRecords(profile.specialEquipmentItems, catalog);
         profile.equippedArmorItems = SanitizeRecords(profile.equippedArmorItems, catalog, definition => definition is ArmorDefinition);
         profile.stashWeaponIds = SanitizeWeaponIds(profile.stashWeaponIds, catalog);
         profile.equippedPrimaryWeaponId = SanitizeWeaponId(profile.equippedPrimaryWeaponId, catalog);

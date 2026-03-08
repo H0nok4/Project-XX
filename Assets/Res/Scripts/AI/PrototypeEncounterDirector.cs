@@ -35,7 +35,7 @@ public class PrototypeEncounterDirector : MonoBehaviour
     public void Configure(Transform target, PrototypeUnitDefinition unitDefinition = null)
     {
         combatTarget = target;
-        if (unitDefinition != null)
+        if (unitDefinition)
         {
             fallbackUnitDefinition = unitDefinition;
         }

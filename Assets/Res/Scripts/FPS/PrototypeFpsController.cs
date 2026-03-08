@@ -57,6 +57,9 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private float coyoteTime = 0.08f;
     [SerializeField] private float groundedSnapForce = 2f;
     [SerializeField, HideInInspector] private float walkSpeedMultiplier = 0.48f;
+    [SerializeField, Range(0.1f, 1f)] private float movementSpeedRatio = 1f;
+    [SerializeField, Range(0.1f, 1f)] private float minMovementSpeedRatio = 0.1f;
+    [SerializeField, Range(0.01f, 0.5f)] private float movementSpeedRatioStep = 0.1f;
     [SerializeField] private float crouchSpeedMultiplier = 0.58f;
     [SerializeField] private float crouchHeight = 1.1f;
     [SerializeField] private float crouchCameraDrop = 0.32f;
@@ -115,6 +118,7 @@ public class PrototypeFpsController : MonoBehaviour
     private float standingCameraLocalY;
     private float standingStepOffset;
     private Vector3 standingCenter;
+    private bool crouchToggleRequested;
     private bool isCrouching;
     private bool isSprinting;
     private bool wasGroundedLastFrame;
@@ -126,6 +130,10 @@ public class PrototypeFpsController : MonoBehaviour
     private GUIStyle hudStyle;
     private GUIStyle centerStyle;
     private GUIStyle barLabelStyle;
+
+    public PrototypeWeaponDefinition EquippedPrimaryWeapon => primaryRuntime.Definition;
+    public PrototypeWeaponDefinition EquippedSecondaryWeapon => secondaryRuntime.Definition;
+    public PrototypeWeaponDefinition EquippedMeleeWeapon => meleeRuntime.Definition;
 
     private void Awake()
     {
@@ -261,11 +269,12 @@ public class PrototypeFpsController : MonoBehaviour
     {
         float deltaTime = Time.deltaTime;
         bool grounded = characterController.isGrounded;
+        Vector2 moveInput = Vector2.ClampMagnitude(fpsInput.Move, 1f);
 
+        HandleMovementModeInput(moveInput);
         UpdateStance(deltaTime, grounded);
         UpdateJumpTimers(grounded, deltaTime);
 
-        Vector2 moveInput = Vector2.ClampMagnitude(fpsInput.Move, 1f);
         bool wasSprinting = isSprinting;
         isSprinting = CanSprint(moveInput, grounded, wasSprinting);
         if (isSprinting && playerVitals != null && sprintStaminaPerSecond > 0f)
@@ -350,11 +359,38 @@ public class PrototypeFpsController : MonoBehaviour
         wasGroundedLastFrame = groundedAfterMove;
     }
 
+    private void HandleMovementModeInput(Vector2 moveInput)
+    {
+        if (fpsInput == null)
+        {
+            return;
+        }
+
+        if (fpsInput.ToggleCrouchPressedThisFrame)
+        {
+            crouchToggleRequested = !crouchToggleRequested;
+        }
+
+        if (fpsInput.SpeedAdjustModifierHeld)
+        {
+            float scrollDelta = fpsInput.MoveSpeedScrollDelta;
+            if (Mathf.Abs(scrollDelta) > 0.01f)
+            {
+                AdjustMovementSpeedRatio(scrollDelta > 0f ? 1 : -1);
+            }
+        }
+
+        if (fpsInput.SprintHeld)
+        {
+            movementSpeedRatio = 1f;
+            crouchToggleRequested = false;
+        }
+    }
+
     private void UpdateStance(float deltaTime, bool grounded)
     {
-        bool crouchHeld = fpsInput != null && fpsInput.CrouchHeld;
         bool canStand = CanOccupyHeight(standingHeight);
-        isCrouching = crouchHeld || !canStand;
+        isCrouching = crouchToggleRequested || !canStand;
 
         float targetHeight = isCrouching ? crouchHeight : standingHeight;
         float targetCameraY = isCrouching
@@ -375,16 +411,14 @@ public class PrototypeFpsController : MonoBehaviour
 
     private float GetTargetMoveSpeed()
     {
-        float targetSpeed = moveSpeed;
+        float selectedStandingSpeed = moveSpeed * GetSelectedMovementSpeedRatio();
+        float targetSpeed = isCrouching
+            ? selectedStandingSpeed * crouchSpeedMultiplier
+            : selectedStandingSpeed;
 
         if (isSprinting)
         {
             targetSpeed = Mathf.Max(targetSpeed, moveSpeed * sprintSpeedMultiplier);
-        }
-
-        if (isCrouching)
-        {
-            targetSpeed = Mathf.Min(targetSpeed, moveSpeed * crouchSpeedMultiplier);
         }
 
         if (playerVitals != null)
@@ -584,6 +618,75 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         return wasSprinting || playerVitals.CanStartStaminaAction();
+    }
+
+    private void AdjustMovementSpeedRatio(int stepDirection)
+    {
+        if (stepDirection == 0)
+        {
+            return;
+        }
+
+        float stepSize = Mathf.Max(0.01f, movementSpeedRatioStep);
+        float minRatio = Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f);
+        int minStep = Mathf.Max(1, Mathf.RoundToInt(minRatio / stepSize));
+        int maxStep = Mathf.Max(minStep, Mathf.RoundToInt(1f / stepSize));
+        int currentStep = Mathf.Clamp(Mathf.RoundToInt(GetSelectedMovementSpeedRatio() / stepSize), minStep, maxStep);
+        currentStep = Mathf.Clamp(currentStep + stepDirection, minStep, maxStep);
+        movementSpeedRatio = Mathf.Clamp(currentStep * stepSize, minRatio, 1f);
+    }
+
+    private float GetSelectedMovementSpeedRatio()
+    {
+        return Mathf.Clamp(movementSpeedRatio, Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f), 1f);
+    }
+
+    private float GetSelectedStandingMoveSpeed()
+    {
+        return moveSpeed * GetSelectedMovementSpeedRatio();
+    }
+
+    public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
+    {
+        return GetSlotDisplayName(ChoosePickupSlot(weaponDefinition));
+    }
+
+    public bool PickupWouldReplaceEquippedWeapon(PrototypeWeaponDefinition weaponDefinition)
+    {
+        WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponDefinition));
+        return runtime != null && runtime.IsConfigured;
+    }
+
+    public bool TryEquipLootedWeapon(
+        PrototypeWeaponDefinition weaponDefinition,
+        int startingMagazineAmmo,
+        out PrototypeWeaponDefinition droppedWeaponDefinition,
+        out int droppedMagazineAmmo)
+    {
+        droppedWeaponDefinition = null;
+        droppedMagazineAmmo = 0;
+
+        if (weaponDefinition == null)
+        {
+            return false;
+        }
+
+        WeaponSlot slot = ChoosePickupSlot(weaponDefinition);
+        WeaponRuntime runtime = GetWeaponRuntime(slot);
+        if (runtime == null)
+        {
+            return false;
+        }
+
+        droppedWeaponDefinition = runtime.Definition;
+        if (droppedWeaponDefinition != null && !droppedWeaponDefinition.IsMeleeWeapon)
+        {
+            droppedMagazineAmmo = runtime.MagazineAmmo;
+        }
+
+        SetWeaponForSlot(slot, weaponDefinition, startingMagazineAmmo);
+        EquipWeapon(slot);
+        return true;
     }
 
     private void HandleWeaponInput()
@@ -1181,7 +1284,7 @@ public class PrototypeFpsController : MonoBehaviour
         RefreshWeaponViewModels();
     }
 
-    private void SetupWeaponRuntime(WeaponRuntime runtime, PrototypeWeaponDefinition definition)
+    private void SetupWeaponRuntime(WeaponRuntime runtime, PrototypeWeaponDefinition definition, int startingMagazineAmmo = -1)
     {
         runtime.Definition = definition;
         runtime.PendingBurstShots = 0;
@@ -1189,7 +1292,9 @@ public class PrototypeFpsController : MonoBehaviour
         runtime.NextAttackTime = 0f;
         runtime.ReloadEndTime = 0f;
         runtime.FireModeIndex = 0;
-        runtime.MagazineAmmo = definition != null && !definition.IsMeleeWeapon ? definition.MagazineSize : 0;
+        runtime.MagazineAmmo = definition != null && !definition.IsMeleeWeapon
+            ? Mathf.Clamp(startingMagazineAmmo >= 0 ? startingMagazineAmmo : definition.MagazineSize, 0, definition.MagazineSize)
+            : 0;
     }
 
     private void SelectInitialWeapon()
@@ -1225,6 +1330,72 @@ public class PrototypeFpsController : MonoBehaviour
 
             default:
                 return meleeRuntime;
+        }
+    }
+
+    private WeaponSlot ChoosePickupSlot(PrototypeWeaponDefinition weaponDefinition)
+    {
+        if (weaponDefinition == null)
+        {
+            return activeWeaponSlot;
+        }
+
+        if (weaponDefinition.IsMeleeWeapon)
+        {
+            return WeaponSlot.Melee;
+        }
+
+        if (!primaryRuntime.IsConfigured)
+        {
+            return WeaponSlot.Primary;
+        }
+
+        if (!secondaryRuntime.IsConfigured)
+        {
+            return WeaponSlot.Secondary;
+        }
+
+        if (activeWeaponSlot == WeaponSlot.Primary || activeWeaponSlot == WeaponSlot.Secondary)
+        {
+            return activeWeaponSlot;
+        }
+
+        return WeaponSlot.Primary;
+    }
+
+    private string GetSlotDisplayName(WeaponSlot slot)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                return "Primary";
+
+            case WeaponSlot.Secondary:
+                return "Secondary";
+
+            default:
+                return "Melee";
+        }
+    }
+
+    private void SetWeaponForSlot(WeaponSlot slot, PrototypeWeaponDefinition weaponDefinition, int startingMagazineAmmo = -1)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                primaryWeapon = weaponDefinition;
+                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo);
+                break;
+
+            case WeaponSlot.Secondary:
+                secondaryWeapon = weaponDefinition;
+                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo);
+                break;
+
+            default:
+                meleeWeapon = weaponDefinition;
+                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo);
+                break;
         }
     }
 
@@ -1341,18 +1512,29 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
-        float targetTopSpeed = Mathf.Max(moveSpeed * sprintSpeedMultiplier, moveSpeed);
-        float speedFactor = Mathf.InverseLerp(0.65f, targetTopSpeed, movementSpeed);
+        float selectedTopSpeed = isSprinting
+            ? moveSpeed * sprintSpeedMultiplier
+            : Mathf.Max(0.65f, isCrouching ? GetSelectedStandingMoveSpeed() * crouchSpeedMultiplier : GetSelectedStandingMoveSpeed());
+        float selectedSpeedFactor = isSprinting
+            ? 1f
+            : Mathf.InverseLerp(moveSpeed * minMovementSpeedRatio, moveSpeed, GetSelectedStandingMoveSpeed());
+        float speedFactor = Mathf.InverseLerp(0.65f, selectedTopSpeed, movementSpeed);
         float noiseRadius = isSprinting
             ? sprintNoiseRadius
-            : Mathf.Lerp(walkNoiseRadius * 0.72f, walkNoiseRadius, speedFactor);
+            : Mathf.Lerp(walkNoiseRadius * 0.2f, walkNoiseRadius, selectedSpeedFactor);
+        noiseRadius = isSprinting
+            ? noiseRadius
+            : Mathf.Lerp(noiseRadius * 0.68f, noiseRadius, speedFactor);
         if (isCrouching)
         {
             noiseRadius *= crouchNoiseMultiplier;
         }
 
         ReportCombatNoise(noiseRadius);
-        nextMovementNoiseTime = Time.time + movementNoiseInterval * (isSprinting ? 0.72f : 1f);
+        float intervalScale = isSprinting
+            ? 0.72f
+            : Mathf.Lerp(1.35f, 1f, selectedSpeedFactor);
+        nextMovementNoiseTime = Time.time + movementNoiseInterval * intervalScale;
     }
 
     private void ReportCombatNoise(float radius)
@@ -1388,7 +1570,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         GUI.Label(
             new Rect(18f, 100f, 380f, 280f),
-            "Move\nLook\nAttack\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint\nCrouch\nToggle Cursor",
+            "Move\nLook\nAttack\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint Shift\nToggle Crouch C\nAdjust Pace LCtrl + Wheel\nToggle Cursor",
             hudStyle);
 
         if (activeWeapon == null || !activeWeapon.IsConfigured)
@@ -1440,6 +1622,12 @@ public class PrototypeFpsController : MonoBehaviour
             builder.Append(playerVitals.StaminaRecoveryBlockedRemaining.ToString("0.0"));
             builder.Append('s');
         }
+
+        builder.Append("\nMove ");
+        builder.Append(isSprinting ? "Sprint" : isCrouching ? "Crouch" : "Stand");
+        builder.Append(' ');
+        builder.Append(Mathf.RoundToInt(GetSelectedMovementSpeedRatio() * 100f));
+        builder.Append('%');
 
         float headArmor = playerVitals.GetArmorDurabilityNormalized("head");
         float torsoArmor = playerVitals.GetArmorDurabilityNormalized("torso");
@@ -1634,6 +1822,9 @@ public class PrototypeFpsController : MonoBehaviour
         coyoteTime = coyoteTime > 0f ? coyoteTime : 0.08f;
         groundedSnapForce = groundedSnapForce > 0f ? groundedSnapForce : 2f;
         walkSpeedMultiplier = Mathf.Clamp(walkSpeedMultiplier, 0.1f, 1f);
+        minMovementSpeedRatio = Mathf.Clamp(minMovementSpeedRatio, 0.1f, 1f);
+        movementSpeedRatioStep = Mathf.Clamp(movementSpeedRatioStep, 0.01f, 0.5f);
+        movementSpeedRatio = Mathf.Clamp(movementSpeedRatio, minMovementSpeedRatio, 1f);
         crouchSpeedMultiplier = Mathf.Clamp(crouchSpeedMultiplier, 0.1f, 1f);
         crouchHeight = Mathf.Max(crouchHeight, 0.8f);
         crouchCameraDrop = Mathf.Max(crouchCameraDrop, 0.05f);

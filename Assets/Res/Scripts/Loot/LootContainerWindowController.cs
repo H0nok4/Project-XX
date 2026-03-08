@@ -70,6 +70,7 @@ public class LootContainerWindowController : MonoBehaviour
 
         InventoryContainer playerInventory = interactor.PrimaryInventory;
         InventoryContainer lootInventory = openContainer.Inventory;
+        PrototypeCorpseLoot corpseLoot = openContainer.GetComponent<PrototypeCorpseLoot>();
         if (playerInventory == null || lootInventory == null)
         {
             return;
@@ -81,18 +82,52 @@ public class LootContainerWindowController : MonoBehaviour
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
         GUILayout.Label($"{openContainer.ContainerLabel}", windowStyle);
         GUILayout.Label(
-            $"Loot {lootInventory.Items.Count}/{lootInventory.MaxSlots}  Weight {lootInventory.CurrentWeight:0.0}/{lootInventory.MaxWeight:0.0}\nBackpack {playerInventory.Items.Count}/{playerInventory.MaxSlots}  Weight {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
+            $"Loot {lootInventory.Items.Count}/{lootInventory.MaxSlots}  Weapons {(corpseLoot != null ? corpseLoot.Weapons.Count : 0)}\nBackpack {playerInventory.Items.Count}/{playerInventory.MaxSlots}  Weight {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
             windowStyle);
 
         GUILayout.Space(6f);
 
-        if (lootInventory.IsEmpty)
+        if (lootInventory.IsEmpty && (corpseLoot == null || !corpseLoot.HasWeapons))
         {
             GUILayout.Label("Container is empty.", windowStyle);
         }
         else
         {
             scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(220f));
+            if (corpseLoot != null && corpseLoot.HasWeapons)
+            {
+                GUILayout.Label("Weapons", windowStyle);
+                for (int index = 0; index < corpseLoot.Weapons.Count; index++)
+                {
+                    PrototypeCorpseLoot.WeaponEntry entry = corpseLoot.GetWeaponEntry(index);
+                    if (entry == null || entry.WeaponDefinition == null)
+                    {
+                        continue;
+                    }
+
+                    PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
+                    string buttonLabel = controller != null && controller.PickupWouldReplaceEquippedWeapon(entry.WeaponDefinition)
+                        ? "Swap"
+                        : "Take";
+                    string weaponText = entry.WeaponDefinition.IsMeleeWeapon
+                        ? entry.WeaponDefinition.DisplayName
+                        : $"{entry.WeaponDefinition.DisplayName} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(weaponText, windowStyle, GUILayout.Width(320f));
+                    if (GUILayout.Button(buttonLabel, buttonStyle, GUILayout.Width(90f)))
+                    {
+                        corpseLoot.TryTakeWeapon(interactor, index);
+                        GUIUtility.ExitGUI();
+                    }
+
+                    GUILayout.EndHorizontal();
+                }
+
+                GUILayout.Space(8f);
+                GUILayout.Label("Items", windowStyle);
+            }
+
             for (int index = 0; index < lootInventory.Items.Count; index++)
             {
                 ItemInstance item = lootInventory.Items[index];
@@ -117,7 +152,8 @@ public class LootContainerWindowController : MonoBehaviour
         }
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Take All", buttonStyle, GUILayout.Width(120f)))
+        string takeAllLabel = corpseLoot != null && corpseLoot.HasWeapons ? "Take All Items" : "Take All";
+        if (GUILayout.Button(takeAllLabel, buttonStyle, GUILayout.Width(120f)))
         {
             TakeAll();
             GUIUtility.ExitGUI();

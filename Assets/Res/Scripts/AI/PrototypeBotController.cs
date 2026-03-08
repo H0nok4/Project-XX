@@ -130,6 +130,16 @@ public class PrototypeBotController : MonoBehaviour
     [Min(0f)]
     [SerializeField] private float fallbackImpactForce = 10f;
 
+    [Header("Loot")]
+    [SerializeField] private string corpseInteractionLabel = "Search Corpse";
+    [Min(1)]
+    [SerializeField] private int corpseLootSlots = 6;
+    [SerializeField] private LootTableDefinition carriedLootTable;
+    [SerializeField] private bool rollCarriedLootOnDeath = true;
+    [SerializeField] private bool transferEquippedArmorToCorpse = true;
+    [SerializeField] private bool transferMagazineAmmoToCorpse = true;
+    [SerializeField] private bool transferPrimaryWeaponToCorpse = true;
+
     private Rigidbody botRigidbody;
     private PrototypeUnitVitals vitals;
     private PrototypeUnitVitals targetVitals;
@@ -155,6 +165,7 @@ public class PrototypeBotController : MonoBehaviour
     private bool isReloading;
     private bool hasInvestigationPoint;
     private bool hasLockedAimPoint;
+    private bool corpseLootBuilt;
     private BotState state;
     private readonly List<Vector3> searchPoints = new List<Vector3>();
 
@@ -225,6 +236,11 @@ public class PrototypeBotController : MonoBehaviour
         EnsureSettings();
         InitializeWeaponState();
         ResolveReferences();
+    }
+
+    public void SetCarriedLootTable(LootTableDefinition lootTable)
+    {
+        carriedLootTable = lootTable;
     }
 
     private void Update()
@@ -1205,6 +1221,8 @@ public class PrototypeBotController : MonoBehaviour
         rangedAimLockRefreshIntervalMax = Mathf.Max(rangedAimLockRefreshIntervalMin, rangedAimLockRefreshIntervalMax);
         fallbackDamage = Mathf.Max(1f, fallbackDamage);
         fallbackImpactForce = Mathf.Max(0f, fallbackImpactForce);
+        corpseInteractionLabel = string.IsNullOrWhiteSpace(corpseInteractionLabel) ? "Search Corpse" : corpseInteractionLabel.Trim();
+        corpseLootSlots = Mathf.Max(1, corpseLootSlots);
 
         if (patrolPoints == null)
         {
@@ -1229,6 +1247,7 @@ public class PrototypeBotController : MonoBehaviour
         desiredPlanarVelocity = Vector3.zero;
         ResetRangedAttackSequence(false);
         ClearRangedAimLock();
+        BuildCorpseLoot();
 
         if (botRigidbody != null)
         {
@@ -1238,6 +1257,121 @@ public class PrototypeBotController : MonoBehaviour
             botRigidbody.linearVelocity = velocity;
             botRigidbody.constraints = RigidbodyConstraints.None;
         }
+    }
+
+    private void BuildCorpseLoot()
+    {
+        if (corpseLootBuilt)
+        {
+            return;
+        }
+
+        InventoryContainer corpseInventory = GetComponent<InventoryContainer>();
+        if (corpseInventory == null)
+        {
+            corpseInventory = gameObject.AddComponent<InventoryContainer>();
+        }
+
+        corpseInventory.Configure(BuildCorpseLootLabel(), corpseLootSlots, 0f);
+
+        if (rollCarriedLootOnDeath)
+        {
+            TransferCarriedLootToCorpse(corpseInventory);
+        }
+
+        if (transferEquippedArmorToCorpse)
+        {
+            TransferArmorToCorpse(corpseInventory);
+        }
+
+        if (transferMagazineAmmoToCorpse && (!transferPrimaryWeaponToCorpse || primaryWeapon == null || primaryWeapon.IsMeleeWeapon))
+        {
+            TransferMagazineAmmoToCorpse(corpseInventory);
+        }
+
+        LootContainer lootContainer = GetComponent<LootContainer>();
+        if (lootContainer == null)
+        {
+            lootContainer = gameObject.AddComponent<LootContainer>();
+        }
+
+        lootContainer.Configure(BuildCorpseLootLabel(), corpseInventory, "Search");
+
+        if (transferPrimaryWeaponToCorpse)
+        {
+            PrototypeCorpseLoot corpseLoot = GetComponent<PrototypeCorpseLoot>();
+            if (corpseLoot == null)
+            {
+                corpseLoot = gameObject.AddComponent<PrototypeCorpseLoot>();
+            }
+
+            corpseLoot.Configure(BuildCorpseLootLabel());
+            if (primaryWeapon != null)
+            {
+                corpseLoot.AddWeapon(primaryWeapon, primaryWeapon.IsMeleeWeapon ? 0 : magazineAmmo);
+            }
+        }
+
+        corpseLootBuilt = true;
+    }
+
+    private void TransferArmorToCorpse(InventoryContainer corpseInventory)
+    {
+        if (corpseInventory == null || vitals == null || vitals.EquippedArmor == null)
+        {
+            return;
+        }
+
+        var addedArmorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = 0; index < vitals.EquippedArmor.Count; index++)
+        {
+            PrototypeUnitVitals.ArmorState armorState = vitals.EquippedArmor[index];
+            ArmorDefinition armorDefinition = armorState?.definition;
+            if (armorDefinition == null || !addedArmorIds.Add(armorDefinition.ItemId))
+            {
+                continue;
+            }
+
+            corpseInventory.TryAddItem(armorDefinition, 1, out _);
+        }
+    }
+
+    private void TransferCarriedLootToCorpse(InventoryContainer corpseInventory)
+    {
+        if (corpseInventory == null || carriedLootTable == null)
+        {
+            return;
+        }
+
+        List<LootTableDefinition.LootRoll> lootRolls = carriedLootTable.RollLoot();
+        for (int index = 0; index < lootRolls.Count; index++)
+        {
+            LootTableDefinition.LootRoll roll = lootRolls[index];
+            if (roll.Definition != null && roll.Quantity > 0)
+            {
+                corpseInventory.TryAddItem(roll.Definition, roll.Quantity, out _);
+            }
+        }
+    }
+
+    private void TransferMagazineAmmoToCorpse(InventoryContainer corpseInventory)
+    {
+        if (corpseInventory == null
+            || primaryWeapon == null
+            || primaryWeapon.IsMeleeWeapon
+            || primaryWeapon.AmmoDefinition == null
+            || magazineAmmo <= 0)
+        {
+            return;
+        }
+
+        corpseInventory.TryAddItem(primaryWeapon.AmmoDefinition, magazineAmmo, out _);
+    }
+
+    private string BuildCorpseLootLabel()
+    {
+        string baseLabel = string.IsNullOrWhiteSpace(corpseInteractionLabel) ? "Search Corpse" : corpseInteractionLabel.Trim();
+        return $"{gameObject.name} - {baseLabel}";
     }
 
     private float ResolveImpactForce(PrototypeWeaponDefinition weaponDefinition)

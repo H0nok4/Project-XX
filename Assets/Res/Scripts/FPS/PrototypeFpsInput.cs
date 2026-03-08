@@ -30,8 +30,10 @@ public class PrototypeFpsInput : MonoBehaviour
     [SerializeField] private string splintActionName = "UseSplint";
     [SerializeField] private string painkillerActionName = "UsePainkiller";
     [SerializeField] private string jumpActionName = "Jump";
-    [SerializeField] private string crouchActionName = "Crouch";
-    [SerializeField] private string walkActionName = "Sprint";
+    [SerializeField] private string toggleCrouchActionName = "ToggleCrouch";
+    [SerializeField] private string speedAdjustModifierActionName = "SpeedAdjustModifier";
+    [SerializeField] private string speedAdjustScrollActionName = "AdjustMoveSpeed";
+    [SerializeField] private string sprintActionName = "Sprint";
 
     [Header("Fallback Bindings")]
     [SerializeField] private string toggleCursorBinding = "<Keyboard>/escape";
@@ -54,8 +56,10 @@ public class PrototypeFpsInput : MonoBehaviour
     private InputAction splintAction;
     private InputAction painkillerAction;
     private InputAction jumpAction;
-    private InputAction crouchAction;
-    private InputAction walkAction;
+    private InputAction toggleCrouchAction;
+    private InputAction speedAdjustModifierAction;
+    private InputAction speedAdjustScrollAction;
+    private InputAction sprintAction;
     private InputAction toggleCursorAction;
     private InputActionMap fallbackActionMap;
 
@@ -77,9 +81,10 @@ public class PrototypeFpsInput : MonoBehaviour
     public bool SplintPressedThisFrame => splintAction?.WasPressedThisFrame() ?? false;
     public bool PainkillerPressedThisFrame => painkillerAction?.WasPressedThisFrame() ?? false;
     public bool JumpPressedThisFrame => jumpAction?.WasPressedThisFrame() ?? false;
-    public bool CrouchHeld => crouchAction?.IsPressed() ?? false;
-    public bool SprintHeld => walkAction?.IsPressed() ?? false;
-    public bool WalkHeld => SprintHeld;
+    public bool ToggleCrouchPressedThisFrame => toggleCrouchAction?.WasPressedThisFrame() ?? false;
+    public bool SpeedAdjustModifierHeld => speedAdjustModifierAction?.IsPressed() ?? false;
+    public float MoveSpeedScrollDelta => speedAdjustScrollAction?.ReadValue<float>() ?? 0f;
+    public bool SprintHeld => sprintAction?.IsPressed() ?? false;
     public bool ToggleCursorPressedThisFrame => toggleCursorAction?.WasPressedThisFrame() ?? false;
 
     private void Awake()
@@ -231,8 +236,10 @@ public class PrototypeFpsInput : MonoBehaviour
             splintAction = EnsureAction(runtimeActionMap, splintActionName, "<Keyboard>/6");
             painkillerAction = EnsureAction(runtimeActionMap, painkillerActionName, "<Keyboard>/7");
             jumpAction = runtimeActionMap.FindAction(jumpActionName, true);
-            crouchAction = EnsureAction(runtimeActionMap, crouchActionName, "<Keyboard>/leftCtrl");
-            walkAction = EnsureAction(runtimeActionMap, walkActionName, "<Keyboard>/leftShift");
+            toggleCrouchAction = EnsureAction(runtimeActionMap, toggleCrouchActionName, "<Keyboard>/c");
+            speedAdjustModifierAction = EnsureAction(runtimeActionMap, speedAdjustModifierActionName, "<Keyboard>/leftCtrl");
+            speedAdjustScrollAction = EnsureAction(runtimeActionMap, speedAdjustScrollActionName, InputActionType.Value, "<Mouse>/scroll/y");
+            sprintAction = EnsureAction(runtimeActionMap, sprintActionName, "<Keyboard>/leftShift");
         }
         else
         {
@@ -269,15 +276,22 @@ public class PrototypeFpsInput : MonoBehaviour
         splintAction = actionMap.AddAction(splintActionName, InputActionType.Button, "<Keyboard>/6");
         painkillerAction = actionMap.AddAction(painkillerActionName, InputActionType.Button, "<Keyboard>/7");
         jumpAction = actionMap.AddAction(jumpActionName, InputActionType.Button, "<Keyboard>/space");
-        crouchAction = actionMap.AddAction(crouchActionName, InputActionType.Button, "<Keyboard>/leftCtrl");
-        walkAction = actionMap.AddAction(walkActionName, InputActionType.Button, "<Keyboard>/leftShift");
+        toggleCrouchAction = actionMap.AddAction(toggleCrouchActionName, InputActionType.Button, "<Keyboard>/c");
+        speedAdjustModifierAction = actionMap.AddAction(speedAdjustModifierActionName, InputActionType.Button, "<Keyboard>/leftCtrl");
+        speedAdjustScrollAction = actionMap.AddAction(speedAdjustScrollActionName, InputActionType.Value, "<Mouse>/scroll/y");
+        sprintAction = actionMap.AddAction(sprintActionName, InputActionType.Button, "<Keyboard>/leftShift");
 
         return actionMap;
     }
 
     private InputAction EnsureAction(InputActionMap actionMap, string actionName, string defaultBinding)
     {
-        InputAction action = actionMap.FindAction(actionName, false) ?? actionMap.AddAction(actionName, InputActionType.Button);
+        return EnsureAction(actionMap, actionName, InputActionType.Button, defaultBinding);
+    }
+
+    private InputAction EnsureAction(InputActionMap actionMap, string actionName, InputActionType actionType, string defaultBinding)
+    {
+        InputAction action = actionMap.FindAction(actionName, false) ?? actionMap.AddAction(actionName, actionType);
 
         if (action.bindings.Count == 0 && !string.IsNullOrWhiteSpace(defaultBinding))
         {
@@ -321,8 +335,10 @@ public class PrototypeFpsInput : MonoBehaviour
         splintAction = null;
         painkillerAction = null;
         jumpAction = null;
-        crouchAction = null;
-        walkAction = null;
+        toggleCrouchAction = null;
+        speedAdjustModifierAction = null;
+        speedAdjustScrollAction = null;
+        sprintAction = null;
         fallbackActionMap = null;
 
         if (runtimeActions == null)
