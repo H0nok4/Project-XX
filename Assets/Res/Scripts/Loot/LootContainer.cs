@@ -7,6 +7,10 @@ public class LootContainer : MonoBehaviour, IInteractable
     [SerializeField] private string containerLabel = "Supply Crate";
     [SerializeField] private string interactionVerb = "Search";
     [SerializeField] private InventoryContainer inventory;
+    [SerializeField] private LootTableDefinition lootTable;
+    [SerializeField] private bool populateOnFirstOpen = true;
+    [SerializeField] private bool populateOnlyWhenEmpty = true;
+    [SerializeField] private bool lootGenerated;
 
     public InventoryContainer Inventory => inventory;
     public string ContainerLabel => string.IsNullOrWhiteSpace(containerLabel) ? name : containerLabel.Trim();
@@ -29,9 +33,20 @@ public class LootContainer : MonoBehaviour, IInteractable
         ResolveReferences();
     }
 
+    public void ConfigureRandomLoot(LootTableDefinition table, bool generateOnFirstOpen = true, bool onlyWhenEmpty = true)
+    {
+        lootTable = table;
+        populateOnFirstOpen = generateOnFirstOpen;
+        populateOnlyWhenEmpty = onlyWhenEmpty;
+        lootGenerated = false;
+    }
+
     public string GetInteractionLabel(PlayerInteractor interactor)
     {
-        string suffix = inventory != null && inventory.IsEmpty ? " (Empty)" : string.Empty;
+        bool isKnownEmpty = inventory != null
+            && inventory.IsEmpty
+            && (!populateOnFirstOpen || lootGenerated || lootTable == null);
+        string suffix = isKnownEmpty ? " (Empty)" : string.Empty;
         return $"{interactionVerb} {ContainerLabel}{suffix}";
     }
 
@@ -47,6 +62,8 @@ public class LootContainer : MonoBehaviour, IInteractable
             return;
         }
 
+        EnsureGeneratedLoot();
+
         LootContainerWindowController windowController = interactor.GetComponent<LootContainerWindowController>();
         if (windowController == null)
         {
@@ -59,6 +76,32 @@ public class LootContainer : MonoBehaviour, IInteractable
     public Transform GetInteractionTransform()
     {
         return transform;
+    }
+
+    public void EnsureGeneratedLoot()
+    {
+        if (!populateOnFirstOpen || lootGenerated || lootTable == null || inventory == null)
+        {
+            return;
+        }
+
+        if (populateOnlyWhenEmpty && !inventory.IsEmpty)
+        {
+            lootGenerated = true;
+            return;
+        }
+
+        var rolls = lootTable.RollLoot();
+        for (int index = 0; index < rolls.Count; index++)
+        {
+            LootTableDefinition.LootRoll roll = rolls[index];
+            if (roll.Definition != null && roll.Quantity > 0)
+            {
+                inventory.TryAddItem(roll.Definition, roll.Quantity, out _);
+            }
+        }
+
+        lootGenerated = true;
     }
 
     private void ResolveReferences()

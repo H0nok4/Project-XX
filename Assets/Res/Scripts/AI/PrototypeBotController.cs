@@ -848,6 +848,20 @@ public class PrototypeBotController : MonoBehaviour
                 shouldApplyImpactForce = hitbox.Owner.ShouldReceiveImpactForce;
             }
         }
+        else
+        {
+            PrototypeBreakable breakable = hit.collider.GetComponent<PrototypeBreakable>();
+            if (breakable == null)
+            {
+                breakable = hit.collider.GetComponentInParent<PrototypeBreakable>();
+            }
+
+            if (breakable != null)
+            {
+                breakable.ApplyDamage(damageInfo, hit.point, (hit.point - GetEyePosition()).normalized, force);
+                shouldApplyImpactForce = false;
+            }
+        }
 
         if (shouldApplyImpactForce && hit.rigidbody != null && force > 0f)
         {

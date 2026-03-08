@@ -1059,6 +1059,20 @@ public class PrototypeFpsController : MonoBehaviour
                 shouldApplyImpactForce = unitHitbox.Owner.ShouldReceiveImpactForce;
             }
         }
+        else
+        {
+            PrototypeBreakable breakable = hit.collider.GetComponent<PrototypeBreakable>();
+            if (breakable == null)
+            {
+                breakable = hit.collider.GetComponentInParent<PrototypeBreakable>();
+            }
+
+            if (breakable != null)
+            {
+                breakable.ApplyDamage(damageInfo, hit.point, viewCamera.transform.forward, force);
+                shouldApplyImpactForce = false;
+            }
+        }
 
         if (shouldApplyImpactForce && hit.rigidbody != null && force > 0f)
         {

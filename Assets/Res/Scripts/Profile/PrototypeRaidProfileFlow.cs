@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -7,6 +8,8 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     [SerializeField] private PrototypeItemCatalog itemCatalog;
     [SerializeField] private RaidGameMode raidGameMode;
     [SerializeField] private PlayerInteractor playerInteractor;
+    [SerializeField] private PrototypeFpsController fpsController;
+    [SerializeField] private PrototypeUnitVitals playerVitals;
     [SerializeField] private string mainMenuSceneName = "MainMenu";
     [SerializeField] private bool showReturnButton = true;
 
@@ -19,7 +22,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     {
         ResolveReferences();
         ResolveCatalog();
-        ApplyLoadoutToRaidInventory();
+        ApplyLoadoutToRaidState();
     }
 
     private void OnEnable()
@@ -66,6 +69,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         playerInteractor = interactor;
         itemCatalog = catalog;
         mainMenuSceneName = string.IsNullOrWhiteSpace(menuSceneName) ? "MainMenu" : menuSceneName.Trim();
+        ResolveReferences();
     }
 
     private void HandleRaidStateChanged(RaidGameMode.RaidState nextState)
@@ -78,7 +82,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         PersistRaidOutcomeIfNeeded();
     }
 
-    private void ApplyLoadoutToRaidInventory()
+    private void ApplyLoadoutToRaidState()
     {
         if (loadoutApplied)
         {
@@ -95,7 +99,24 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         }
 
         profile = PrototypeProfileService.LoadProfile(itemCatalog);
-        PrototypeProfileService.PopulateInventory(inventory, profile != null ? profile.loadoutItems : null, itemCatalog);
+        PrototypeProfileService.PopulateInventory(inventory, profile != null ? profile.raidBackpackItems : null, itemCatalog);
+
+        if (playerVitals != null)
+        {
+            List<ArmorDefinition> equippedArmor = PrototypeProfileService.ResolveArmorDefinitions(
+                profile != null ? profile.equippedArmorItems : null,
+                itemCatalog);
+            playerVitals.SetArmorLoadout(equippedArmor.ToArray());
+        }
+
+        if (fpsController != null && itemCatalog != null)
+        {
+            fpsController.ConfigureWeaponLoadout(
+                itemCatalog.FindWeaponById(profile != null ? profile.equippedPrimaryWeaponId : null),
+                itemCatalog.FindWeaponById(profile != null ? profile.equippedSecondaryWeaponId : null),
+                itemCatalog.FindWeaponById(profile != null ? profile.equippedMeleeWeaponId : null));
+        }
+
         loadoutApplied = true;
     }
 
@@ -115,19 +136,53 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             return;
         }
 
-        if (profile == null)
-        {
-            profile = PrototypeProfileService.LoadProfile(itemCatalog);
-        }
+        PrototypeProfileService.ProfileData latestProfile = PrototypeProfileService.LoadProfile(itemCatalog)
+            ?? PrototypeProfileService.CreateDefaultProfile(itemCatalog);
 
         if (raidGameMode.CurrentState == RaidGameMode.RaidState.Extracted)
         {
-            PrototypeProfileService.MergeInventoryIntoStash(profile, inventory);
+            latestProfile.raidBackpackItems = PrototypeProfileService.CaptureInventory(inventory);
+            latestProfile.equippedArmorItems = PrototypeProfileService.CaptureDefinitions(GetCurrentArmorDefinitions());
+        }
+        else
+        {
+            latestProfile.raidBackpackItems.Clear();
+            latestProfile.equippedArmorItems.Clear();
+            latestProfile.equippedPrimaryWeaponId = string.Empty;
+            latestProfile.equippedSecondaryWeaponId = string.Empty;
+            latestProfile.equippedMeleeWeaponId = string.Empty;
         }
 
-        profile.loadoutItems.Clear();
-        PrototypeProfileService.SaveProfile(profile, itemCatalog);
+        latestProfile.loadoutItems.Clear();
+        latestProfile.extractedItems.Clear();
+        PrototypeProfileService.SaveProfile(latestProfile, itemCatalog);
+        profile = latestProfile;
         resultSaved = true;
+
+        Debug.Log(
+            $"[PrototypeRaidProfileFlow] Saved raid result {raidGameMode.CurrentState} to {PrototypeProfileService.SavePath}. " +
+            $"Backpack stacks: {profile.raidBackpackItems.Count}, equipped armor: {profile.equippedArmorItems.Count}, " +
+            $"weapons: {profile.equippedPrimaryWeaponId}/{profile.equippedSecondaryWeaponId}/{profile.equippedMeleeWeaponId}");
+    }
+
+    private List<ArmorDefinition> GetCurrentArmorDefinitions()
+    {
+        var armorDefinitions = new List<ArmorDefinition>();
+        if (playerVitals == null || playerVitals.EquippedArmor == null)
+        {
+            return armorDefinitions;
+        }
+
+        for (int index = 0; index < playerVitals.EquippedArmor.Count; index++)
+        {
+            PrototypeUnitVitals.ArmorState armorState = playerVitals.EquippedArmor[index];
+            if (armorState?.definition != null)
+            {
+                armorDefinitions.Add(armorState.definition);
+            }
+        }
+
+        return armorDefinitions;
     }
 
     private void ResolveCatalog()
@@ -148,6 +203,20 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         if (playerInteractor == null)
         {
             playerInteractor = FindFirstObjectByType<PlayerInteractor>();
+        }
+
+        if (fpsController == null)
+        {
+            fpsController = playerInteractor != null
+                ? playerInteractor.GetComponent<PrototypeFpsController>()
+                : FindFirstObjectByType<PrototypeFpsController>();
+        }
+
+        if (playerVitals == null)
+        {
+            playerVitals = playerInteractor != null
+                ? playerInteractor.GetComponent<PrototypeUnitVitals>()
+                : FindFirstObjectByType<PrototypeUnitVitals>();
         }
     }
 

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5f12fc91d1abb74aa2cecd856041133, type: 3}
+  m_Name: Loot_AmmoCache
+  m_EditorClassIdentifier: Assembly-CSharp::LootTableDefinition
+  tableId: ammo_cache
+  displayName: Ammo Cache
+  minRolls: 2
+  maxRolls: 4
+  allowDuplicateRolls: 1
+  entries:
+  - itemDefinition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
+    minQuantity: 18
+    maxQuantity: 36
+    weight: 1.2
+  - itemDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
+    minQuantity: 12
+    maxQuantity: 30
+    weight: 1
+  - itemDefinition: {fileID: 11400000, guid: ec5402d2f4ea7f94fa4812e8ba234fd5, type: 2}
+    minQuantity: 1
+    maxQuantity: 3
+    weight: 0.45

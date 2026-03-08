@@ -67,19 +67,14 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             return null;
         }
 
-        GameObject pickupObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        pickupObject.name = $"Dropped_{definition.ItemId}";
-        pickupObject.transform.position = ResolveDropPosition(dropOrigin);
-        pickupObject.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-        pickupObject.transform.localScale = GetDropScale(definition, amount);
-
-        Renderer renderer = pickupObject.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            renderer.material = new Material(shader);
-            renderer.material.color = new Color(0.91f, 0.79f, 0.29f, 1f);
-        }
+        GameObject pickupObject = CreatePickupObject(
+            $"Dropped_{definition.ItemId}",
+            ResolveDropPosition(dropOrigin),
+            Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
+            GetDropScale(definition, amount),
+            definition,
+            amount,
+            verb);
 
         Rigidbody body = pickupObject.AddComponent<Rigidbody>();
         body.mass = Mathf.Clamp(definition.UnitWeight * Mathf.Max(amount, 1), 0.2f, 5f);
@@ -87,9 +82,36 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         body.AddForce((dropOrigin.forward.normalized + Vector3.up * 0.25f) * 2.4f, ForceMode.VelocityChange);
 
-        GroundLootItem groundLoot = pickupObject.AddComponent<GroundLootItem>();
-        groundLoot.Configure(definition, amount, verb);
-        return groundLoot;
+        return pickupObject.GetComponent<GroundLootItem>();
+    }
+
+    public static GroundLootItem SpawnScenePickup(
+        Vector3 worldPosition,
+        ItemDefinition definition,
+        int amount,
+        string verb = "Pick Up",
+        Transform parent = null)
+    {
+        if (definition == null || amount <= 0)
+        {
+            return null;
+        }
+
+        GameObject pickupObject = CreatePickupObject(
+            $"Spawned_{definition.ItemId}",
+            worldPosition,
+            Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
+            GetDropScale(definition, amount),
+            definition,
+            amount,
+            verb);
+
+        if (parent != null)
+        {
+            pickupObject.transform.SetParent(parent, true);
+        }
+
+        return pickupObject.GetComponent<GroundLootItem>();
     }
 
     public Transform GetInteractionTransform()
@@ -115,5 +137,33 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         float weightFactor = Mathf.Clamp01(definition != null ? definition.UnitWeight : 0f);
         float size = Mathf.Lerp(0.16f, 0.32f, Mathf.Max(stackFactor, weightFactor));
         return new Vector3(size, size * 0.55f, size);
+    }
+
+    private static GameObject CreatePickupObject(
+        string objectName,
+        Vector3 worldPosition,
+        Quaternion worldRotation,
+        Vector3 localScale,
+        ItemDefinition definition,
+        int amount,
+        string verb)
+    {
+        GameObject pickupObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        pickupObject.name = objectName;
+        pickupObject.transform.position = worldPosition;
+        pickupObject.transform.rotation = worldRotation;
+        pickupObject.transform.localScale = localScale;
+
+        Renderer renderer = pickupObject.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            renderer.material = new Material(shader);
+            renderer.material.color = new Color(0.91f, 0.79f, 0.29f, 1f);
+        }
+
+        GroundLootItem groundLoot = pickupObject.AddComponent<GroundLootItem>();
+        groundLoot.Configure(definition, amount, verb);
+        return pickupObject;
     }
 }

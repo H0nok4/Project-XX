@@ -16,6 +16,8 @@ public static class PrototypeIndoorSceneBuilder
     private const string UnitDefinitionFolder = "Assets/Res/Data/PrototypeFPS/UnitDefinitions";
     private const string ItemDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Items";
     private const string WeaponDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Weapons";
+    private const string LootTableFolder = "Assets/Res/Data/PrototypeFPS/LootTables";
+    private const string EnemyProfileFolder = "Assets/Res/Data/PrototypeFPS/EnemyProfiles";
     private const string ItemCatalogPath = "Assets/Resources/PrototypeItemCatalog.asset";
     private const string HumanoidDefinitionPath = "Assets/Res/Data/PrototypeFPS/UnitDefinitions/Unit_Humanoid.asset";
     private const string CashItemPath = "Assets/Res/Data/PrototypeFPS/Items/Item_Cash.asset";
@@ -31,6 +33,13 @@ public static class PrototypeIndoorSceneBuilder
     private const string CarbineWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Carbine.asset";
     private const string SidearmWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Sidearm.asset";
     private const string KnifeWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_CombatKnife.asset";
+    private const string AmmoLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_AmmoCache.asset";
+    private const string MedicalLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_MedicalStash.asset";
+    private const string FloorLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_FloorScatter.asset";
+    private const string RegularZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_RegularZombie.asset";
+    private const string PoliceZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_PoliceZombie.asset";
+    private const string SoldierZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_SoldierZombie.asset";
+    private const string ZombieDogProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_ZombieDog.asset";
     private const string HeadPartId = "head";
     private const string TorsoPartId = "torso";
     private const string LegsPartId = "legs";
@@ -74,6 +83,8 @@ public static class PrototypeIndoorSceneBuilder
         EnsureFolder(UnitDefinitionFolder);
         EnsureFolder(ItemDefinitionFolder);
         EnsureFolder(WeaponDefinitionFolder);
+        EnsureFolder(LootTableFolder);
+        EnsureFolder(EnemyProfileFolder);
 
         PrototypeUnitDefinition humanoidDefinition = CreateOrUpdateHumanoidDefinition(HumanoidDefinitionPath);
         ItemDefinition cashItem = CreateOrUpdateItemDefinition(CashItemPath, "cash_bundle", "Cash Bundle", "Light valuables for a quick extraction run.", 10, 0.2f);
@@ -134,6 +145,79 @@ public static class PrototypeIndoorSceneBuilder
         Material lootMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Loot.mat", new Color(0.91f, 0.79f, 0.29f));
         Material medicalMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Medical.mat", new Color(0.25f, 0.68f, 0.48f));
         Material extractMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Extract.mat", new Color(0.21f, 0.79f, 0.55f));
+        Material glassMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Glass.mat", new Color(0.52f, 0.84f, 0.95f, 0.75f));
+        Material woodMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Wood.mat", new Color(0.58f, 0.38f, 0.19f));
+        LootTableDefinition ammoLootTable = CreateOrUpdateLootTable(
+            AmmoLootTablePath,
+            "ammo_cache",
+            "Ammo Cache",
+            2,
+            4,
+            true,
+            CreateLootEntry(rifleAmmoItem, 18, 36, 1.2f),
+            CreateLootEntry(pistolAmmoItem, 12, 30, 1f),
+            CreateLootEntry(cashItem, 1, 3, 0.45f));
+        LootTableDefinition medicalLootTable = CreateOrUpdateLootTable(
+            MedicalLootTablePath,
+            "medical_stash",
+            "Medical Stash",
+            2,
+            4,
+            true,
+            CreateLootEntry(medkitItem, 1, 1, 0.45f),
+            CreateLootEntry(bandageItem, 1, 2, 1.4f),
+            CreateLootEntry(tourniquetItem, 1, 1, 0.65f),
+            CreateLootEntry(splintItem, 1, 1, 0.75f),
+            CreateLootEntry(painkillerItem, 1, 1, 0.9f));
+        LootTableDefinition floorLootTable = CreateOrUpdateLootTable(
+            FloorLootTablePath,
+            "floor_scatter",
+            "Floor Scatter",
+            1,
+            3,
+            true,
+            CreateLootEntry(cashItem, 1, 4, 1.2f),
+            CreateLootEntry(pistolAmmoItem, 8, 18, 0.8f),
+            CreateLootEntry(bandageItem, 1, 1, 0.5f));
+        PrototypeEnemySpawnProfile regularZombieProfile = CreateOrUpdateEnemySpawnProfile(
+            RegularZombieProfilePath,
+            "regular_zombie",
+            "Regular Zombie",
+            PrototypeEnemyArchetype.RegularZombie,
+            humanoidDefinition,
+            knifeWeapon,
+            targetMat,
+            new Vector3(0.9f, 1.1f, 0.9f));
+        PrototypeEnemySpawnProfile policeZombieProfile = CreateOrUpdateEnemySpawnProfile(
+            PoliceZombieProfilePath,
+            "police_zombie",
+            "Police Zombie",
+            PrototypeEnemyArchetype.PoliceZombie,
+            humanoidDefinition,
+            sidearmWeapon,
+            wallMat,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            helmetArmor);
+        PrototypeEnemySpawnProfile soldierZombieProfile = CreateOrUpdateEnemySpawnProfile(
+            SoldierZombieProfilePath,
+            "soldier_zombie",
+            "Soldier Zombie",
+            PrototypeEnemyArchetype.SoldierZombie,
+            humanoidDefinition,
+            carbineWeapon,
+            propMat,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            helmetArmor,
+            vestArmor);
+        PrototypeEnemySpawnProfile zombieDogProfile = CreateOrUpdateEnemySpawnProfile(
+            ZombieDogProfilePath,
+            "zombie_dog",
+            "Zombie Dog",
+            PrototypeEnemyArchetype.ZombieDog,
+            humanoidDefinition,
+            knifeWeapon,
+            accentMat,
+            new Vector3(0.68f, 0.72f, 1.05f));
 
         DeleteIfExists("PrototypeIndoorRange");
         DeleteIfExists("FpsPlayer");
@@ -239,70 +323,9 @@ public static class PrototypeIndoorSceneBuilder
         GetOrAddComponent<PlayerInventoryWindowController>(player);
 
         CreateTarget(root.transform, new Vector3(0f, 1.1f, 7f), targetMat, humanoidDefinition);
-        CreateBot(
-            root.transform,
-            "Zombie_Regular",
-            PrototypeEnemyArchetype.RegularZombie,
-            new Vector3(0.9f, 1.1f, 0.9f),
-            new Vector3(1.6f, 1.1f, 6.4f),
-            targetMat,
-            humanoidDefinition,
-            player.transform,
-            knifeWeapon,
-            new[]
-            {
-                new Vector3(1.6f, 1.1f, 6.4f),
-                new Vector3(-0.2f, 1.1f, 5.4f),
-                new Vector3(2.6f, 1.1f, 4.8f)
-            });
-        CreateBot(
-            root.transform,
-            "Zombie_Police",
-            PrototypeEnemyArchetype.PoliceZombie,
-            new Vector3(0.9f, 1.1f, 0.9f),
-            new Vector3(5.8f, 1.1f, 5f),
-            wallMat,
-            humanoidDefinition,
-            player.transform,
-            sidearmWeapon,
-            new[]
-            {
-                new Vector3(5.8f, 1.1f, 5f),
-                new Vector3(6.4f, 1.1f, 1.6f),
-                new Vector3(3.7f, 1.1f, 3.4f)
-            });
-        CreateBot(
-            root.transform,
-            "Zombie_Soldier",
-            PrototypeEnemyArchetype.SoldierZombie,
-            new Vector3(0.9f, 1.1f, 0.9f),
-            new Vector3(-5.4f, 1.1f, 5.3f),
-            propMat,
-            humanoidDefinition,
-            player.transform,
-            carbineWeapon,
-            new[]
-            {
-                new Vector3(-5.4f, 1.1f, 5.3f),
-                new Vector3(-6.2f, 1.1f, 2.2f),
-                new Vector3(-3.5f, 1.1f, 3.8f)
-            });
-        CreateBot(
-            root.transform,
-            "Zombie_Dog",
-            PrototypeEnemyArchetype.ZombieDog,
-            new Vector3(0.68f, 0.72f, 1.05f),
-            new Vector3(-3.1f, 0.76f, -4.8f),
-            accentMat,
-            humanoidDefinition,
-            player.transform,
-            knifeWeapon,
-            new[]
-            {
-                new Vector3(-3.1f, 0.76f, -4.8f),
-                new Vector3(-0.8f, 0.76f, -5.8f),
-                new Vector3(-4.8f, 0.76f, -2.7f)
-            });
+        CreateDoor(root.transform, "Door_Test", new Vector3(2.45f, 0f, -6.1f), doorWidth: 1.1f, doorHeight: 2.2f, doorThickness: 0.12f, material: wallMat);
+        CreateBreakablePanel(root.transform, "Breakable_Glass", new Vector3(0f, 1.35f, 1.9f), new Vector3(2.4f, 2.1f, 0.08f), glassMat, PrototypeBreakableMaterialType.Glass, 16f);
+        CreateBreakablePanel(root.transform, "Breakable_Wood", new Vector3(-3.3f, 1.25f, 4.4f), new Vector3(1.8f, 1.8f, 0.12f), woodMat, PrototypeBreakableMaterialType.ThinWood, 24f);
 
         GameObject raidSystems = new GameObject("RaidSystems");
         raidSystems.transform.SetParent(root.transform, false);
@@ -314,6 +337,41 @@ public static class PrototypeIndoorSceneBuilder
             interactor,
             AssetDatabase.LoadAssetAtPath<PrototypeItemCatalog>(ItemCatalogPath),
             "MainMenu");
+        PrototypeEncounterDirector encounterDirector = raidSystems.AddComponent<PrototypeEncounterDirector>();
+        encounterDirector.Configure(player.transform, humanoidDefinition);
+        CreateEnemySpawnPoint(
+            raidSystems.transform,
+            "SpawnPoint_Regular",
+            new Vector3(1.6f, 0f, 6.4f),
+            regularZombieProfile,
+            new Vector3(1.6f, 0f, 6.4f),
+            new Vector3(-0.2f, 0f, 5.4f),
+            new Vector3(2.6f, 0f, 4.8f));
+        CreateEnemySpawnPoint(
+            raidSystems.transform,
+            "SpawnPoint_Police",
+            new Vector3(5.8f, 0f, 5f),
+            policeZombieProfile,
+            new Vector3(5.8f, 0f, 5f),
+            new Vector3(6.4f, 0f, 1.6f),
+            new Vector3(3.7f, 0f, 3.4f));
+        CreateEnemySpawnPoint(
+            raidSystems.transform,
+            "SpawnPoint_Dog",
+            new Vector3(-3.1f, 0f, -4.8f),
+            zombieDogProfile,
+            new Vector3(-3.1f, 0f, -4.8f),
+            new Vector3(-0.8f, 0f, -5.8f),
+            new Vector3(-4.8f, 0f, -2.7f));
+        CreateEnemySpawnArea(
+            raidSystems.transform,
+            "SpawnArea_NorthWest",
+            new Vector3(-5.2f, 0f, 5.1f),
+            new Vector3(3.4f, 2f, 3.2f),
+            1,
+            2,
+            soldierZombieProfile,
+            regularZombieProfile);
 
         CreateRaidPickup(root.transform, "Pickup_Cash", PrimitiveType.Cube, new Vector3(0f, 0.98f, 3.5f), new Vector3(0.32f, 0.12f, 0.22f), lootMat, cashItem, 3);
         CreateRaidPickup(root.transform, "Pickup_Medkit", PrimitiveType.Cube, new Vector3(-5.25f, 1.57f, -1.45f), new Vector3(0.28f, 0.2f, 0.22f), medicalMat, medkitItem, 1);
@@ -321,11 +379,11 @@ public static class PrototypeIndoorSceneBuilder
         CreateRaidPickup(root.transform, "Pickup_Tourniquet", PrimitiveType.Cube, new Vector3(4.55f, 1.18f, 2.05f), new Vector3(0.14f, 0.18f, 0.14f), medicalMat, tourniquetItem, 1);
         CreateRaidPickup(root.transform, "Pickup_Splint", PrimitiveType.Cube, new Vector3(5.25f, 1.18f, 2.05f), new Vector3(0.16f, 0.22f, 0.12f), medicalMat, splintItem, 1);
         CreateRaidPickup(root.transform, "Pickup_Painkillers", PrimitiveType.Cube, new Vector3(0.35f, 0.96f, -6.4f), new Vector3(0.18f, 0.16f, 0.12f), medicalMat, painkillerItem, 1);
-        CreateRaidPickup(root.transform, "Pickup_RifleAmmo", PrimitiveType.Cylinder, new Vector3(5.55f, 0.96f, -4.8f), new Vector3(0.18f, 0.12f, 0.18f), lootMat, rifleAmmoItem, 36);
-        CreateRaidPickup(root.transform, "Pickup_PistolAmmo", PrimitiveType.Cylinder, new Vector3(-3.35f, 0.96f, 5.15f), new Vector3(0.16f, 0.1f, 0.16f), accentMat, pistolAmmoItem, 24);
         CreateRaidPickup(root.transform, "Pickup_Cash_Desk", PrimitiveType.Sphere, new Vector3(0f, 0.96f, -6.4f), new Vector3(0.22f, 0.16f, 0.22f), lootMat, cashItem, 2);
-        CreateLootContainer(root.transform, "Crate_Center", "Weapon Crate", new Vector3(-1.4f, 1.0f, 3.55f), new Vector3(0.95f, 0.45f, 0.65f), propMat, rifleAmmoItem, 45, pistolAmmoItem, 18);
-        CreateLootContainer(root.transform, "Crate_Side", "Medical Case", new Vector3(4.9f, 1.18f, 2.4f), new Vector3(0.68f, 0.56f, 0.54f), medicalMat, bandageItem, 2, painkillerItem, 1);
+        CreateRandomLootContainer(root.transform, "Crate_Center", "Weapon Crate", new Vector3(-1.4f, 1.0f, 3.55f), new Vector3(0.95f, 0.45f, 0.65f), propMat, ammoLootTable);
+        CreateRandomLootContainer(root.transform, "Crate_Side", "Medical Case", new Vector3(4.9f, 1.18f, 2.4f), new Vector3(0.68f, 0.56f, 0.54f), medicalMat, medicalLootTable);
+        CreateGroundLootSpawnPoint(root.transform, "LootSpawn_West", new Vector3(-5.6f, 0.08f, 5.4f), floorLootTable, lootMat);
+        CreateGroundLootSpawnPoint(root.transform, "LootSpawn_East", new Vector3(5.4f, 0.08f, -4.7f), ammoLootTable, accentMat);
 
         CreateExtractionZone(root.transform, raidGameMode, new Vector3(6.2f, 0.95f, 7.1f), extractMat, accentMat);
 
@@ -622,6 +680,61 @@ public static class PrototypeIndoorSceneBuilder
         return definition;
     }
 
+    private static LootTableDefinition.LootEntry CreateLootEntry(ItemDefinition itemDefinition, int minQuantity, int maxQuantity, float weight)
+    {
+        return new LootTableDefinition.LootEntry
+        {
+            itemDefinition = itemDefinition,
+            minQuantity = Mathf.Max(1, minQuantity),
+            maxQuantity = Mathf.Max(Mathf.Max(1, minQuantity), maxQuantity),
+            weight = Mathf.Max(0f, weight)
+        };
+    }
+
+    private static LootTableDefinition CreateOrUpdateLootTable(
+        string assetPath,
+        string tableId,
+        string displayName,
+        int minRolls,
+        int maxRolls,
+        bool allowDuplicates,
+        params LootTableDefinition.LootEntry[] entries)
+    {
+        LootTableDefinition table = AssetDatabase.LoadAssetAtPath<LootTableDefinition>(assetPath);
+        if (table == null)
+        {
+            table = ScriptableObject.CreateInstance<LootTableDefinition>();
+            AssetDatabase.CreateAsset(table, assetPath);
+        }
+
+        table.Configure(tableId, displayName, minRolls, maxRolls, allowDuplicates, entries);
+        EditorUtility.SetDirty(table);
+        return table;
+    }
+
+    private static PrototypeEnemySpawnProfile CreateOrUpdateEnemySpawnProfile(
+        string assetPath,
+        string enemyId,
+        string displayName,
+        PrototypeEnemyArchetype archetype,
+        PrototypeUnitDefinition unitDefinition,
+        PrototypeWeaponDefinition primaryWeapon,
+        Material bodyMaterial,
+        Vector3 localScale,
+        params ArmorDefinition[] armorLoadout)
+    {
+        PrototypeEnemySpawnProfile profile = AssetDatabase.LoadAssetAtPath<PrototypeEnemySpawnProfile>(assetPath);
+        if (profile == null)
+        {
+            profile = ScriptableObject.CreateInstance<PrototypeEnemySpawnProfile>();
+            AssetDatabase.CreateAsset(profile, assetPath);
+        }
+
+        profile.Configure(enemyId, displayName, archetype, unitDefinition, primaryWeapon, bodyMaterial, localScale, armorLoadout);
+        EditorUtility.SetDirty(profile);
+        return profile;
+    }
+
     private static void ConfigureDirectionalLight()
     {
         GameObject lightObject = GameObject.Find("Directional Light");
@@ -869,6 +982,149 @@ public static class PrototypeIndoorSceneBuilder
         lid.transform.localScale = new Vector3(0.92f, 0.18f, 0.88f);
         lid.GetComponent<MeshRenderer>().sharedMaterial = material;
         Object.DestroyImmediate(lid.GetComponent<Collider>());
+    }
+
+    private static void CreateRandomLootContainer(
+        Transform parent,
+        string objectName,
+        string containerLabel,
+        Vector3 localPosition,
+        Vector3 localScale,
+        Material material,
+        LootTableDefinition lootTable)
+    {
+        GameObject crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        crate.name = objectName;
+        crate.transform.SetParent(parent, false);
+        crate.transform.localPosition = localPosition;
+        crate.transform.localScale = localScale;
+        crate.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        InventoryContainer inventory = crate.AddComponent<InventoryContainer>();
+        inventory.Configure(containerLabel, 8, 0f);
+
+        LootContainer lootContainer = crate.AddComponent<LootContainer>();
+        lootContainer.Configure(containerLabel, inventory, "Search");
+        lootContainer.ConfigureRandomLoot(lootTable, true, true);
+
+        GameObject lid = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        lid.name = $"{objectName}_Lid";
+        lid.transform.SetParent(crate.transform, false);
+        lid.transform.localPosition = new Vector3(0f, localScale.y * 0.58f, -localScale.z * 0.1f);
+        lid.transform.localRotation = Quaternion.Euler(-10f, 0f, 0f);
+        lid.transform.localScale = new Vector3(0.92f, 0.18f, 0.88f);
+        lid.GetComponent<MeshRenderer>().sharedMaterial = material;
+        Object.DestroyImmediate(lid.GetComponent<Collider>());
+    }
+
+    private static void CreateGroundLootSpawnPoint(Transform parent, string objectName, Vector3 localPosition, LootTableDefinition lootTable, Material markerMaterial)
+    {
+        GameObject spawnPoint = new GameObject(objectName);
+        spawnPoint.transform.SetParent(parent, false);
+        spawnPoint.transform.localPosition = localPosition;
+
+        GroundLootSpawnPoint lootSpawnPoint = spawnPoint.AddComponent<GroundLootSpawnPoint>();
+        lootSpawnPoint.Configure(lootTable, 0.65f);
+
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.name = "Marker";
+        marker.transform.SetParent(spawnPoint.transform, false);
+        marker.transform.localPosition = Vector3.zero;
+        marker.transform.localScale = Vector3.one * 0.22f;
+        marker.GetComponent<MeshRenderer>().sharedMaterial = markerMaterial;
+        Object.DestroyImmediate(marker.GetComponent<Collider>());
+    }
+
+    private static void CreateDoor(
+        Transform parent,
+        string objectName,
+        Vector3 localPosition,
+        float doorWidth,
+        float doorHeight,
+        float doorThickness,
+        Material material)
+    {
+        GameObject doorRoot = new GameObject(objectName);
+        doorRoot.transform.SetParent(parent, false);
+        doorRoot.transform.localPosition = localPosition;
+
+        GameObject hinge = new GameObject("Hinge");
+        hinge.transform.SetParent(doorRoot.transform, false);
+        hinge.transform.localPosition = new Vector3(-doorWidth * 0.5f, 0f, 0f);
+
+        GameObject doorLeaf = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        doorLeaf.name = "DoorLeaf";
+        doorLeaf.transform.SetParent(hinge.transform, false);
+        doorLeaf.transform.localPosition = new Vector3(doorWidth * 0.5f, doorHeight * 0.5f, 0f);
+        doorLeaf.transform.localScale = new Vector3(doorWidth, doorHeight, doorThickness);
+        doorLeaf.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        PrototypeDoor door = doorRoot.AddComponent<PrototypeDoor>();
+        door.Configure(hinge.transform, doorLeaf.GetComponent<Collider>(), 96f, false);
+    }
+
+    private static void CreateBreakablePanel(
+        Transform parent,
+        string objectName,
+        Vector3 localPosition,
+        Vector3 localScale,
+        Material material,
+        PrototypeBreakableMaterialType breakableType,
+        float durability)
+    {
+        GameObject panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        panel.name = objectName;
+        panel.transform.SetParent(parent, false);
+        panel.transform.localPosition = localPosition;
+        panel.transform.localScale = localScale;
+        panel.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        PrototypeBreakable breakable = panel.AddComponent<PrototypeBreakable>();
+        breakable.Configure(breakableType, durability);
+    }
+
+    private static void CreateEnemySpawnPoint(
+        Transform parent,
+        string objectName,
+        Vector3 localPosition,
+        PrototypeEnemySpawnProfile profile,
+        params Vector3[] patrolPoints)
+    {
+        GameObject spawnPointObject = new GameObject(objectName);
+        spawnPointObject.transform.SetParent(parent, false);
+        spawnPointObject.transform.localPosition = localPosition;
+
+        var waypointTransforms = new List<Transform>();
+        if (patrolPoints != null)
+        {
+            for (int index = 0; index < patrolPoints.Length; index++)
+            {
+                GameObject waypoint = new GameObject($"Patrol_{index + 1}");
+                waypoint.transform.SetParent(spawnPointObject.transform, false);
+                waypoint.transform.localPosition = patrolPoints[index] - localPosition;
+                waypointTransforms.Add(waypoint.transform);
+            }
+        }
+
+        PrototypeEnemySpawnPoint spawnPoint = spawnPointObject.AddComponent<PrototypeEnemySpawnPoint>();
+        spawnPoint.Configure(profile, waypointTransforms, true);
+    }
+
+    private static void CreateEnemySpawnArea(
+        Transform parent,
+        string objectName,
+        Vector3 localPosition,
+        Vector3 areaSize,
+        int minCount,
+        int maxCount,
+        params PrototypeEnemySpawnProfile[] profiles)
+    {
+        GameObject spawnAreaObject = new GameObject(objectName);
+        spawnAreaObject.transform.SetParent(parent, false);
+        spawnAreaObject.transform.localPosition = localPosition;
+
+        PrototypeEnemySpawnArea spawnArea = spawnAreaObject.AddComponent<PrototypeEnemySpawnArea>();
+        spawnArea.Configure(profiles, minCount, maxCount, areaSize, 3f, 3);
     }
 
     private static void CreateExtractionZone(Transform parent, RaidGameMode raidGameMode, Vector3 localPosition, Material extractMaterial, Material accentMaterial)
