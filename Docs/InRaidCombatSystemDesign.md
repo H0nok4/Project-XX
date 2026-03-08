@@ -1,644 +1,353 @@
-# Project-XX 局内战斗系统设计
+# 局内战斗系统设计
 
-## 1. 文档范围
+## 1. 设计目标
 
-本文档只讨论局内系统，也就是玩家进入 `SampleScene` 之后的运行时战斗链路。
+当前局内系统的目标不是还原完整 AAA 战斗，而是提供一套足够稳定的单机搜打撤战斗底座，满足以下需求：
 
-本文档覆盖：
-
-- 玩家控制
-- 武器与攻击
-- 单位生命与护甲
-- 状态效果
-- AI 感知与攻击
-- 战局状态
-- 局内 UI 与反馈
-
-本文档不重点讨论：
-
-- 主菜单
-- 局外仓库
-- Profile 持久化
-
-这些内容见：
-
-- [MetaProfileAndWarehouseDesign.md](D:/UnityProject/Project-XX/Project-XX/Docs/MetaProfileAndWarehouseDesign.md)
+- 第一人称移动、开火、近战、医疗、搜刮能够同场工作
+- AI 能够通过视觉、听觉、嗅觉发现玩家并交战
+- 战斗结果能够影响局外带出
+- 后续可以继续扩展武器、状态、敌人和关卡内容
 
 ---
 
-## 2. 局内系统目标
+## 2. 核心运行时对象
 
-当前局内原型的目标不是做完整产品，而是验证以下闭环：
-
-1. 玩家进入战斗场景
-2. 玩家能移动、射击、近战、搜刮、撤离
-3. AI 能发现玩家并攻击
-4. 命中能经过护甲、部位、状态效果结算
-5. 战局能正常结束并显示结果
-
-因此设计上优先：
-
-- 可玩性
-- 可调性
-- 快速扩展
-
-而不是：
-
-- 最终性能
-- 最终 UI 质量
-- 最终资源组织
-
----
-
-## 3. 局内模块分层
-
-建议把当前局内系统理解为 6 层：
-
-1. 输入层
-2. 玩家控制层
-3. 战斗结算层
-4. AI 行为层
-5. 战局状态层
-6. 表现层
-
-依赖方向：
-
-`Input -> Controller -> Combat/Vitals -> Raid State -> UI Feedback`
-
-其中 AI 是另一条平行控制链：
-
-`Perception -> Bot Controller -> Combat/Vitals -> UI Feedback`
-
----
-
-## 4. 输入与玩家控制
-
-### 4.1 输入封装
-
-核心脚本：
+### 2.1 玩家控制
 
 - `Assets/Res/Scripts/FPS/PrototypeFpsInput.cs`
-
-职责：
-
-- 封装 Input System 的动作读取
-- 提供统一访问入口
-- 隔离键位与控制逻辑
-
-当前暴露的典型输入：
-
-- 移动
-- 视角
-- 射击
-- 跳跃
-- 蹲下
-- 冲刺
-- 交互
-- 背包
-- 换弹
-- 开火模式切换
-- 快速医疗
-
-设计意义：
-
-- 让 `PrototypeFpsController` 不直接依赖底层按键
-- 后续做自定义按键时，不需要重写控制器逻辑
-
-### 4.2 玩家控制器
-
-核心脚本：
-
 - `Assets/Res/Scripts/FPS/PrototypeFpsController.cs`
 
-职责：
-
-- 第一人称视角控制
-- 地面移动
-- 空中控制
-- 跳跃与落地速度逻辑
-- 体力消耗与恢复
-- 蹲伏与站起
-- 武器切换
-- 射击与近战
-- 医疗快捷键
-- 局内 HUD
-
-### 4.3 当前移动设计
-
-当前移动手感参考 CS/Source 系：
-
-- 地面有加速度与摩擦
-- 空中横向控制受限
-- 只有 `A/D + 鼠标同向移动` 才能有效空中转向
-- 落地会丢速
-- 连跳可避免正常落地掉速
-
-### 4.4 当前蹲伏设计
-
-蹲伏不是单纯降视角，而是同时调整：
-
-- `CharacterController.height`
-- `CharacterController.center`
-- 相机高度
-- `stepOffset`
-
-并且有顶头检测：
-
-- 只有头顶空间足够才允许站起
-
-设计意义：
-
-- 玩家可以通过低矮障碍
-- 不会在低矮通道里强制站起穿模
-
-### 4.5 体力系统
-
-体力属于单位级资源，但当前主要由玩家控制器消费。
-
-当前体力参与动作：
-
-- 冲刺
-- 跳跃
-- 近战
-
-恢复规则：
-
-- 消耗后进入恢复延迟
-- 耗尽后进入更长的虚脱恢复延迟
-- 低于动作阈值时不能开始新的耗体力动作
-- 但已经开始的动作可以继续消耗到 0
-
----
-
-## 5. 武器与攻击链路
-
-### 5.1 武器定义
-
-核心脚本：
-
-- `Assets/Res/Scripts/Items/Definitions/PrototypeWeaponDefinition.cs`
-- `Assets/Res/Scripts/Items/Definitions/AmmoDefinition.cs`
-
-当前武器定义包含：
-
-- 是否近战
-- 弹药定义
-- 弹匣容量
-- 射速
-- 换弹时长
-- 开火模式
-- burst 次数
-- 散布
-- 有效距离
-- 近战伤害与范围
-
-### 5.2 玩家射击链路
-
-玩家攻击流程：
-
-1. `PrototypeFpsInput` 提供攻击输入
-2. `PrototypeFpsController` 判断当前武器状态
-3. 根据武器定义决定：
-   - 单发
-   - burst
-   - 自动
-   - 近战
-4. 射线或近战检测命中碰撞体
-5. 识别 `PrototypeUnitHitbox`
-6. 构造 `PrototypeUnitVitals.DamageInfo`
-7. 调用目标的 `ApplyDamage`
-
-### 5.3 近战攻击
-
-近战目前仍走武器定义，而不是独立系统。
-
-优点：
-
-- 近战与远程共享一套武器槽逻辑
-- AI 和玩家都能复用同一套近战定义
-
-代价：
-
-- 近战动作系统、动画系统、命中窗口仍然较简单
-
-### 5.4 噪声系统
-
-核心脚本：
-
-- `Assets/Res/Scripts/AI/PrototypeBotController.cs`
-  - 内含 `PrototypeCombatNoiseSystem`
-
-玩家这些行为会广播噪声：
-
-- 开枪
-- 近战
-- 移动
-- 冲刺
-- 起跳
-- 落地
-
-设计意义：
-
-- AI 不必只靠视线发现玩家
-- 搜索和警觉能建立在统一事件源上
-
----
-
-## 6. 单位生命、护甲与部位系统
-
-### 6.1 核心设计
-
-局内所有可受伤单位都围绕这三个对象工作：
-
-- `PrototypeUnitDefinition`
-- `PrototypeUnitVitals`
-- `PrototypeUnitHitbox`
-
-### 6.2 UnitDefinition
-
-核心脚本：
+### 2.2 单位结算
 
 - `Assets/Res/Scripts/FPS/PrototypeUnitDefinition.cs`
-
-职责：
-
-- 定义单位的部位结构
-- 定义每个部位的属性
-- 决定血条锚点
-
-每个部位当前可配置：
-
-- `partId`
-- `displayName`
-- `maxHealth`
-- `overflowMultiplier`
-- 是否计入总生命
-- 是否接收溢出伤害
-- 黑掉后的致死规则
-- 溢出转发目标
-
-这意味着当前部位系统已经不是写死 `Head/Torso/Legs` 的旧实现，而是数据驱动。
-
-### 6.3 UnitHitbox
-
-核心脚本：
-
-- `Assets/Res/Scripts/FPS/PrototypeUnitHitbox.cs`
-
-职责：
-
-- 将物理命中映射到某个 `partId`
-- 将命中转发到 `PrototypeUnitVitals`
-- 支持“外层部位 -> 内层部位”的命中传递
-
-适用场景：
-
-- 头盔拦头
-- 外层甲片保护躯干
-- 特殊怪物外壳保护核心
-
-### 6.4 UnitVitals
-
-核心脚本：
-
 - `Assets/Res/Scripts/FPS/PrototypeUnitVitals.cs`
+- `Assets/Res/Scripts/FPS/PrototypeUnitHitbox.cs`
+- `Assets/Res/Scripts/FPS/PrototypeStatusEffectController.cs`
 
-职责：
+### 2.3 表现与反馈
 
-- 维护部位生命状态
-- 处理护甲结算
-- 处理穿深
-- 处理溢出伤害
-- 触发死亡
-- 记录最后伤害来源
-- 发出战斗反馈事件
+- `Assets/Res/Scripts/FPS/PrototypeCombatTextController.cs`
+- `Assets/Res/Scripts/FPS/PrototypeTargetHealthBar.cs`
 
-### 6.5 护甲覆盖区
+### 2.4 战局与交互
 
-当前护甲是按部位覆盖工作的：
+- `Assets/Res/Scripts/Raid/RaidGameMode.cs`
+- `Assets/Res/Scripts/Interaction/PlayerInteractor.cs`
+- `Assets/Res/Scripts/Loot/LootContainerWindowController.cs`
+- `Assets/Res/Scripts/Loot/PlayerInventoryWindowController.cs`
 
-- 护甲定义声明覆盖哪些 `partId`
-- 命中某部位时，`Vitals` 会先检查是否有护甲覆盖
-- 若覆盖，先计算：
-  - 护甲是否拦截
-  - 耐久损耗
-  - 是否被穿透
+### 2.5 AI
 
-当前目标：
-
-- 允许不同目标拥有不同护甲组合
-- 能直观看到护甲命中、护甲损坏、肉伤
-
-### 6.6 溢出与黑部位逻辑
-
-当前设计保留了原型级 Tarkov-like 思路：
-
-- 部位打空后，超出部分会按规则分摊
-- 某些部位可配置为黑后再受伤致死
-- 某些部位可配置为不接收溢出
-
-这个设计的价值在于：
-
-- 不需要重写伤害系统，就能支持非人形目标
-- 特殊怪物核心、外壳、护甲层都能通过配置落地
+- `Assets/Res/Scripts/AI/PrototypeBotController.cs`
+- `Assets/Res/Scripts/AI/PrototypeEnemyRuntimeFactory.cs`
+- `Assets/Res/Scripts/AI/PrototypeEnemySpawnProfile.cs`
+- `Assets/Res/Scripts/AI/PrototypeEncounterDirector.cs`
 
 ---
 
-## 7. 状态效果系统
+## 3. 玩家操控设计
 
-### 7.1 当前方向
+## 3.1 输入层
 
-状态效果已经从“部位级特殊逻辑”收敛为“单位级 Buff/Debuff 系统”。
+`PrototypeFpsInput` 负责把 Input System 和 fallback 输入统一成稳定接口。
 
-核心脚本：
+当前重要输入包括：
 
-- `Assets/Res/Scripts/FPS/PrototypeStatusEffectController.cs`
+- 移动、视角、射击、交互、背包
+- 武器 1 / 2 / 3 切换
+- 换弹、切换开火模式
+- 快速治疗、止血、夹板、止痛
+- `C` 切换站立 / 蹲下
+- `Shift` 奔跑
+- `LCtrl + 鼠标滚轮` 调整移动速度比例
 
-### 7.2 当前效果
+## 3.2 角色移动
+
+`PrototypeFpsController` 当前采用“接近竞技 FPS 手感 + Tarkov 风格姿态/速度管理”的折中方案。
+
+当前特征：
+
+- 地面摩擦与加速度存在，不是立刻停下
+- 起跳保留速度，支持连跳
+- 空中侧移需要侧键 + 鼠标同向移动才有效
+- 落地默认有掉速，但连续跳跃可规避
+
+## 3.3 姿态与速度比例
+
+当前不是传统“走路 / 奔跑 / 蹲下”三段式，而是：
+
+- `C` 切换蹲下
+- 站立和蹲下都受 `movementSpeedRatio` 控制
+- `LCtrl + 鼠标滚轮` 在 `10% - 100%` 之间调节速度比例
+- `Shift` 奔跑时会自动：
+  - 速度比例切到 100%
+  - 姿态切回站立
+
+这套设计更接近 Tarkov 的“精细移动速度控制”。
+
+## 3.4 体力
+
+体力逻辑位于 `PrototypeUnitVitals`，由 `PrototypeFpsController` 驱动消耗。
+
+当前消耗来源：
+
+- 奔跑
+- 跳跃
+- 近战攻击
+
+当前恢复规则：
+
+- 任意体力消耗后会进入恢复延迟
+- 如果体力耗尽，会进入更长的虚脱恢复延迟
+- 低于动作阈值时无法开始新的耗体动作
+- 但已开始的奔跑可以继续消耗到 0
+
+---
+
+## 4. 武器与攻击
+
+## 4.1 武器槽位
+
+玩家当前有三个槽位：
+
+- Primary
+- Secondary
+- Melee
+
+运行时用 `WeaponRuntime` 保存：
+
+- 当前定义
+- 当前弹匣剩余子弹
+- 开火模式
+- Burst 待发子弹
+- 冷却与换弹状态
+
+## 4.2 枪械
+
+当前已接入：
+
+- 步枪
+- 手枪
+- 近战武器
+
+枪械支持：
+
+- Semi / Burst / Auto
+- 独立射速
+- 换弹时间
+- 有效射程
+- 散布
+- 使用不同弹药定义
+
+## 4.3 近战
+
+近战武器与枪械共用武器槽逻辑，但命中路径不同。
+
+当前特征：
+
+- 有攻击冷却
+- 有攻击距离和半径
+- 消耗体力
+- 可以直接触发伤害与冲击
+
+---
+
+## 5. 伤害、部位、护甲与状态效果
+
+## 5.1 部位系统
+
+当前部位系统使用 `PrototypeUnitDefinition` 做数据驱动。
+
+默认人型定义包含：
+
+- 头部
+- 躯干
+- 腿部
+
+每个部位可配置：
+
+- 最大生命
+- 溢出倍率
+- 是否计入总生命
+- 是否接收溢出
+- 零血后的致死规则
+
+## 5.2 护甲系统
+
+护甲在 `PrototypeUnitVitals` 中结算，支持：
+
+- 覆盖指定部位
+- 护甲等级
+- 耐久
+- 格挡后耐久损耗
+- 被穿透后耐久损耗
+- 护甲对流血 / 骨折的防护
+
+当前护甲是“定义级装备”，还没有完整的实例耐久跨局保存。
+
+## 5.3 状态效果
+
+出血、骨折、止痛等效果已经从“部位状态”改成“单位级状态”，由 `PrototypeStatusEffectController` 统一管理。
+
+这样做的好处：
+
+- 后续加中毒、灼烧、减速、增伤时不用再改部位逻辑
+- 方便把效果系统往 RPG 化方向扩展
+
+当前内建效果：
 
 - Light Bleed
 - Heavy Bleed
 - Fracture
 - Painkiller
 
-### 7.3 为什么这么改
+## 5.4 伤害来源记录
 
-原因不是为了更简单，而是为了更可扩展。
+`PrototypeUnitVitals` 和 `PrototypeStatusEffectController` 会记录：
 
-如果继续把流血、骨折、止痛都绑在部位系统里，后面加入：
+- 最后伤害来源单位
+- 最后伤害来源快照
+- Debuff 的施加者
 
-- 中毒
-- 灼烧
-- 迟缓
-- 增伤
-- 免伤
-- RPG 类短时 Buff
+因此玩家死亡时，结算界面可以显示：
 
-会越来越乱。
-
-现在改成统一状态系统后：
-
-- `Vitals` 只关心伤害与生命
-- `StatusEffectController` 只关心持续效果
-
-边界更清楚。
-
-### 7.4 当前与控制器的关系
-
-玩家控制器读取状态系统输出的惩罚系数，例如：
-
-- 移动减速
-- 跳跃惩罚
-- 止痛临时压制骨折影响
+- 直接击杀来源
+- 因 Debuff 持续伤害导致死亡时的来源
 
 ---
 
-## 8. AI 战斗系统
+## 6. 战斗反馈
 
-### 8.1 核心脚本
+当前局内战斗反馈包括：
 
-- `Assets/Res/Scripts/AI/PrototypeBotController.cs`
+- 受击飘字
+- 护甲命中飘字
+- 护甲损坏提示
+- Target 头顶总血条
+- HUD 生命 / 体力 / 护甲 / 状态显示
+- 命中标记
+- 结算界面死亡来源
 
-### 8.2 当前 AI 设计方向
+其中飘字当前区分：
 
-AI 已从“通用 Bot”收敛成“敌人 archetype 驱动”。
+- 护甲受击：灰色
+- 护甲损坏：提示文案
+- 生命受击：红色
 
-当前 archetype：
+---
+
+## 7. 局内 Loot 与战斗后的搜刮
+
+## 7.1 地面拾取
+
+`GroundLootItem` 负责地面物品交互。
+
+## 7.2 容器搜刮
+
+`LootContainer` 和 `LootContainerWindowController` 负责箱子、柜子等容器搜刮。
+
+支持：
+
+- 首次打开随机刷物
+- 从 Loot 表滚动生成
+- 可转移到玩家主背包
+
+## 7.3 尸体搜刮
+
+敌人死亡后，会在尸体上生成统一的可搜刮实体。
+
+当前尸体窗口可以查看和拿取：
+
+- 武器
+- 护甲
+- 敌人携带的额外物品
+
+这里不再用“武器单独掉地”的老方案，而是统一走尸体窗口。
+
+---
+
+## 8. AI 战斗设计
+
+## 8.1 当前敌人类型
+
+当前已经固定为 4 类 archetype：
 
 - 普通丧尸
 - 警察丧尸
 - 军人丧尸
 - 丧尸犬
 
-### 8.3 感知能力
+## 8.2 感知方式
 
-当前 AI 感知来源：
+AI 当前支持：
 
 - 视觉
 - 听觉
-- 嗅觉
+- 嗅觉（仅狗类 archetype）
 
-其中：
+听觉来源包括：
 
-- 视觉受视野、距离、遮挡影响
-- 听觉来自 `PrototypeCombatNoiseSystem`
-- 嗅觉当前主要给丧尸犬使用，可跨障碍范围索敌
+- 玩家移动噪声
+- 跳跃
+- 落地
+- 近战
+- 枪声
 
-### 8.4 攻击行为
+并且玩家当前速度比例与姿态会改变噪声半径。
 
-近战敌人：
+## 8.3 攻击方式
 
-- 追到近距离后近战攻击
+近战 AI：
 
-远程敌人：
+- 追近后使用近战冷却攻击
 
-- 有攻击间隔
-- 警察丧尸倾向单发后冷却
-- 军人丧尸倾向短 burst 后冷却
-- 不是每发死锁玩家中心
-- 会锁一个身体圆形区域并随机命中点
+远程 AI：
 
-这样做的目的：
+- 不是持续完美锁定玩家
+- 会锁定目标身体区域
+- 在区域内随机取命中点
+- 支持单发冷却或短点射后冷却
 
-- 防止远程 AI 过于“外挂化”
-- 保留可躲避空间
-- 保证不同敌人类型有明显战斗差异
-
-### 8.5 当前取舍
-
-已移除或弱化的方向：
-
-- 复杂掩体战术
-- 高度泛化的战术 Bot 系统
-
-原因：
-
-- 当前项目更接近丧尸敌人原型
-- 设计目标强调“敌人类型差异”，不是“战术行为深度”
+因此当前远程 AI 已不是“每帧锁中心点”的高压命中逻辑。
 
 ---
 
-## 9. 战局状态系统
+## 9. 战局与结算
 
-### 9.1 核心脚本
+`RaidGameMode` 负责：
 
-- `Assets/Res/Scripts/Raid/RaidGameMode.cs`
+- 开局运行
+- 撤离成功
+- 玩家死亡失败
+- 超时失败
 
-### 9.2 当前职责
+`PrototypeRaidProfileFlow` 负责：
 
-- 管理战局计时
-- 跟踪玩家是否存活
-- 处理撤离成功
-- 处理超时失败
-- 显示结算界面
-
-### 9.3 与玩家 UI 焦点的关系
-
-战局结算界面不是普通画面叠层，而是会实际占用：
-
-- `PlayerInteractionState`
-
-这样可以保证：
-
-- 死亡/撤离后自动显示鼠标
-- 玩家控制器不再锁回鼠标
-- 可以直接点击 `Return To Menu`
-
-这是近期修复的关键点之一。
+- 进局时把局外配置应用到玩家
+- 结算时把战局结果写回 Profile
+- 非运行状态显示 `Return To Menu`
 
 ---
 
-## 10. 局内交互与搜打撤闭环
+## 10. 当前限制
 
-### 10.1 交互接口
+当前局内战斗系统仍有这些限制：
 
-核心接口：
-
-- `Assets/Res/Scripts/Interaction/IInteractable.cs`
-
-当前接入对象：
-
-- 地面物品
-- 箱子
-- 撤离点
-
-### 10.2 玩家交互器
-
-核心脚本：
-
-- `Assets/Res/Scripts/Interaction/PlayerInteractor.cs`
-
-职责：
-
-- 视线射线检测
-- 找最近可交互目标
-- 显示提示
-- 调用交互对象
-
-### 10.3 当前闭环
-
-玩家进入场景后可以：
-
-1. 与地面拾取物交互
-2. 与箱子交互搜刮
-3. 与撤离终端交互完成撤离
-
-这三类交互已经构成原型期的“搜打撤”最小闭环。
+- 玩家与 AI 武器实例状态还不是真正实例化资产
+- 护甲耐久没有跨局持久化
+- AI 仍集中在 `PrototypeBotController`
+- HUD 和搜刮 UI 仍是 IMGUI
+- 更复杂的掩体战术、队友协同、门战术还没成型
 
 ---
 
-## 11. 局内表现层
+## 11. 后续扩展建议
 
-### 11.1 核心脚本
+如果继续深化局内系统，优先建议：
 
-- `Assets/Res/Scripts/FPS/PrototypeTargetHealthBar.cs`
-- `Assets/Res/Scripts/FPS/PrototypeCombatTextController.cs`
-- `Assets/Res/Scripts/FPS/PrototypeFpsController.cs` 内 HUD
-- `Assets/Res/Scripts/Raid/RaidGameMode.cs` 结算 UI
-
-### 11.2 当前反馈目标
-
-当前表现层不是追求美术完成度，而是追求“调试清晰”。
-
-所以它优先反馈：
-
-- 打到护甲还是肉体
-- 护甲是否损坏
-- 目标还有多少总血量
-- 玩家当前武器/体力/状态
-- 战局是否成功或失败
-
----
-
-## 12. 当前局内系统的优点
-
-### 12.1 优点
-
-- 已形成完整单局闭环
-- 部位、护甲、状态、武器已经基本数据化
-- 玩家与 AI 都共享同一套伤害系统
-- UI 焦点问题已基本被统一到 `PlayerInteractionState`
-- Scene Builder 可快速重建测试环境
-
-### 12.2 局内系统最有价值的部分
-
-当前最值得保留和继续扩展的是：
-
-- `PrototypeUnitDefinition + PrototypeUnitVitals`
-- `InventoryContainer`
-- `PrototypeFpsInput`
-- `PlayerInteractionState`
-
-这些已经具备继续演化成正式系统的价值。
-
----
-
-## 13. 当前局内系统的短板
-
-### 13.1 UI 还是 IMGUI
-
-优点是快，缺点是：
-
-- 不适合复杂战斗 HUD
-- 不适合正式风格结算界面
-- 不适合装备面板与复杂动画
-
-### 13.2 玩家控制器职责仍偏多
-
-`PrototypeFpsController` 当前承担了：
-
-- 移动
-- 战斗
-- 医疗
-- HUD
-- AI 噪声广播
-
-后续最好拆成：
-
-- MovementController
-- WeaponController
-- MedicalController
-- HudPresenter
-
-### 13.3 AI 仍属于原型级
-
-虽然已经足够测试，但还不适合长期复杂扩展：
-
-- 没有明确行为树/状态机资产化
-- 没有更细的动画/动作层
-- 没有 squad/协同行为
-
----
-
-## 14. 建议的下一步局内迭代
-
-如果继续增强局内系统，建议优先级如下：
-
-1. 更稳定的装备栏与护甲穿戴显示
-2. 更正式的战斗 HUD
-3. 更丰富的 LootContainer 类型
-4. 敌人掉落与尸体搜刮
-5. 更细的 AI 动画与动作反馈
-6. 将 `PrototypeFpsController` 进一步拆模块
-
----
-
-## 15. 结论
-
-当前局内系统已经不只是“射击 Demo”，而是一个完整的单局原型：
-
-- 有战斗
-- 有搜刮
-- 有撤离
-- 有结算
-- 有 AI
-- 有护甲/部位/状态效果
-
-下一阶段不一定要继续加更多局内功能，反而更值得把：
-
-- 装备栏
-- 仓库
-- 敌人掉落
-- 局外成长
-
-和局内系统真正接起来。
+1. 把武器、护甲、容器都做成实例级持久化
+2. 给局内 UI 做真正的多容器拖拽转移
+3. 拆分 `PrototypeFpsController`
+4. 拆分 `PrototypeBotController`
+5. 把原型 blockout 场景和正式内容场景分离

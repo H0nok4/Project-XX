@@ -1,459 +1,322 @@
-# Project-XX 模块接口约定
+# 模块接口与边界约定
 
 ## 1. 文档目的
 
-本文档用于约束当前原型工程中各模块的“对外接口”和“允许负责的事情”。
+本文档不是类图，而是用于规定：
 
-它不是 C# 语言接口清单，而是工程边界约定。
+- 哪个模块应该负责什么
+- 哪个模块不应该负责什么
+- 模块之间允许如何协作
 
-核心目标：
-
-- 防止职责继续堆到少数脚本里
-- 明确哪些模块能直接互调
-- 明确哪些模块只能通过中间层访问
+这些约定的目的是避免“功能能跑，但职责失控”。
 
 ---
 
-## 2. 总体原则
+## 2. 全局约束
 
-### 2.1 单一职责
+### 2.1 单一结算来源
 
-一个模块对外只应暴露一种主职责。
+- 生命与伤害结算只认 `PrototypeUnitVitals`
+- 状态效果结算只认 `PrototypeStatusEffectController`
+- Profile 读写只认 `PrototypeProfileService`
 
-例子：
+禁止：
 
-- `PrototypeProfileService` 负责 Profile 读写，不负责菜单布局
-- `PrototypeUnitVitals` 负责生命结算，不负责输入
-- `PlayerInteractor` 负责交互查询，不负责拾取后的 UI 布局
+- UI 自己改血量
+- AI 直接绕过 `PrototypeUnitVitals` 扣血
+- 任意模块直接手写 JSON 存档
 
-### 2.2 只向下依赖
+### 2.2 输入集中入口
 
-模块应该优先依赖更稳定、更底层的对象：
+- 玩家输入只应通过 `PrototypeFpsInput` 暴露给运行时系统
 
-- 控制器依赖领域对象
-- UI 依赖控制器或领域对象
-- 数据定义不依赖运行时控制器
+禁止：
 
-### 2.3 通过状态，不通过场景假设
+- 在多个运行时模块中直接硬读 `Keyboard.current`
+- UI 逻辑直接改动玩家移动状态而不通过焦点系统
 
-尽量不要写这种逻辑：
+### 2.3 UI 焦点统一管理
 
-- “主菜单里一定有某个对象名”
-- “SampleScene 一定只有一个某类对象”
+- 所有会占用玩家控制权的界面都应通过 `PlayerInteractionState`
 
-能通过显式引用或服务获取的，就不要通过场景假设硬找。
+禁止：
+
+- 某个界面只自己显示鼠标，但不登记 UI 焦点
+- 结算、背包、搜刮各自搞一套输入冻结逻辑
+
+### 2.4 原型构建器不是业务真相
+
+- Builder 可以生成默认资产和样例场景
+- Builder 不是运行时逻辑真相来源
+
+禁止：
+
+- 把关键运行时规则只写在 Builder 中
+- 依赖“必须先重建场景才能工作”的隐藏规则
 
 ---
 
-## 3. Profile 模块接口约定
+## 3. 模块边界
 
-### 3.1 模块职责
+## 3.1 Profile 模块
 
-模块：
+核心：
 
-- `PrototypeItemCatalog`
 - `PrototypeProfileService`
+- `PrototypeItemCatalog`
+- `PrototypeMerchantCatalog`
+
+负责：
+
+- Profile 的读取、清洗、保存
+- 定义级目录查询
+- 商店目录与价格定义
+
+不负责：
+
+- 局内运行时背包控制
+- UI 表现
+- 战斗结算
+
+允许被调用者：
+
 - `PrototypeMainMenuController`
 - `PrototypeRaidProfileFlow`
 
-### 3.2 对外提供的能力
+## 3.2 Main Menu / Meta UI 模块
 
-`PrototypeItemCatalog`
+核心：
 
-- 根据 `itemId` 查询 `ItemDefinition`
-- 提供默认 Stash / Loadout 预设
+- `PrototypeMainMenuController`
 
-`PrototypeProfileService`
+负责：
 
-- 读取 Profile
-- 保存 Profile
-- Inventory 与 Profile 记录互转
-- 将战利品并回 Stash
+- 组织局外页面
+- 调用 Profile 服务
+- 调用仓库 / 商店操作
 
-`PrototypeMainMenuController`
+不负责：
 
-- 操作局外 Stash / Loadout
-- 进入战斗
+- 自己决定战斗死亡规则
+- 自己计算护甲、血量、战斗逻辑
 
-`PrototypeRaidProfileFlow`
+约定：
 
-- 把局外 Loadout 装到局内背包
-- 把局内结果回写到局外
+- 这里只能操作资料层与容器层
+- 不应出现局内战斗细节结算
 
-### 3.3 不应负责的事情
+## 3.3 Raid 桥接模块
 
-Profile 模块不应：
+核心：
 
-- 直接进行战斗伤害结算
-- 直接生成枪械命中
-- 直接判断 AI 行为
-- 直接依赖主菜单视觉资源细节
-
-### 3.4 推荐调用方式
-
-- 局外 UI 调 `PrototypeProfileService`
-- 局内结算桥接调 `PrototypeProfileService`
-- 其他运行时系统如果只需要物品定义，调 `PrototypeItemCatalog`
-
-不要：
-
-- 让 `RaidGameMode` 直接手改 Profile JSON
-- 让 `PrototypeFpsController` 直接写存档
-
----
-
-## 4. 战局模块接口约定
-
-### 4.1 模块职责
-
-模块：
-
+- `PrototypeRaidProfileFlow`
 - `RaidGameMode`
-- `ExtractionZone`
 
-### 4.2 对外提供的能力
+负责：
 
-`RaidGameMode`
+- 把局外配置应用到局内
+- 把局内结果回写局外
+- 控制战局生命周期
 
-- 当前战局状态
-- 战局计时
-- 战局结果
-- 状态变化事件
+不负责：
 
-`ExtractionZone`
+- 决定具体伤害数值
+- 直接驱动背包 UI
 
-- 撤离交互入口
-- 请求战局尝试撤离
+约定：
 
-### 4.3 不应负责的事情
+- `PrototypeRaidProfileFlow` 是场景桥接层，不是库存系统本体
 
-战局模块不应：
+## 3.4 玩家控制模块
 
-- 管玩家射击逻辑
-- 管 Inventory 数据结构
-- 管具体 AI 类型差异
-- 直接生成 UI 焦点拥有者之外的复杂交互
-
-### 4.4 当前允许的例外
-
-`RaidGameMode` 当前会：
-
-- 占用 `PlayerInteractionState`
-- 直接管理结果 UI 光标状态
-
-这是因为结算界面目前还在 IMGUI 原型阶段。  
-后续若迁移到正式 UI，可把这层交给独立 `RaidResultPresenter`。
-
----
-
-## 5. 玩家控制模块接口约定
-
-### 5.1 模块职责
-
-模块：
+核心：
 
 - `PrototypeFpsInput`
 - `PrototypeFpsController`
-- `PlayerInteractionState`
 
-### 5.2 对外提供的能力
+负责：
 
-`PrototypeFpsInput`
+- 玩家移动、武器、医疗、视角、噪声
 
-- 提供统一输入状态读取
+不负责：
 
-`PrototypeFpsController`
+- Profile 落盘
+- 商店逻辑
+- 直接操作 AI 状态机
 
-- 提供玩家移动、视角、战斗、医疗控制
-- 读取 `PrototypeUnitVitals` 的惩罚状态
+约定：
 
-`PlayerInteractionState`
+- 需要扣血时，必须走 `PrototypeUnitVitals`
+- 需要产生噪声时，必须走噪声系统
 
-- 提供统一 UI 焦点占用接口
+## 3.5 单位生命与状态模块
 
-### 5.3 不应负责的事情
-
-玩家控制模块不应：
-
-- 直接写 Profile
-- 直接决定战局胜负
-- 直接持久化背包
-- 直接知道主菜单如何布局
-
-### 5.4 重点约束
-
-任何需要占用鼠标和停止玩家控制的 UI，都应该通过：
-
-- `PlayerInteractionState.SetUiFocused(owner, focused)`
-
-不要新增一套平行的光标锁定状态。
-
-这是当前必须严格保护的接口约定。
-
----
-
-## 6. 单位与伤害模块接口约定
-
-### 6.1 模块职责
-
-模块：
+核心：
 
 - `PrototypeUnitDefinition`
 - `PrototypeUnitVitals`
 - `PrototypeUnitHitbox`
 - `PrototypeStatusEffectController`
 
-### 6.2 对外提供的能力
+负责：
 
-`PrototypeUnitDefinition`
+- 结构化伤害
+- 护甲结算
+- 状态效果
+- 死亡来源
 
-- 描述部位拓扑与规则
+不负责：
 
-`PrototypeUnitVitals`
+- 玩家输入
+- AI 决策
+- UI 页面布局
 
-- 接收伤害
-- 返回生命/护甲/体力状态
-- 发出死亡和战斗反馈事件
+约定：
 
-`PrototypeUnitHitbox`
+- 所有命中最终都应归并到 `ApplyDamage`
+- 所有单位级 Debuff 都应归并到 `PrototypeStatusEffectController`
 
-- 把物理命中转成 `partId` 伤害
+## 3.6 AI 模块
 
-`PrototypeStatusEffectController`
+核心：
 
-- 应用、维护、清除状态效果
+- `PrototypeBotController`
+- `PrototypeEnemySpawnProfile`
+- `PrototypeEnemyRuntimeFactory`
+- `PrototypeEncounterDirector`
 
-### 6.3 不应负责的事情
+负责：
 
-伤害模块不应：
+- 敌人感知
+- 敌人追击 / 搜索 / 攻击
+- 敌人生成
 
-- 读取原始输入
-- 知道某个按钮映射
-- 知道主菜单或场景切换
-- 决定 AI 状态机
+不负责：
 
-### 6.4 当前扩展规则
+- 定义伤害公式
+- 自己创建一套独立生命系统
+- 自己实现独立背包容器
 
-新增特殊怪物或特殊部位时：
+约定：
 
-- 优先扩 `PrototypeUnitDefinition`
-- 其次扩 `PrototypeUnitHitbox`
-- 最后才考虑改 `PrototypeUnitVitals`
+- AI 攻击命中玩家时必须走和玩家相同的伤害结算链
+- AI 掉落与尸体搜刮必须复用 Loot / Inventory 体系
 
-不要一上来就在 `PrototypeUnitVitals` 写大量 `if (bossType)`。
+## 3.7 Loot / Inventory / Interaction 模块
 
----
+核心：
 
-## 7. 物品与背包模块接口约定
-
-### 7.1 模块职责
-
-模块：
-
-- `ItemDefinition` 体系
-- `ItemInstance`
 - `InventoryContainer`
-
-### 7.2 对外提供的能力
-
-`ItemDefinition`
-
-- 提供静态配置
-
-`ItemInstance`
-
-- 提供运行时栈信息
-
-`InventoryContainer`
-
-- 增删物品
-- 转移物品
-- 统计重量与格数
-
-### 7.3 不应负责的事情
-
-背包模块不应：
-
-- 决定 UI 按钮怎么排
-- 决定战利品是否算撤离成功
-- 直接知道 AI、战局或菜单逻辑
-
-### 7.4 当前允许的边界
-
-允许：
-
-- 主菜单复用 `InventoryContainer`
-- 局内背包复用 `InventoryContainer`
-- 箱子复用 `InventoryContainer`
-
-不允许：
-
-- 为每个场景单独做一套平行容器实现
-
----
-
-## 8. 交互模块接口约定
-
-### 8.1 模块职责
-
-模块：
-
-- `IInteractable`
 - `PlayerInteractor`
 - `GroundLootItem`
 - `LootContainer`
-- `ExtractionZone`
+- `LootContainerWindowController`
+- `PlayerInventoryWindowController`
+- `PrototypeCorpseLoot`
 
-### 8.2 对外提供的能力
+负责：
 
-`PlayerInteractor`
+- 容器存取
+- 交互查询
+- 地面拾取与搜刮 UI
 
-- 查询当前视线目标
-- 调用目标交互
+不负责：
 
-`IInteractable`
+- 存档结构定义
+- 战斗伤害
+- AI 决策
 
-- 为具体交互对象提供统一接口
+约定：
 
-### 8.3 约定
+- 所有容器都尽量复用 `InventoryContainer`
+- 所有可交互对象都尽量实现 `IInteractable`
 
-新增局内交互对象时，优先实现：
+## 3.8 Level Design / Editor 模块
 
-- `IInteractable`
-
-不要在 `PlayerInteractor` 里继续堆：
-
-- `if (isDoor)`
-- `if (isCorpse)`
-- `if (isWorkbench)`
-
-否则交互器会持续膨胀。
-
----
-
-## 9. AI 模块接口约定
-
-### 9.1 模块职责
-
-模块：
-
-- `PrototypeBotController`
-- `PrototypeCombatNoiseSystem`
-
-### 9.2 对外提供的能力
-
-`PrototypeBotController`
-
-- AI 的感知、移动、攻击
-
-`PrototypeCombatNoiseSystem`
-
-- 噪声广播总线
-
-### 9.3 不应负责的事情
-
-AI 模块不应：
-
-- 决定主菜单或仓库
-- 直接写存档
-- 直接管理战局 UI
-
-### 9.4 扩展约定
-
-新增敌人类型时优先顺序：
-
-1. 扩 archetype 参数
-2. 扩数据定义或配置入口
-3. 最后才新增完全独立 AI 控制器
-
-只有当行为模型明显不同到无法共存时，才新建第二类 AI 控制器。
-
----
-
-## 10. 表现层接口约定
-
-### 10.1 模块职责
-
-模块：
-
-- `PrototypeCombatTextController`
-- `PrototypeTargetHealthBar`
-- 各类 IMGUI 面板
-
-### 10.2 对外能力
-
-表现层应该：
-
-- 读取状态
-- 订阅事件
-- 显示反馈
-
-### 10.3 不应负责的事情
-
-表现层不应：
-
-- 改写核心生命值
-- 重新做一套伤害计算
-- 重新决定交互是否成立
-
-### 10.4 典型正确方式
-
-正确：
-
-- `CombatTextController` 订阅 `Vitals` 反馈事件
-- `HealthBar` 读取目标当前生命归一化
-
-错误：
-
-- `CombatTextController` 自己去决定“这次该算多少伤害”
-
----
-
-## 11. Editor 模块接口约定
-
-### 11.1 模块职责
-
-模块：
+核心：
 
 - `PrototypeIndoorSceneBuilder`
 - `PrototypeMainMenuSceneBuilder`
+- `PrototypeRaidToolkitWindow`
 
-### 11.2 对外能力
+负责：
 
-Editor Builder 应负责：
+- 维护原型场景与默认资产
+- 提供关卡原型放置工具
 
-- 搭建原型场景
-- 创建默认原型资产
-- 写入基础引用
+不负责：
 
-### 11.3 不应负责的事情
-
-Editor Builder 不应：
-
-- 承担运行时逻辑
-- 成为唯一数据源
-- 写只有运行时才能读的临时状态
-
-### 11.4 当前约定
-
-Builder 生成的是：
-
-- 默认场景
-- 默认原型资产
-
-不是：
-
-- 玩家运行后的持久化状态
+- 运行时判定
+- 正式生产内容唯一真相
 
 ---
 
-## 12. 当前最重要的边界
+## 4. 当前最重要的接口契约
 
-如果只保 4 条最重要的边界，建议记住这四条：
+### 契约 1：伤害入口唯一
 
-1. `PlayerInteractionState` 是唯一 UI 焦点入口
-2. `PrototypeUnitVitals` 是唯一核心伤害结算入口
-3. `PrototypeProfileService` 是唯一 Profile 读写入口
-4. `InventoryContainer` 是局内外共享的唯一通用容器入口
+任何直接攻击、爆炸、近战、DOT 最终都应归并到：
 
-只要这四条不被打破，系统继续扩展时仍然可控。
+- `PrototypeUnitVitals.ApplyDamage(...)`
+
+### 契约 2：状态效果入口唯一
+
+任何持续伤害、减速、骨折、止痛等单位级状态都应归并到：
+
+- `PrototypeStatusEffectController`
+
+### 契约 3：存档入口唯一
+
+任何局外持久化都应归并到：
+
+- `PrototypeProfileService.LoadProfile(...)`
+- `PrototypeProfileService.SaveProfile(...)`
+
+### 契约 4：玩家 UI 焦点唯一
+
+任何局内会抢占玩家操作的窗口都应登记：
+
+- `PlayerInteractionState`
+
+---
+
+## 5. 目前最容易越界的地方
+
+### 5.1 `PrototypeFpsController`
+
+风险：
+
+- 容易继续吸收 HUD、输入、医疗、武器、噪声、姿态等更多逻辑
+
+要求：
+
+- 新增逻辑前先判断是否属于移动、战斗还是表现
+
+### 5.2 `PrototypeBotController`
+
+风险：
+
+- 感知、移动、攻击、掉落、尸体搜刮都在一个控制器中
+
+要求：
+
+- 新增敌人行为时，优先加配置，不优先继续堆控制分支
+
+### 5.3 `PrototypeMainMenuController`
+
+风险：
+
+- 仓库、商店、首页、装备槽、布局、自动存档都已经集中在一个 IMGUI 控制器里
+
+要求：
+
+- 新加局外系统时优先扩展资料结构，不优先扩展这个类的 UI 细节
+
+---
+
+## 6. 后续重构时的执行原则
+
+1. 先保留现有功能闭环，再拆结构
+2. 先拆职责最重的控制器，再拆小模块
+3. 先把数据入口统一，再升级 UI
+4. 先让实例和定义分开，再做复杂经济与装备

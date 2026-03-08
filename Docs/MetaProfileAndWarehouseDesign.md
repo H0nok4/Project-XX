@@ -1,500 +1,329 @@
-# Project-XX 局外仓库与资料流转设计
+# 局外资料、仓库与经济系统设计
 
-## 1. 文档范围
+## 1. 设计目标
 
-本文档只讨论局外系统，也就是玩家不在战斗场景时的资料、仓库、带入和结算回写逻辑。
+局外系统当前的目标不是做完整商业化 Meta，而是支撑局内原型的带入带出闭环，并提供最基础的经济测试入口。
 
-本文档覆盖：
+当前应解决的问题：
 
-- 主菜单
-- Profile 持久化
-- Stash / Loadout
-- 局外到局内的数据流转
-- 局内结果回写到局外
-
-本文档不重点讨论：
-
-- 玩家战斗控制
-- AI
-- 局内伤害系统
-
-这些内容见：
-
-- [InRaidCombatSystemDesign.md](D:/UnityProject/Project-XX/Project-XX/Docs/InRaidCombatSystemDesign.md)
+- 玩家如何在局外整理仓库
+- 玩家如何配置进局装备
+- 玩家如何在局外购买与出售物资
+- 玩家死亡和撤离后，哪些物资保留，哪些丢失
 
 ---
 
-## 2. 局外系统目标
+## 2. 核心脚本
 
-当前局外系统的目标不是做完整商人/任务/经济，而是先把单机搜打撤原型最小闭环跑通：
-
-1. 玩家进入主菜单
-2. 玩家整理仓库
-3. 玩家配置本局带入
-4. 玩家进入战斗
-5. 战斗结果回写仓库
-6. 玩家回到主菜单继续准备下一局
-
-所以设计上优先保证：
-
-- 流程完整
-- 数据不丢
-- 容易继续扩展
-
----
-
-## 3. 局外模块结构
-
-当前局外系统可以拆为 4 层：
-
-1. 物品索引层
-2. Profile 持久化层
-3. 主菜单与仓库 UI 层
-4. 战局桥接层
-
-依赖方向：
-
-`Item Catalog -> Profile Service -> Main Menu / Raid Flow`
-
----
-
-## 4. 物品索引层
-
-### 4.1 核心脚本
-
-- `Assets/Res/Scripts/Profile/PrototypeItemCatalog.cs`
-
-### 4.2 职责
-
-这个模块不是背包，也不是存档，它的作用是：
-
-- 提供 `itemId -> ItemDefinition` 的运行时查询
-- 保存默认 Stash 预设
-- 保存默认 Loadout 预设
-
-### 4.3 资产
-
-- `Assets/Resources/PrototypeItemCatalog.asset`
-
-这个资产放在 `Resources` 下的原因：
-
-- 主菜单场景和战斗场景都能直接加载
-- 不需要额外挂引用也能找到
-
-### 4.4 设计意义
-
-局外 Profile 存的是轻量记录：
-
-- `itemId`
-- `quantity`
-
-而不是直接序列化 `ItemDefinition` 资源引用。
-
-因此必须有一个目录层把保存数据重新解析回运行时物品定义。
-
----
-
-## 5. Profile 持久化层
-
-### 5.1 核心脚本
+### 2.1 资料与目录
 
 - `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
+- `Assets/Res/Scripts/Profile/PrototypeItemCatalog.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMerchantCatalog.cs`
 
-### 5.2 当前 Profile 结构
-
-当前保存结构非常轻量，主要包含两块：
-
-- `stashItems`
-- `loadoutItems`
-
-每条记录都是：
-
-- `itemId`
-- `quantity`
-
-### 5.3 为什么当前这样设计
-
-因为这是原型阶段，当前还没有：
-
-- 装备耐久差异
-- 同类武器改装差异
-- 独立实例属性
-- 容器嵌套
-
-所以先用“按物品类型堆叠”的数据结构最合适。
-
-### 5.4 当前保存位置
-
-Profile 保存到：
-
-- `Application.persistentDataPath/prototype_profile.json`
-
-### 5.5 当前服务职责
-
-`PrototypeProfileService` 负责：
-
-- 读取已有 Profile
-- 若无存档则根据 `PrototypeItemCatalog` 创建默认 Profile
-- 将 `InventoryContainer` 转成可保存记录
-- 将保存记录恢复成运行时背包内容
-- 将战利品合并回 `stashItems`
-
-### 5.6 当前限制
-
-当前 Profile 还不支持：
-
-- 单个装备实例差异
-- 改装枪械
-- 独立护甲耐久跨局保存
-- 装备位序列化
-- 任务、经验、角色属性
-
-这些都属于下一阶段扩展内容。
-
----
-
-## 6. 主菜单与仓库模块
-
-### 6.1 核心脚本
+### 2.2 局外界面
 
 - `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
 
-### 6.2 当前职责
-
-该模块承担：
-
-- 主菜单首页
-- 仓库页
-- `Stash` 容器
-- `Raid Loadout` 容器
-- 从仓库搬运到带入
-- 从带入退回仓库
-- 保存 Profile
-- 重置默认 Profile
-- 切换到战斗场景
-
-### 6.3 当前 UI 结构
-
-当前主菜单有两个主要页面：
-
-- `Home`
-  - 显示当前 Stash / Loadout 摘要
-  - 提供进入战斗按钮
-
-- `Stash`
-  - 左侧：Stash
-  - 右侧：Raid Loadout
-  - 点击按钮在两边转移整组物品
-
-### 6.4 为什么当前不用更复杂的仓库 UI
-
-因为目前目标是先验证资料流转，而不是做完整 Tarkov 仓库。
-
-所以暂时不做：
-
-- 网格背包
-- 拖拽
-- 拆分栈
-- 装备栏
-- 子弹压弹匣 UI
-
-先保持：
-
-- 简单
-- 稳定
-- 能完整进出战局
-
-### 6.5 容器实现
-
-主菜单并没有新做一套仓库容器，而是继续复用：
-
-- `InventoryContainer`
-
-这意味着当前局外和局内在物品层使用同一套容器模型。
-
-优点：
-
-- 数据结构统一
-- 转移逻辑一致
-- 后续扩展成本更低
-
----
-
-## 7. 局外到局内的流转
-
-### 7.1 进入战斗前
-
-流程如下：
-
-1. 玩家在 `MainMenu` 中整理 `Stash`
-2. 将部分物品搬到 `Raid Loadout`
-3. 点击 `Enter Battle`
-4. `PrototypeMainMenuController` 先保存 Profile
-5. 场景切换到 `SampleScene`
-
-### 7.2 进入战斗后
-
-局内不会直接读主菜单内存状态，而是重新从 Profile 读取：
-
-1. `SampleScene` 中的 `PrototypeRaidProfileFlow` 启动
-2. 读取 `PrototypeItemCatalog`
-3. 加载 Profile
-4. 用 `loadoutItems` 填充玩家当前背包
-
-设计意义：
-
-- 场景切换后没有悬空状态依赖
-- 主菜单和战斗场景之间的耦合更低
-- 以后就算做存档加载或直接进战局，也能复用这条链路
-
----
-
-## 8. 战局结果回写局外
-
-### 8.1 核心脚本
+### 2.3 局内桥接
 
 - `Assets/Res/Scripts/Profile/PrototypeRaidProfileFlow.cs`
 
-### 8.2 当前职责
-
-它是局外与局内之间的桥：
-
-- 开局：把 `loadoutItems` 装进玩家背包
-- 结算：根据战局结果更新 Profile
-- 非运行中状态下显示 `Return To Menu`
-
-### 8.3 当前回写规则
-
-#### 撤离成功
-
-- 玩家当前背包中的全部物品合并回 `stashItems`
-- 清空 `loadoutItems`
-- 保存 Profile
-
-#### 死亡 / 超时
-
-- 不回收局内背包
-- 直接清空 `loadoutItems`
-- 保存 Profile
-
-### 8.4 当前规则的含义
-
-这套规则是一种原型期简化：
-
-- 带入品进入战局后就脱离局外
-- 撤离成功才会回到局外
-- 失败则视为损失
-
-虽然还很简化，但已经能验证最核心的风险/收益关系。
-
----
-
-## 9. Build Settings 与场景入口
-
-### 9.1 当前场景
-
-- `Assets/Scenes/MainMenu.unity`
-- `Assets/Scenes/SampleScene.unity`
-
-### 9.2 Build Settings
-
-由：
+### 2.4 编辑器生成
 
 - `Assets/Res/Scripts/UI/Editor/PrototypeMainMenuSceneBuilder.cs`
 
-自动维护。
+---
 
-当前会确保：
+## 3. 当前 Profile 数据结构
 
-- `MainMenu` 在 Build Settings 中
-- `SampleScene` 在 Build Settings 中
+`PrototypeProfileService.ProfileData` 当前已包含：
 
-### 9.3 主菜单场景生成器
+- `stashItems`
+- `raidBackpackItems`
+- `secureContainerItems`
+- `specialEquipmentItems`
+- `equippedArmorItems`
+- `stashWeaponIds`
+- `equippedPrimaryWeaponId`
+- `equippedSecondaryWeaponId`
+- `equippedMeleeWeaponId`
 
-主菜单不是纯手工搭建，而是由 `PrototypeMainMenuSceneBuilder` 生成。
+说明：
 
-它负责：
-
-- 创建基础场景结构
-- 创建主菜单系统对象
-- 创建/更新 `PrototypeItemCatalog.asset`
-- 更新 Build Settings
-
-设计意义：
-
-- 主菜单结构可以重复生成
-- 新增默认物品时，目录资产不会手工漏改
+- 这些字段仍然是“定义级 + 数量 / ID”的轻量存档结构
+- 还不是实例级存档
+- `loadoutItems` 和 `extractedItems` 仍保留在结构里，但当前逻辑已不依赖它们作为主路径
 
 ---
 
-## 10. 当前局外系统的优点
+## 4. 局外容器与槽位设计
 
-### 10.1 已经具备最小 Meta 闭环
+## 4.1 安全区
 
-当前局外系统虽然简单，但已经形成：
+### Warehouse Stash
 
-- 准备
-- 带入
-- 结算
-- 回写
+安全仓库，用于长期存放普通物资。
 
-这条完整链路。
+特点：
 
-### 10.2 Profile 与场景解耦
+- 不受战局死亡影响
+- 商店购买的普通物资直接进入这里
+- 出售也默认从这里扣除物品、返还现金
 
-主菜单和战斗场景不是靠内存对象硬传状态，而是通过：
+### Weapon Locker
 
-- `ProfileService`
-- `ItemCatalog`
+安全武器柜，用于长期存放未装备武器。
 
-建立稳定边界。
+特点：
 
-这对后续扩展很重要。
+- 商店购买的武器直接进入这里
+- 不受战局死亡影响
 
-### 10.3 局外与局内背包复用
+## 4.2 风险区
 
-同一套 `InventoryContainer` 能同时服务：
+### Raid Backpack
 
-- 主菜单仓库
-- 局内背包
-- 箱子
-- 地面掉落
+战斗背包，是局内主拾取容器。
 
-这让系统结构非常统一。
+特点：
 
----
+- 进局时会被装填到玩家主背包
+- 局内搜刮默认进入这里
+- 死亡时清空
+- 撤离时保留当前内容
 
-## 11. 当前局外系统的短板
+### Equipped Armor
 
-### 11.1 Profile 颗粒度太粗
+已装备护甲属于风险区。
 
-目前只记录按类型堆叠后的数量，不记录：
+特点：
 
-- 独立物品实例
-- 改装状态
-- 当前耐久
-- 装备栏位置
+- 进局时直接挂到玩家身上
+- 死亡时丢失
+- 撤离时保留
 
-如果后面要做更像 Tarkov 的仓库，这一层必须升级。
+### Equipped Primary / Secondary
 
-### 11.2 UI 仍然是 IMGUI
+已装备主武器和副武器属于风险区。
 
-这会限制：
+特点：
 
-- 复杂布局
-- 拖拽体验
-- 动画
-- 局外角色页
-- 仓库分页和筛选
+- 进局时挂到玩家武器槽
+- 局内可被拾枪替换
+- 死亡时丢失
+- 撤离时保存当前最后持有的武器
 
-### 11.3 没有独立装备系统
+## 4.3 保护区
 
-当前 `Loadout` 只是一个容器，不是“角色身上装备位”的概念。
+### Melee
 
-所以当前还缺：
+近战武器槽是保护区。
 
-- 头部装备位
-- 胸甲位
-- 主武器位
-- 副武器位
-- 背包位
-- 快捷栏位
+特点：
 
-### 11.4 经济系统尚未存在
+- 死亡时不会消失
+- 撤离时照常保留
 
-当前没有：
+### Secure Container
 
-- 商人
-- 金钱结算
-- 任务奖励
-- 仓库扩容
-- 角色成长
+安全箱容器是保护区。
 
-这些都还没开始。
+特点：
 
----
+- 不受死亡影响
+- 进局时会被加载到玩家
+- 当前还没有完整的局内多容器拖拽 UI，但基础容器已存在
 
-## 12. 推荐的下一步局外扩展
+### Special Equipment
 
-### 12.1 第一阶段
+特殊装备容器是保护区。
 
-建议先加：
+特点：
 
-- 装备栏
-- 带入确认页
-- 更明确的结算摘要
-- 局外角色信息摘要
-
-### 12.2 第二阶段
-
-然后再加：
-
-- 格子仓库
-- 拖拽与拆分
-- 子弹/弹匣管理
-- 武器实例化保存
-
-### 12.3 第三阶段
-
-最后再考虑：
-
-- 商人
-- 任务
-- 货币
-- 角色成长
-- 多存档槽位
+- 不受死亡影响
+- 设计上为后续任务道具、钥匙、特殊装置等预留
 
 ---
 
-## 13. 推荐的技术重构方向
+## 5. 主菜单结构
 
-### 13.1 DTO 与运行时容器分离
+当前主菜单有三个主要页面：
 
-现在 `ProfileService` 已经是半 DTO 化，但后续建议更明确区分：
+- Home
+- Warehouse
+- Merchants
 
-- 存档 DTO
-- Runtime Inventory
-- UI ViewModel
+## 5.1 Home
 
-### 13.2 装备系统独立化
+展示当前概要：
 
-当前 `Loadout` 还是“一个背包”。
+- 资金
+- 仓库与背包概况
+- 当前装备情况
 
-后续建议单独做：
+并提供：
 
-- `EquipmentSlotType`
-- `EquipmentController`
-- `EquippedItemInstance`
+- Enter Battle
+- Open Warehouse
+- Visit Merchants
 
-### 13.3 从 IMGUI 迁移
+## 5.2 Warehouse
 
-当局外系统功能再多一点时，建议把：
+当前仓库页包含四块：
 
-- 主菜单
-- 仓库
-- 结算页
+- Warehouse Stash
+- Raid Backpack
+- Weapon Locker
+- Protected Gear
 
-统一迁移到 uGUI 或 UIToolkit。
+支持的操作包括：
+
+- 物资从仓库装进战斗背包
+- 物资放入安全箱 / 特殊装备槽
+- 护甲装备与卸下
+- 武器装备与回存
+- 出售仓库物资、武器、已装备护甲、已装备武器
+
+## 5.3 Merchants
+
+商店页当前是基础经济测试入口。
+
+默认三个商人：
+
+- 武器商人：武器、弹药
+- 药品商人：医疗物资
+- 护甲商人：护甲
+
+当前购买规则：
+
+- 普通物资买入后进入 `Warehouse Stash`
+- 武器买入后进入 `Weapon Locker`
+
+当前出售规则：
+
+- 现金以 `Cash Bundle` 形式存放在仓库
+- 出售时会把现金加入仓库
 
 ---
 
-## 14. 结论
+## 6. 经济系统
 
-当前局外系统已经完成了最小可用版本：
+## 6.1 货币
 
-- 有主菜单
-- 有仓库
-- 有带入
-- 有结算回写
-- 有返回主菜单
+当前货币不是单独的数值字段，而是物品：
 
-它现在最大的价值不是“做得多复杂”，而是已经建立了一个清楚的 Meta 流程骨架。
+- `cash_bundle`
 
-后续你要继续做单机搜打撤，局外系统最合理的扩展顺序是：
+好处：
 
-1. 装备栏
-2. 更正式的仓库 UI
-3. 结算摘要
-4. 任务/经济
+- 不需要单独维护一套货币存档字段
+- 可以直接复用背包与仓库逻辑
 
-不要一开始就把局外系统做成全功能大仓库，否则原型迭代成本会急剧上升。
+代价：
+
+- 货币表现仍然偏原型
+- 后续如果做更复杂经济，可能要切回专门数值字段
+
+## 6.2 商店目录
+
+`PrototypeMerchantCatalog` 当前提供：
+
+- 商人列表
+- 物资报价
+- 武器报价
+- 物资回收倍率
+- 武器回收倍率
+
+当前也支持运行时兜底：
+
+- 如果 `PrototypeMerchantCatalog.asset` 缺失
+- 主菜单会根据当前物品目录自动创建一套默认商店配置
+
+## 6.3 当前经济规则
+
+当前规则很简单：
+
+- 没有商人等级
+- 没有刷新时间
+- 没有限购
+- 没有差价浮动
+- 没有任务、信誉与折扣
+
+这足够支撑“买进 / 卖出 / 配装 / 进局”的闭环测试。
+
+---
+
+## 7. 局内外桥接规则
+
+## 7.1 进局
+
+`PrototypeRaidProfileFlow` 会在战局开始时：
+
+- 把 `raidBackpackItems` 装入玩家主背包
+- 把 `secureContainerItems` 和 `specialEquipmentItems` 装入辅助容器
+- 把 `equippedArmorItems` 应用到玩家 `PrototypeUnitVitals`
+- 把 `equippedPrimaryWeaponId / equippedSecondaryWeaponId / equippedMeleeWeaponId` 应用到玩家武器槽
+
+## 7.2 撤离
+
+当战局状态为 `Extracted`：
+
+- 当前主背包内容写回 `raidBackpackItems`
+- 当前护甲写回 `equippedArmorItems`
+- 当前主武器 / 副武器 / 近战写回对应武器槽
+- `Secure Container` 与 `Special Equipment` 始终保留
+
+## 7.3 死亡或超时
+
+当战局状态不是 `Extracted`：
+
+- `raidBackpackItems` 清空
+- `equippedArmorItems` 清空
+- 主武器 / 副武器清空
+- 近战武器保留
+- `Secure Container` 保留
+- `Special Equipment` 保留
+
+---
+
+## 8. 当前已经支撑的 Tarkov-like 规则
+
+当前已经具备：
+
+- 安全仓库
+- 风险战斗背包
+- 保护近战槽
+- 安全箱
+- 特殊装备槽
+- 局内搜刮进入风险背包
+- 撤离后保留风险区当前结果
+- 死亡后只保留保护区
+- 商店购买和出售
+
+这已经足以支撑单机版 Tarkov-like 原型的核心带入带出循环。
+
+---
+
+## 9. 当前缺失项
+
+当前还没有的内容包括：
+
+- 物品实例级持久化
+- 武器实例状态持久化
+- 护甲耐久跨局保存
+- 安全箱局内拖拽转移
+- 更复杂的商店关系和信誉
+- 商人刷新、限购与任务需求
+- 保险、邮件、黑市等系统
+
+---
+
+## 10. 后续扩展建议
+
+下一步优先级建议：
+
+1. 先做多容器拖拽 UI
+2. 再做实例级武器 / 护甲 / 物品存档
+3. 然后扩展商店成长与刷新逻辑
+4. 最后再补任务、信誉、局外成长
