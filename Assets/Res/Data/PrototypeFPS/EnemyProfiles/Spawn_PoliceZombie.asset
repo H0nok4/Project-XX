@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Spawn_PoliceZombie
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: police_zombie
-  displayName: Police Zombie
+  displayName: 警察丧尸
   archetype: 1
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
   primaryWeapon: {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}

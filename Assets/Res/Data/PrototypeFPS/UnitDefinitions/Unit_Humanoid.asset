@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parts:
   - partId: head
-    displayName: Head
+    displayName: 头部
     maxHealth: 35
     overflowMultiplier: 1
     contributesToUnitHealth: 1
@@ -25,7 +25,7 @@ MonoBehaviour:
     blackedFollowUpDamageThreshold: 0
     overflowTargets: []
   - partId: torso
-    displayName: Torso
+    displayName: 躯干
     maxHealth: 155
     overflowMultiplier: 1.05
     contributesToUnitHealth: 1
@@ -36,7 +36,7 @@ MonoBehaviour:
     blackedFollowUpDamageThreshold: 0
     overflowTargets: []
   - partId: legs
-    displayName: Legs
+    displayName: 腿部
     maxHealth: 130
     overflowMultiplier: 0.7
     contributesToUnitHealth: 1

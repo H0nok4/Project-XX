@@ -236,7 +236,7 @@ public static class PrototypeMainMenuSceneBuilder
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "weapons_trader",
-                displayName = "Weapon Trader",
+                displayName = "武器商人",
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = rifleAmmo, quantity = 30, price = 6 },
@@ -252,7 +252,7 @@ public static class PrototypeMainMenuSceneBuilder
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "medical_vendor",
-                displayName = "Medic",
+                displayName = "药品商人",
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = medkit, quantity = 1, price = 10 },
@@ -265,7 +265,7 @@ public static class PrototypeMainMenuSceneBuilder
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "armor_vendor",
-                displayName = "Armorer",
+                displayName = "护甲商人",
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = helmet, quantity = 1, price = 14 },

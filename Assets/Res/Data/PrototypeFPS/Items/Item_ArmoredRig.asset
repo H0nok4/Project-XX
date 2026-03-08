@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_ArmoredRig
   m_EditorClassIdentifier: Assembly-CSharp::ArmorDefinition
   itemId: armored_rig
-  displayName: Prototype Armored Rig
-  description: Torso armor that trades weight for survivability.
+  displayName: 原型防弹胸挂
+  description: 覆盖躯干的护甲，用更高重量换取更好的生存能力。
   maxStackSize: 1
   unitWeight: 8.2
   icon: {fileID: 0}

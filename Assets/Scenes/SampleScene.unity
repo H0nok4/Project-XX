@@ -3394,7 +3394,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d66a53c2fdb4dcb8f6f0a21c6e4b701, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LootContainer
-  containerLabel: Medical Case
+  containerLabel: 医疗箱
   interactionVerb: Search
   inventory: {fileID: 723259547}
   lootTable: {fileID: 11400000, guid: 71afa989b076a474b91430b47ddd1b65, type: 2}
@@ -3413,7 +3413,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7d9f03833d837ab4bade9f33327b15fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InventoryContainer
-  containerName: Medical Case
+  containerName: 医疗箱
   maxSlots: 8
   maxWeight: 0
   items: []

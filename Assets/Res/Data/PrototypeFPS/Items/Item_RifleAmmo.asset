@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_RifleAmmo
   m_EditorClassIdentifier: Assembly-CSharp::AmmoDefinition
   itemId: rifle_ammo
-  displayName: 5.56 FMJ
-  description: Balanced rifle rounds with decent armor penetration.
+  displayName: 5.56毫米 FMJ
+  description: 性能均衡的步枪弹，对护甲有不错的穿透能力。
   maxStackSize: 90
   unitWeight: 0.02
   icon: {fileID: 0}

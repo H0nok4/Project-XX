@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Cash
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemId: cash_bundle
-  displayName: Cash Bundle
-  description: Light valuables for a quick extraction run.
+  displayName: 现金捆
+  description: 轻便值钱的战利品，适合快速带离战局。
   maxStackSize: 10
   unitWeight: 0.2
   icon: {fileID: 0}

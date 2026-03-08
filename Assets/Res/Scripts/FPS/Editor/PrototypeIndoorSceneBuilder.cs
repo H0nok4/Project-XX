@@ -87,21 +87,21 @@ public static class PrototypeIndoorSceneBuilder
         EnsureFolder(EnemyProfileFolder);
 
         PrototypeUnitDefinition humanoidDefinition = CreateOrUpdateHumanoidDefinition(HumanoidDefinitionPath);
-        ItemDefinition cashItem = CreateOrUpdateItemDefinition(CashItemPath, "cash_bundle", "Cash Bundle", "Light valuables for a quick extraction run.", 10, 0.2f);
-        MedicalItemDefinition medkitItem = CreateOrUpdateMedicalDefinition(MedkitItemPath, "field_medkit", "Field Medkit", "A compact first-aid kit for raid sustain.", 2, 0.8f, 48f, 1, 0, 0, 0f);
-        MedicalItemDefinition bandageItem = CreateOrUpdateMedicalDefinition(BandageItemPath, "bandage_roll", "Bandage Roll", "Stops light bleeding quickly.", 4, 0.12f, 8f, 2, 0, 0, 0f);
-        MedicalItemDefinition tourniquetItem = CreateOrUpdateMedicalDefinition(TourniquetItemPath, "tourniquet", "Tourniquet", "Emergency heavy bleed control.", 2, 0.18f, 0f, 0, 1, 0, 0f);
-        MedicalItemDefinition splintItem = CreateOrUpdateMedicalDefinition(SplintItemPath, "field_splint", "Field Splint", "Stabilizes fractured limbs for movement.", 2, 0.22f, 0f, 0, 0, 1, 0f);
-        MedicalItemDefinition painkillerItem = CreateOrUpdateMedicalDefinition(PainkillerItemPath, "painkillers", "Painkillers", "Suppresses fracture penalties for a short time.", 2, 0.1f, 0f, 0, 0, 0, 75f);
+        ItemDefinition cashItem = CreateOrUpdateItemDefinition(CashItemPath, "cash_bundle", "现金捆", "轻便值钱的战利品，适合快速带离战局。", 10, 0.2f);
+        MedicalItemDefinition medkitItem = CreateOrUpdateMedicalDefinition(MedkitItemPath, "field_medkit", "战地医疗包", "紧凑型急救包，适合在战局内持续治疗。", 2, 0.8f, 48f, 1, 0, 0, 0f);
+        MedicalItemDefinition bandageItem = CreateOrUpdateMedicalDefinition(BandageItemPath, "bandage_roll", "绷带卷", "可快速止住轻度流血。", 4, 0.12f, 8f, 2, 0, 0, 0f);
+        MedicalItemDefinition tourniquetItem = CreateOrUpdateMedicalDefinition(TourniquetItemPath, "tourniquet", "止血带", "用于紧急控制重度流血。", 2, 0.18f, 0f, 0, 1, 0, 0f);
+        MedicalItemDefinition splintItem = CreateOrUpdateMedicalDefinition(SplintItemPath, "field_splint", "战地夹板", "用于固定骨折部位，恢复基本行动能力。", 2, 0.22f, 0f, 0, 0, 1, 0f);
+        MedicalItemDefinition painkillerItem = CreateOrUpdateMedicalDefinition(PainkillerItemPath, "painkillers", "止痛药", "可在短时间内压制骨折带来的行动惩罚。", 2, 0.1f, 0f, 0, 0, 0, 75f);
         AmmoDefinition rifleAmmoItem = CreateOrUpdateAmmoDefinition(RifleAmmoItemPath, "rifle_ammo", "5.56 FMJ", "Balanced rifle rounds with decent armor penetration.", 90, 0.02f, 33f, 18f, 30f, 24f, 0.14f, 0.05f, 0.1f);
         AmmoDefinition pistolAmmoItem = CreateOrUpdateAmmoDefinition(PistolAmmoItemPath, "pistol_ammo", "9mm JHP", "Soft pistol rounds with lower penetration but stronger flesh damage.", 60, 0.015f, 27f, 12f, 12f, 10f, 0.24f, 0.08f, 0.14f);
-        ArmorDefinition helmetArmor = CreateOrUpdateArmorDefinition(HelmetArmorPath, "helmet_alpha", "Prototype Helmet", "Basic head protection for penetration testing.", 1.6f, 4, 38f, 0.16f, 0.85f, 1.15f, 0.55f, 0.2f, HeadPartId);
-        ArmorDefinition vestArmor = CreateOrUpdateArmorDefinition(VestArmorPath, "armored_rig", "Prototype Armored Rig", "Torso armor that trades weight for survivability.", 8.2f, 4, 72f, 0.22f, 1.05f, 1.3f, 0.4f, 0.55f, TorsoPartId);
+        ArmorDefinition helmetArmor = CreateOrUpdateArmorDefinition(HelmetArmorPath, "helmet_alpha", "原型头盔", "提供基础头部防护，适合穿透与护甲测试。", 1.6f, 4, 38f, 0.16f, 0.85f, 1.15f, 0.55f, 0.2f, HeadPartId);
+        ArmorDefinition vestArmor = CreateOrUpdateArmorDefinition(VestArmorPath, "armored_rig", "原型防弹胸挂", "覆盖躯干的护甲，用更高重量换取更好的生存能力。", 8.2f, 4, 72f, 0.22f, 1.05f, 1.3f, 0.4f, 0.55f, TorsoPartId);
         PrototypeWeaponDefinition carbineWeapon = CreateOrUpdateFirearmDefinition(
             CarbineWeaponPath,
             "carbine_alpha",
-            "AR-4 Carbine",
-            "A controllable primary weapon with automatic and burst fire.",
+            "AR-4 卡宾枪",
+            "一把易于控制的主武器，支持全自动与点射模式。",
             rifleAmmoItem,
             30,
             720f,
@@ -115,8 +115,8 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeWeaponDefinition sidearmWeapon = CreateOrUpdateFirearmDefinition(
             SidearmWeaponPath,
             "sidearm_9mm",
-            "VX-9 Sidearm",
-            "A reliable semi-auto backup pistol.",
+            "VX-9 手枪",
+            "一把可靠的半自动备用手枪。",
             pistolAmmoItem,
             15,
             360f,
@@ -129,8 +129,8 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeWeaponDefinition knifeWeapon = CreateOrUpdateMeleeDefinition(
             KnifeWeaponPath,
             "combat_knife",
-            "Tactical Knife",
-            "A close-range blade for fast melee takedowns.",
+            "战术匕首",
+            "适合近距离快速处决的近战利刃。",
             62f,
             2.15f,
             0.42f,
@@ -150,7 +150,7 @@ public static class PrototypeIndoorSceneBuilder
         LootTableDefinition ammoLootTable = CreateOrUpdateLootTable(
             AmmoLootTablePath,
             "ammo_cache",
-            "Ammo Cache",
+            "弹药补给点",
             2,
             4,
             true,
@@ -160,7 +160,7 @@ public static class PrototypeIndoorSceneBuilder
         LootTableDefinition medicalLootTable = CreateOrUpdateLootTable(
             MedicalLootTablePath,
             "medical_stash",
-            "Medical Stash",
+            "医疗补给点",
             2,
             4,
             true,
@@ -172,7 +172,7 @@ public static class PrototypeIndoorSceneBuilder
         LootTableDefinition floorLootTable = CreateOrUpdateLootTable(
             FloorLootTablePath,
             "floor_scatter",
-            "Floor Scatter",
+            "地面散落物",
             1,
             3,
             true,
@@ -182,7 +182,7 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeEnemySpawnProfile regularZombieProfile = CreateOrUpdateEnemySpawnProfile(
             RegularZombieProfilePath,
             "regular_zombie",
-            "Regular Zombie",
+            "普通丧尸",
             PrototypeEnemyArchetype.RegularZombie,
             humanoidDefinition,
             knifeWeapon,
@@ -191,7 +191,7 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeEnemySpawnProfile policeZombieProfile = CreateOrUpdateEnemySpawnProfile(
             PoliceZombieProfilePath,
             "police_zombie",
-            "Police Zombie",
+            "警察丧尸",
             PrototypeEnemyArchetype.PoliceZombie,
             humanoidDefinition,
             sidearmWeapon,
@@ -201,7 +201,7 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeEnemySpawnProfile soldierZombieProfile = CreateOrUpdateEnemySpawnProfile(
             SoldierZombieProfilePath,
             "soldier_zombie",
-            "Soldier Zombie",
+            "军人丧尸",
             PrototypeEnemyArchetype.SoldierZombie,
             humanoidDefinition,
             carbineWeapon,
@@ -212,7 +212,7 @@ public static class PrototypeIndoorSceneBuilder
         PrototypeEnemySpawnProfile zombieDogProfile = CreateOrUpdateEnemySpawnProfile(
             ZombieDogProfilePath,
             "zombie_dog",
-            "Zombie Dog",
+            "丧尸犬",
             PrototypeEnemyArchetype.ZombieDog,
             humanoidDefinition,
             knifeWeapon,
@@ -389,7 +389,7 @@ public static class PrototypeIndoorSceneBuilder
         CreateRaidPickup(root.transform, "Pickup_Painkillers", PrimitiveType.Cube, new Vector3(0.35f, 0.96f, -6.4f), new Vector3(0.18f, 0.16f, 0.12f), medicalMat, painkillerItem, 1);
         CreateRaidPickup(root.transform, "Pickup_Cash_Desk", PrimitiveType.Sphere, new Vector3(0f, 0.96f, -6.4f), new Vector3(0.22f, 0.16f, 0.22f), lootMat, cashItem, 2);
         CreateRandomLootContainer(root.transform, "Crate_Center", "Weapon Crate", new Vector3(-1.4f, 1.0f, 3.55f), new Vector3(0.95f, 0.45f, 0.65f), propMat, ammoLootTable);
-        CreateRandomLootContainer(root.transform, "Crate_Side", "Medical Case", new Vector3(4.9f, 1.18f, 2.4f), new Vector3(0.68f, 0.56f, 0.54f), medicalMat, medicalLootTable);
+        CreateRandomLootContainer(root.transform, "Crate_Side", "医疗箱", new Vector3(4.9f, 1.18f, 2.4f), new Vector3(0.68f, 0.56f, 0.54f), medicalMat, medicalLootTable);
         CreateGroundLootSpawnPoint(root.transform, "LootSpawn_West", new Vector3(-5.6f, 0.08f, 5.4f), floorLootTable, lootMat);
         CreateGroundLootSpawnPoint(root.transform, "LootSpawn_East", new Vector3(5.4f, 0.08f, -4.7f), ammoLootTable, accentMat);
 
@@ -420,7 +420,7 @@ public static class PrototypeIndoorSceneBuilder
             {
                 CreateHumanoidPart(
                     HeadPartId,
-                    "Head",
+                    "头部",
                     35f,
                     1f,
                     PrototypeUnitDefinition.ZeroKillMode.OnDirectHitOnly,
@@ -430,7 +430,7 @@ public static class PrototypeIndoorSceneBuilder
                     true),
                 CreateHumanoidPart(
                     TorsoPartId,
-                    "Torso",
+                    "躯干",
                     155f,
                     1.05f,
                     PrototypeUnitDefinition.ZeroKillMode.Never,
@@ -440,7 +440,7 @@ public static class PrototypeIndoorSceneBuilder
                     false),
                 CreateHumanoidPart(
                     LegsPartId,
-                    "Legs",
+                    "腿部",
                     130f,
                     0.7f,
                     PrototypeUnitDefinition.ZeroKillMode.Never,

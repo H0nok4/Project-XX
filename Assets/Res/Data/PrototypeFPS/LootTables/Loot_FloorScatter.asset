@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Loot_FloorScatter
   m_EditorClassIdentifier: Assembly-CSharp::LootTableDefinition
   tableId: floor_scatter
-  displayName: Floor Scatter
+  displayName: 地面散落物
   minRolls: 1
   maxRolls: 3
   allowDuplicateRolls: 1

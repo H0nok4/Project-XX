@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Spawn_ZombieDog
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: zombie_dog
-  displayName: Zombie Dog
+  displayName: 丧尸犬
   archetype: 3
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
   primaryWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}

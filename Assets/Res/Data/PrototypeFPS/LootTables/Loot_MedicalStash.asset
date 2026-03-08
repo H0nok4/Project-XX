@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Loot_MedicalStash
   m_EditorClassIdentifier: Assembly-CSharp::LootTableDefinition
   tableId: medical_stash
-  displayName: Medical Stash
+  displayName: 医疗补给点
   minRolls: 2
   maxRolls: 4
   allowDuplicateRolls: 1

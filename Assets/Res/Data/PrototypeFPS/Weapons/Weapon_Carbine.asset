@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Weapon_Carbine
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
   weaponId: carbine_alpha
-  displayName: AR-4 Carbine
-  description: A controllable primary weapon with automatic and burst fire.
+  displayName: AR-4 卡宾枪
+  description: 一把易于控制的主武器，支持全自动与点射模式。
   meleeWeapon: 0
   ammoDefinition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
   magazineSize: 30

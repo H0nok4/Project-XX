@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Bandage
   m_EditorClassIdentifier: Assembly-CSharp::MedicalItemDefinition
   itemId: bandage_roll
-  displayName: Bandage Roll
-  description: Stops light bleeding quickly.
+  displayName: 绷带卷
+  description: 可快速止住轻度流血。
   maxStackSize: 4
   unitWeight: 0.12
   icon: {fileID: 0}

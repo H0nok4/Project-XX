@@ -196,7 +196,7 @@ public class PrototypeMainMenuController : MonoBehaviour
             bodyStyle);
 
         GUILayout.Space(18f);
-        GUILayout.Label($"Available funds: {GetAvailableFunds()} Cash Bundles", bodyStyle);
+        GUILayout.Label($"可用资金：{GetAvailableFunds()} {GetCurrencyLabel()}", bodyStyle);
         GUILayout.Space(8f);
         GUILayout.Label(BuildSummaryText(), bodyStyle);
 
@@ -242,7 +242,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         if (merchantCatalog == null || merchantCatalog.Merchants == null || merchantCatalog.Merchants.Count == 0)
         {
             Rect emptyRect = new Rect(292f, 140f, Mathf.Max(560f, Screen.width - 336f), 220f);
-            BeginPanel(emptyRect, "Merchants", lockerColor, $"Funds {GetAvailableFunds()} Cash Bundles");
+            BeginPanel(emptyRect, "商人", lockerColor, $"资金 {GetAvailableFunds()} {GetCurrencyLabel()}");
             GUILayout.Label("No merchant catalog configured.", bodyStyle);
             EndPanel();
             return;
@@ -613,7 +613,7 @@ public class PrototypeMainMenuController : MonoBehaviour
             return;
         }
 
-        BeginPanel(rect, merchant.displayName, accent, $"Funds {GetAvailableFunds()} Cash Bundles");
+        BeginPanel(rect, merchant.displayName, accent, $"资金 {GetAvailableFunds()} {GetCurrencyLabel()}");
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(rect.height - 130f));
 
         if (merchant.weaponOffers != null && merchant.weaponOffers.Count > 0)
@@ -829,6 +829,13 @@ public class PrototypeMainMenuController : MonoBehaviour
     private int GetAvailableFunds()
     {
         return cashDefinition != null && stashInventory != null ? stashInventory.CountItem(cashDefinition) : 0;
+    }
+
+    private string GetCurrencyLabel()
+    {
+        return cashDefinition != null && !string.IsNullOrWhiteSpace(cashDefinition.DisplayName)
+            ? cashDefinition.DisplayName
+            : "现金";
     }
 
     private bool CanReceiveFunds(int amount)
@@ -1190,7 +1197,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     private string BuildSummaryText()
     {
         return
-            $"Funds: {GetAvailableFunds()} Cash Bundles\n" +
+            $"资金：{GetAvailableFunds()} {GetCurrencyLabel()}\n" +
             $"Warehouse item stacks: {GetInventoryStackCount(stashInventory)}\n" +
             $"Warehouse weapons: {weaponLocker.Count}\n" +
             $"Raid backpack stacks: {GetInventoryStackCount(raidBackpackInventory)}\n" +
@@ -1252,7 +1259,7 @@ public class PrototypeMainMenuController : MonoBehaviour
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "weapons_trader",
-                displayName = "Weapon Trader",
+                displayName = "武器商人",
                 itemOffers = new System.Collections.Generic.List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(rifleAmmo, 30, 6),
@@ -1268,7 +1275,7 @@ public class PrototypeMainMenuController : MonoBehaviour
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "medical_vendor",
-                displayName = "Medic",
+                displayName = "药品商人",
                 itemOffers = new System.Collections.Generic.List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(medkit, 1, 10),
@@ -1281,7 +1288,7 @@ public class PrototypeMainMenuController : MonoBehaviour
             new PrototypeMerchantCatalog.MerchantDefinition
             {
                 merchantId = "armor_vendor",
-                displayName = "Armorer",
+                displayName = "护甲商人",
                 itemOffers = new System.Collections.Generic.List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(helmet, 1, 14),

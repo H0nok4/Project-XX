@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Helmet
   m_EditorClassIdentifier: Assembly-CSharp::ArmorDefinition
   itemId: helmet_alpha
-  displayName: Prototype Helmet
-  description: Basic head protection for penetration testing.
+  displayName: 原型头盔
+  description: 提供基础头部防护，适合穿透与护甲测试。
   maxStackSize: 1
   unitWeight: 1.6
   icon: {fileID: 0}

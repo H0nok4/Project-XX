@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Loot_AmmoCache
   m_EditorClassIdentifier: Assembly-CSharp::LootTableDefinition
   tableId: ammo_cache
-  displayName: Ammo Cache
+  displayName: 弹药补给点
   minRolls: 2
   maxRolls: 4
   allowDuplicateRolls: 1

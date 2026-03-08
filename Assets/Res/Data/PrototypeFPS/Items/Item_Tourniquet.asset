@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Tourniquet
   m_EditorClassIdentifier: Assembly-CSharp::MedicalItemDefinition
   itemId: tourniquet
-  displayName: Tourniquet
-  description: Emergency heavy bleed control.
+  displayName: 止血带
+  description: 用于紧急控制重度流血。
   maxStackSize: 2
   unitWeight: 0.18
   icon: {fileID: 0}

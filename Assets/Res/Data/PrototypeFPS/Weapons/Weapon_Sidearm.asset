@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Weapon_Sidearm
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
   weaponId: sidearm_9mm
-  displayName: VX-9 Sidearm
-  description: A reliable semi-auto backup pistol.
+  displayName: VX-9 手枪
+  description: 一把可靠的半自动备用手枪。
   meleeWeapon: 0
   ammoDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
   magazineSize: 15

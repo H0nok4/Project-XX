@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_PistolAmmo
   m_EditorClassIdentifier: Assembly-CSharp::AmmoDefinition
   itemId: pistol_ammo
-  displayName: 9mm JHP
-  description: Soft pistol rounds with lower penetration but stronger flesh damage.
+  displayName: 9毫米 JHP
+  description: 偏软的手枪弹，穿深较低，但对肉体伤害更强。
   maxStackSize: 60
   unitWeight: 0.015
   icon: {fileID: 0}

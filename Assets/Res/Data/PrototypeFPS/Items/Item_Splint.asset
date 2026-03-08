@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Splint
   m_EditorClassIdentifier: Assembly-CSharp::MedicalItemDefinition
   itemId: field_splint
-  displayName: Field Splint
-  description: Stabilizes fractured limbs for movement.
+  displayName: 战地夹板
+  description: 用于固定骨折部位，恢复基本行动能力。
   maxStackSize: 2
   unitWeight: 0.22
   icon: {fileID: 0}

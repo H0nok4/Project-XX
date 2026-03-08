@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Medkit
   m_EditorClassIdentifier: Assembly-CSharp::MedicalItemDefinition
   itemId: field_medkit
-  displayName: Field Medkit
-  description: A compact first-aid kit for raid sustain.
+  displayName: 战地医疗包
+  description: 紧凑型急救包，适合在战局内持续治疗。
   maxStackSize: 2
   unitWeight: 0.8
   icon: {fileID: 0}

@@ -1434,7 +1434,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         {
             CreateFallbackPart(
                 FallbackHeadPartId,
-                "Head",
+                "头部",
                 35f,
                 1f,
                 true,
@@ -1445,7 +1445,7 @@ public class PrototypeUnitVitals : MonoBehaviour
                 0f),
             CreateFallbackPart(
                 FallbackTorsoPartId,
-                "Torso",
+                "躯干",
                 155f,
                 1.05f,
                 true,
@@ -1456,7 +1456,7 @@ public class PrototypeUnitVitals : MonoBehaviour
                 0f),
             CreateFallbackPart(
                 FallbackLegsPartId,
-                "Legs",
+                "腿部",
                 130f,
                 0.7f,
                 true,

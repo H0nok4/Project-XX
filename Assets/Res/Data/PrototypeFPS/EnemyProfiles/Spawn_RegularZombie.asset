@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Spawn_RegularZombie
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: regular_zombie
-  displayName: Regular Zombie
+  displayName: 普通丧尸
   archetype: 0
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
   primaryWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}

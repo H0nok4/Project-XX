@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Item_Painkillers
   m_EditorClassIdentifier: Assembly-CSharp::MedicalItemDefinition
   itemId: painkillers
-  displayName: Painkillers
-  description: Suppresses fracture penalties for a short time.
+  displayName: 止痛药
+  description: 可在短时间内压制骨折带来的行动惩罚。
   maxStackSize: 2
   unitWeight: 0.1
   icon: {fileID: 0}
