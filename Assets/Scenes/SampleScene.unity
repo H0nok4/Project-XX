@@ -2064,9 +2064,9 @@ MonoBehaviour:
   jumpStaminaCost: 15
   jumpHeight: 1.25
   gravity: -20
-  groundAcceleration: 15
+  groundAcceleration: 16
   groundFriction: 24
-  directionChangeBrakeAcceleration: 64
+  directionChangeBrakeAcceleration: 32
   directionChangeBrakeDotThreshold: 0.2
   movementStartAccelerationMultiplier: 0.65
   movementTurnAccelerationMultiplier: 0.3

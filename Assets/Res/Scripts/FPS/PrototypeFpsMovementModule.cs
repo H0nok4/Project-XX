@@ -12,23 +12,23 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
     [Header("Movement")]
     [Tooltip("站立状态下、100%速度档位时的基础移动速度。")]
-    [SerializeField] private float moveSpeed = 4.4f;
+    [SerializeField] private float moveSpeed = 4f;
     [Tooltip("冲刺时相对基础移动速度的倍率。")]
-    [SerializeField] private float sprintSpeedMultiplier = 1.65f;
+    [SerializeField] private float sprintSpeedMultiplier = 1.33f;
     [Tooltip("冲刺每秒消耗的体力值。")]
     [SerializeField] private float sprintStaminaPerSecond = 21f;
     [Tooltip("每次起跳消耗的体力值。")]
-    [SerializeField] private float jumpStaminaCost = 15f;
+    [SerializeField] private float jumpStaminaCost = 20f;
     [Tooltip("跳跃高度，数值越大跳得越高。")]
     [SerializeField] private float jumpHeight = 1.25f;
     [Tooltip("重力强度，绝对值越大下落越快。")]
     [SerializeField] private float gravity = -20f;
     [Tooltip("地面移动的基础加速度，决定起步和提速速度。")]
-    [SerializeField] private float groundAcceleration = 30f;
+    [SerializeField] private float groundAcceleration = 16f;
     [Tooltip("没有输入时的地面减速强度，越大越容易停下。")]
-    [SerializeField] private float groundFriction = 8f;
+    [SerializeField] private float groundFriction = 24f;
     [Tooltip("反向移动时的额外刹车强度，越大掉头越干脆。")]
-    [SerializeField] private float directionChangeBrakeAcceleration = 64f;
+    [SerializeField] private float directionChangeBrakeAcceleration = 32f;
     [Tooltip("开始判定为明显反向输入的方向点积阈值。")]
     [SerializeField, Range(-1f, 1f)] private float directionChangeBrakeDotThreshold = 0.2f;
     [Tooltip("静止起步时的加速倍率，越小越有沉重感。")]
