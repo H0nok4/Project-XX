@@ -7,50 +7,90 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     private const float StaminaEpsilon = 0.001f;
 
     [Header("References")]
+    [Tooltip("第一人称视角摄像机，用于同步蹲起视角高度。")]
     [SerializeField] private Camera viewCamera;
 
     [Header("Movement")]
+    [Tooltip("站立状态下、100%速度档位时的基础移动速度。")]
     [SerializeField] private float moveSpeed = 4.4f;
+    [Tooltip("冲刺时相对基础移动速度的倍率。")]
     [SerializeField] private float sprintSpeedMultiplier = 1.65f;
+    [Tooltip("冲刺每秒消耗的体力值。")]
     [SerializeField] private float sprintStaminaPerSecond = 21f;
+    [Tooltip("每次起跳消耗的体力值。")]
     [SerializeField] private float jumpStaminaCost = 15f;
+    [Tooltip("跳跃高度，数值越大跳得越高。")]
     [SerializeField] private float jumpHeight = 1.25f;
+    [Tooltip("重力强度，绝对值越大下落越快。")]
     [SerializeField] private float gravity = -20f;
+    [Tooltip("地面移动的基础加速度，决定起步和提速速度。")]
     [SerializeField] private float groundAcceleration = 30f;
+    [Tooltip("没有输入时的地面减速强度，越大越容易停下。")]
     [SerializeField] private float groundFriction = 8f;
+    [Tooltip("反向移动时的额外刹车强度，越大掉头越干脆。")]
     [SerializeField] private float directionChangeBrakeAcceleration = 64f;
+    [Tooltip("开始判定为明显反向输入的方向点积阈值。")]
     [SerializeField, Range(-1f, 1f)] private float directionChangeBrakeDotThreshold = 0.2f;
+    [Tooltip("静止起步时的加速倍率，越小越有沉重感。")]
     [SerializeField, Range(0.1f, 1f)] private float movementStartAccelerationMultiplier = 0.65f;
+    [Tooltip("转向过程中的加速倍率，越小越不灵活。")]
     [SerializeField, Range(0.1f, 1f)] private float movementTurnAccelerationMultiplier = 0.3f;
+    [Tooltip("后退移动时的速度倍率。")]
     [SerializeField, Range(0.1f, 1f)] private float backwardMoveSpeedMultiplier = 0.72f;
+    [Tooltip("横移移动时的速度倍率。")]
     [SerializeField, Range(0.1f, 1f)] private float strafeMoveSpeedMultiplier = 0.8f;
+    [Tooltip("松开移动输入后，向零速度收敛时的最小减速基线。")]
     [SerializeField] private float stopSpeed = 2.2f;
+    [Tooltip("空中时对水平速度施加的阻尼，越大越快失去空中余速。")]
     [SerializeField] private float airPlanarDrag = 1.8f;
+    [Tooltip("冲刺状态下允许保留的横移倍率，用来限制横向飘移。")]
     [SerializeField, Range(0.1f, 1f)] private float sprintStrafeMultiplier = 0.35f;
+    [Tooltip("落地后的短暂恢复时间，期间无法立刻满效率移动和冲刺。")]
     [SerializeField] private float landingRecoveryTime = 0.14f;
+    [Tooltip("落地恢复期内的移动速度倍率。")]
     [SerializeField, Range(0.1f, 1f)] private float landingRecoveryMoveMultiplier = 0.72f;
+    [Tooltip("冲刺停止时的额外前向刹车强度，用来压掉滑步感。")]
     [SerializeField] private float sprintStopBrakeAcceleration = 48f;
+    [Tooltip("地面贴附力，防止轻微离地和下坡抖动。")]
     [SerializeField] private float groundedSnapForce = 2f;
     [SerializeField, HideInInspector] private float walkSpeedMultiplier = 0.48f;
+    [Tooltip("当前选择的移动速度比例，LCtrl+滚轮调整的就是这个值。")]
     [SerializeField, Range(0.1f, 1f)] private float movementSpeedRatio = 1f;
+    [Tooltip("允许调整到的最低移动速度比例。")]
     [SerializeField, Range(0.1f, 1f)] private float minMovementSpeedRatio = 0.1f;
+    [Tooltip("每次滚轮调整移动速度比例时的步进。")]
     [SerializeField, Range(0.01f, 0.5f)] private float movementSpeedRatioStep = 0.1f;
+    [Tooltip("蹲下状态相对站立基础速度的倍率。")]
     [SerializeField] private float crouchSpeedMultiplier = 0.58f;
+    [Tooltip("蹲下时 CharacterController 的目标高度。")]
     [SerializeField] private float crouchHeight = 1.1f;
+    [Tooltip("蹲下时摄像机向下偏移的距离。")]
     [SerializeField] private float crouchCameraDrop = 0.32f;
+    [Tooltip("站立和蹲下之间切换的过渡速度。")]
     [SerializeField] private float crouchTransitionSpeed = 10f;
+    [Tooltip("蹲下时台阶跨越能力相对站立时的倍率。")]
     [SerializeField] private float crouchStepOffsetMultiplier = 0.45f;
+    [Tooltip("冲刺起步加速到满冲刺速度所需的时间。")]
     [SerializeField] private float sprintAccelerationTime = 0.32f;
+    [Tooltip("停止冲刺后从冲刺速度回落的时间。")]
     [SerializeField] private float sprintDecelerationTime = 0.08f;
+    [Tooltip("检测头顶是否能站起时使用的碰撞层。")]
     [SerializeField] private LayerMask stanceObstructionMask = Physics.DefaultRaycastLayers;
+    [Tooltip("站立空间检测时从控制器半径里扣掉的安全边距。")]
     [SerializeField] private float stanceClearancePadding = 0.04f;
 
     [Header("AI Awareness")]
+    [Tooltip("普通步行时制造的基础噪声半径。")]
     [SerializeField] private float walkNoiseRadius = 4.8f;
+    [Tooltip("冲刺时制造的基础噪声半径。")]
     [SerializeField] private float sprintNoiseRadius = 11.5f;
+    [Tooltip("起跳瞬间制造的噪声半径。")]
     [SerializeField] private float jumpNoiseRadius = 7.5f;
+    [Tooltip("落地瞬间制造的噪声半径。")]
     [SerializeField] private float landingNoiseRadius = 12f;
+    [Tooltip("持续移动时汇报噪声的时间间隔。")]
     [SerializeField] private float movementNoiseInterval = 0.42f;
+    [Tooltip("蹲下移动时对噪声半径施加的倍率。")]
     [SerializeField, Range(0.1f, 1f)] private float crouchNoiseMultiplier = 0.45f;
 
     private CharacterController characterController;
