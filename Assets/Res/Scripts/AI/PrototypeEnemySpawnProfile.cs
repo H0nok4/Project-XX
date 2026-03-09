@@ -8,7 +8,9 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
     [SerializeField] private string displayName = "Enemy";
     [SerializeField] private PrototypeEnemyArchetype archetype = PrototypeEnemyArchetype.RegularZombie;
     [SerializeField] private PrototypeUnitDefinition unitDefinition;
+    [SerializeField] private GameObject enemyPrefab;
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
+    [SerializeField] private List<PrototypeWeaponDefinition> weaponPool = new List<PrototypeWeaponDefinition>();
     [SerializeField] private LootTableDefinition carriedLootTable;
     [SerializeField] private Material bodyMaterial;
     [SerializeField] private Vector3 localScale = new Vector3(0.9f, 1.1f, 0.9f);
@@ -18,7 +20,9 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? EnemyId : displayName.Trim();
     public PrototypeEnemyArchetype Archetype => archetype;
     public PrototypeUnitDefinition UnitDefinition => unitDefinition;
+    public GameObject EnemyPrefab => enemyPrefab;
     public PrototypeWeaponDefinition PrimaryWeapon => primaryWeapon;
+    public IReadOnlyList<PrototypeWeaponDefinition> WeaponPool => weaponPool;
     public LootTableDefinition CarriedLootTable => carriedLootTable;
     public Material BodyMaterial => bodyMaterial;
     public Vector3 LocalScale => localScale;
@@ -62,6 +66,46 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
         carriedLootTable = lootTable;
     }
 
+    public void SetEnemyPrefab(GameObject prefab)
+    {
+        enemyPrefab = prefab;
+    }
+
+    public void SetWeaponPool(params PrototypeWeaponDefinition[] weapons)
+    {
+        weaponPool = new List<PrototypeWeaponDefinition>();
+        if (weapons == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < weapons.Length; index++)
+        {
+            if (weapons[index] != null)
+            {
+                weaponPool.Add(weapons[index]);
+            }
+        }
+    }
+
+    public PrototypeWeaponDefinition ResolvePrimaryWeapon()
+    {
+        if (weaponPool != null && weaponPool.Count > 0)
+        {
+            int startIndex = Random.Range(0, weaponPool.Count);
+            for (int offset = 0; offset < weaponPool.Count; offset++)
+            {
+                PrototypeWeaponDefinition candidate = weaponPool[(startIndex + offset) % weaponPool.Count];
+                if (candidate != null)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return primaryWeapon;
+    }
+
     private void OnValidate()
     {
         enemyId = string.IsNullOrWhiteSpace(enemyId) ? name : enemyId.Trim();
@@ -71,14 +115,29 @@ public class PrototypeEnemySpawnProfile : ScriptableObject
         if (armorLoadout == null)
         {
             armorLoadout = new List<ArmorDefinition>();
+        }
+        else
+        {
+            for (int index = armorLoadout.Count - 1; index >= 0; index--)
+            {
+                if (armorLoadout[index] == null)
+                {
+                    armorLoadout.RemoveAt(index);
+                }
+            }
+        }
+
+        if (weaponPool == null)
+        {
+            weaponPool = new List<PrototypeWeaponDefinition>();
             return;
         }
 
-        for (int index = armorLoadout.Count - 1; index >= 0; index--)
+        for (int index = weaponPool.Count - 1; index >= 0; index--)
         {
-            if (armorLoadout[index] == null)
+            if (weaponPool[index] == null)
             {
-                armorLoadout.RemoveAt(index);
+                weaponPool.RemoveAt(index);
             }
         }
     }

@@ -7,6 +7,8 @@ public class PrototypeWeaponDefinition : ScriptableObject
     [SerializeField] private string displayName = "Weapon";
     [TextArea]
     [SerializeField] private string description = string.Empty;
+    [SerializeField] private GameObject firstPersonViewPrefab;
+    [SerializeField] private GameObject equippedWorldPrefab;
     [SerializeField] private bool meleeWeapon;
     [SerializeField] private AmmoDefinition ammoDefinition;
     [Min(1)]
@@ -44,6 +46,8 @@ public class PrototypeWeaponDefinition : ScriptableObject
     public string WeaponId => string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
     public string Description => description ?? string.Empty;
+    public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
+    public GameObject EquippedWorldPrefab => equippedWorldPrefab != null ? equippedWorldPrefab : firstPersonViewPrefab;
     public bool IsMeleeWeapon => meleeWeapon;
     public AmmoDefinition AmmoDefinition => ammoDefinition;
     public int MagazineSize => Mathf.Max(1, magazineSize);
@@ -145,6 +149,16 @@ public class PrototypeWeaponDefinition : ScriptableObject
         {
             fireModes[index] = supportedModes[index];
         }
+    }
+
+    public void SetFirstPersonViewPrefab(GameObject prefab)
+    {
+        firstPersonViewPrefab = prefab;
+    }
+
+    public void SetEquippedWorldPrefab(GameObject prefab)
+    {
+        equippedWorldPrefab = prefab;
     }
 
     private void OnValidate()

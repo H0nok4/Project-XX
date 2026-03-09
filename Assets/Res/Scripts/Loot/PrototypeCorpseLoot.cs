@@ -102,6 +102,15 @@ public class PrototypeCorpseLoot : MonoBehaviour
             AddWeapon(replacedWeapon, replacedAmmo);
         }
 
+        PrototypeEquippedWeaponVisual equippedWeaponVisual = GetComponent<PrototypeEquippedWeaponVisual>();
+        if (equippedWeaponVisual != null)
+        {
+            PrototypeWeaponDefinition visibleWeapon = weapons != null && weapons.Count > 0
+                ? weapons[0].WeaponDefinition
+                : null;
+            equippedWeaponVisual.SetEquippedWeapon(visibleWeapon);
+        }
+
         return true;
     }
 

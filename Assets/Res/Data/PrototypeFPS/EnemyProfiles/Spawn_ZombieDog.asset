@@ -13,10 +13,14 @@ MonoBehaviour:
   m_Name: Spawn_ZombieDog
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: zombie_dog
-  displayName: 丧尸犬
+  displayName: "\u4E27\u5C38\u72AC"
   archetype: 3
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
+  enemyPrefab: {fileID: 7180857706116850589, guid: 09e39b04aeb156e4b89f76e1f452852d, type: 3}
   primaryWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  weaponPool:
+  - {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  carriedLootTable: {fileID: 0}
   bodyMaterial: {fileID: 2100000, guid: 9b9a156feadda874eb094a399e01e315, type: 2}
   localScale: {x: 0.68, y: 0.72, z: 1.05}
   armorLoadout: []

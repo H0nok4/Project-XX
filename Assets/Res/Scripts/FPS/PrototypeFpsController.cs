@@ -69,6 +69,12 @@ public class PrototypeFpsController : MonoBehaviour
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
     private WeaponSlot activeWeaponSlot = WeaponSlot.Primary;
+    private GameObject primaryViewModelInstance;
+    private GameObject secondaryViewModelInstance;
+    private GameObject meleeViewModelInstance;
+    private PrototypeWeaponDefinition primaryViewModelSource;
+    private PrototypeWeaponDefinition secondaryViewModelSource;
+    private PrototypeWeaponDefinition meleeViewModelSource;
     private float pitch;
     private float hitMarkerTimer;
     private float nextMedicalUseTime;
@@ -212,6 +218,24 @@ public class PrototypeFpsController : MonoBehaviour
     private void HandleMovement()
     {
         movementModule?.TickMovement();
+    }
+
+    public void ApplySpawnPose(Vector3 position, Quaternion rotation)
+    {
+        if (movementModule != null)
+        {
+            movementModule.TeleportTo(position, rotation);
+        }
+        else
+        {
+            transform.SetPositionAndRotation(position, rotation);
+        }
+
+        pitch = 0f;
+        if (viewCamera != null)
+        {
+            viewCamera.transform.localEulerAngles = Vector3.zero;
+        }
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -965,6 +989,11 @@ public class PrototypeFpsController : MonoBehaviour
                 SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo);
                 break;
         }
+
+        if (Application.isPlaying)
+        {
+            RefreshWeaponViewModels();
+        }
     }
 
     private int GetReserveAmmoCount(WeaponRuntime runtime)
@@ -984,36 +1013,17 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
-        if (primaryViewModel == null)
-        {
-            Transform found = viewCamera.transform.Find("WeaponView_Primary");
-            if (found != null)
-            {
-                primaryViewModel = found;
-            }
-        }
-
-        if (secondaryViewModel == null)
-        {
-            Transform found = viewCamera.transform.Find("WeaponView_Secondary");
-            if (found != null)
-            {
-                secondaryViewModel = found;
-            }
-        }
-
-        if (meleeViewModel == null)
-        {
-            Transform found = viewCamera.transform.Find("WeaponView_Melee");
-            if (found != null)
-            {
-                meleeViewModel = found;
-            }
-        }
+        primaryViewModel = GetOrCreateViewModelAnchor(primaryViewModel, "WeaponView_Primary");
+        secondaryViewModel = GetOrCreateViewModelAnchor(secondaryViewModel, "WeaponView_Secondary");
+        meleeViewModel = GetOrCreateViewModelAnchor(meleeViewModel, "WeaponView_Melee");
     }
 
     private void RefreshWeaponViewModels()
     {
+        EnsureWeaponViewModel(primaryRuntime, primaryViewModel, ref primaryViewModelInstance, ref primaryViewModelSource);
+        EnsureWeaponViewModel(secondaryRuntime, secondaryViewModel, ref secondaryViewModelInstance, ref secondaryViewModelSource);
+        EnsureWeaponViewModel(meleeRuntime, meleeViewModel, ref meleeViewModelInstance, ref meleeViewModelSource);
+
         if (primaryViewModel != null)
         {
             primaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Primary);
@@ -1028,6 +1038,104 @@ public class PrototypeFpsController : MonoBehaviour
         {
             meleeViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Melee);
         }
+    }
+
+    private Transform GetOrCreateViewModelAnchor(Transform currentAnchor, string anchorName)
+    {
+        if (viewCamera == null)
+        {
+            return currentAnchor;
+        }
+
+        if (currentAnchor != null)
+        {
+            return currentAnchor;
+        }
+
+        Transform found = viewCamera.transform.Find(anchorName);
+        if (found != null)
+        {
+            return found;
+        }
+
+        GameObject anchorObject = new GameObject(anchorName);
+        anchorObject.transform.SetParent(viewCamera.transform, false);
+        return anchorObject.transform;
+    }
+
+    private void EnsureWeaponViewModel(
+        WeaponRuntime runtime,
+        Transform anchor,
+        ref GameObject currentInstance,
+        ref PrototypeWeaponDefinition currentSource)
+    {
+        if (anchor == null)
+        {
+            DestroyViewModelInstance(ref currentInstance);
+            currentSource = null;
+            return;
+        }
+
+        PrototypeWeaponDefinition nextSource = runtime != null && runtime.IsConfigured ? runtime.Definition : null;
+        GameObject nextPrefab = nextSource != null ? nextSource.FirstPersonViewPrefab : null;
+        bool needsRefresh = currentSource != nextSource || currentInstance == null;
+
+        if (!needsRefresh)
+        {
+            return;
+        }
+
+        DestroyViewModelInstance(ref currentInstance);
+        ClearViewModelAnchor(anchor);
+        currentSource = nextSource;
+
+        if (nextPrefab == null)
+        {
+            return;
+        }
+
+        currentInstance = Instantiate(nextPrefab, anchor, false);
+        currentInstance.name = nextPrefab.name;
+    }
+
+    private void ClearViewModelAnchor(Transform anchor)
+    {
+        if (anchor == null)
+        {
+            return;
+        }
+
+        for (int childIndex = anchor.childCount - 1; childIndex >= 0; childIndex--)
+        {
+            DestroyViewModelObject(anchor.GetChild(childIndex).gameObject);
+        }
+    }
+
+    private void DestroyViewModelInstance(ref GameObject instance)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        DestroyViewModelObject(instance);
+        instance = null;
+    }
+
+    private void DestroyViewModelObject(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(target);
+            return;
+        }
+
+        DestroyImmediate(target);
     }
 
     private Vector3 GetSpreadDirection(float spreadAngle)

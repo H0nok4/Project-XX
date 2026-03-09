@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: AR-4 卡宾枪
   description: 一把易于控制的主武器，支持全自动与点射模式。
   meleeWeapon: 0
+  firstPersonViewPrefab: {fileID: 3114500565288879406, guid: 4bfbe4ab8fbb9c24aa2b854d56ea4306, type: 3}
   ammoDefinition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
   magazineSize: 30
   reloadDuration: 2.1

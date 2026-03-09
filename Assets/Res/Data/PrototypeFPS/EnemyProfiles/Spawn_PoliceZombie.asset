@@ -13,10 +13,14 @@ MonoBehaviour:
   m_Name: Spawn_PoliceZombie
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: police_zombie
-  displayName: 警察丧尸
+  displayName: "\u8B66\u5BDF\u4E27\u5C38"
   archetype: 1
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
+  enemyPrefab: {fileID: 3574033584342409976, guid: 2c9444062b71a834e890c45b89ab04ac, type: 3}
   primaryWeapon: {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
+  weaponPool:
+  - {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
+  carriedLootTable: {fileID: 11400000, guid: 71afa989b076a474b91430b47ddd1b65, type: 2}
   bodyMaterial: {fileID: 2100000, guid: aea05c201201cbf4885f733f7b1bceba, type: 2}
   localScale: {x: 0.9, y: 1.1, z: 0.9}
   armorLoadout:

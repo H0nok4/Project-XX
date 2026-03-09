@@ -76,6 +76,28 @@ public class PrototypeMainMenuController : MonoBehaviour
         ResolveCatalog();
         EnsureContainers();
         LoadProfileIntoContainers();
+        EnsureMenuCursorState();
+    }
+
+    private void OnEnable()
+    {
+        EnsureMenuCursorState();
+    }
+
+    private void Update()
+    {
+        if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
+        {
+            EnsureMenuCursorState();
+        }
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus)
+        {
+            EnsureMenuCursorState();
+        }
     }
 
     private void OnDisable()
@@ -1435,6 +1457,12 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         feedbackMessage = message ?? string.Empty;
         feedbackUntilTime = Time.time + 2.6f;
+    }
+
+    private static void EnsureMenuCursorState()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     private void EnsureStyles()

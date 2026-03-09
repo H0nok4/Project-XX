@@ -13,6 +13,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string MaterialFolder = "Assets/Res/Materials/PrototypeIndoor";
     private const string DataFolder = "Assets/Res/Data";
     private const string PrototypeDataFolder = "Assets/Res/Data/PrototypeFPS";
+    private const string EnemyPrefabFolder = "Assets/Res/Prefabs/Enemy";
     private const string UnitDefinitionFolder = "Assets/Res/Data/PrototypeFPS/UnitDefinitions";
     private const string ItemDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Items";
     private const string WeaponDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Weapons";
@@ -33,6 +34,9 @@ public static class PrototypeIndoorSceneBuilder
     private const string CarbineWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Carbine.asset";
     private const string SidearmWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Sidearm.asset";
     private const string KnifeWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_CombatKnife.asset";
+    private const string PrimaryWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Primary.prefab";
+    private const string SecondaryWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Secondary.prefab";
+    private const string MeleeWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Melee.prefab";
     private const string AmmoLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_AmmoCache.asset";
     private const string MedicalLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_MedicalStash.asset";
     private const string FloorLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_FloorScatter.asset";
@@ -40,6 +44,10 @@ public static class PrototypeIndoorSceneBuilder
     private const string PoliceZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_PoliceZombie.asset";
     private const string SoldierZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_SoldierZombie.asset";
     private const string ZombieDogProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_ZombieDog.asset";
+    private const string RegularZombiePrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_RegularZombie.prefab";
+    private const string PoliceZombiePrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_PoliceZombie.prefab";
+    private const string SoldierZombiePrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_SoldierZombie.prefab";
+    private const string ZombieDogPrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_ZombieDog.prefab";
     private const string HeadPartId = "head";
     private const string TorsoPartId = "torso";
     private const string LegsPartId = "legs";
@@ -80,12 +88,16 @@ public static class PrototypeIndoorSceneBuilder
         EnsureFolder(MaterialFolder);
         EnsureFolder(DataFolder);
         EnsureFolder(PrototypeDataFolder);
+        EnsureFolder(EnemyPrefabFolder);
         EnsureFolder(UnitDefinitionFolder);
         EnsureFolder(ItemDefinitionFolder);
         EnsureFolder(WeaponDefinitionFolder);
         EnsureFolder(LootTableFolder);
         EnsureFolder(EnemyProfileFolder);
 
+        GameObject primaryWeaponViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrimaryWeaponViewPrefabPath);
+        GameObject secondaryWeaponViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SecondaryWeaponViewPrefabPath);
+        GameObject meleeWeaponViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(MeleeWeaponViewPrefabPath);
         PrototypeUnitDefinition humanoidDefinition = CreateOrUpdateHumanoidDefinition(HumanoidDefinitionPath);
         ItemDefinition cashItem = CreateOrUpdateItemDefinition(CashItemPath, "cash_bundle", "现金捆", "轻便值钱的战利品，适合快速带离战局。", 10, 0.2f);
         MedicalItemDefinition medkitItem = CreateOrUpdateMedicalDefinition(MedkitItemPath, "field_medkit", "战地医疗包", "紧凑型急救包，适合在战局内持续治疗。", 2, 0.8f, 48f, 1, 0, 0, 0f);
@@ -110,6 +122,7 @@ public static class PrototypeIndoorSceneBuilder
             0.18f,
             2f,
             3,
+            primaryWeaponViewPrefab,
             PrototypeWeaponFireMode.Auto,
             PrototypeWeaponFireMode.Burst);
         PrototypeWeaponDefinition sidearmWeapon = CreateOrUpdateFirearmDefinition(
@@ -125,6 +138,7 @@ public static class PrototypeIndoorSceneBuilder
             0.08f,
             1f,
             1,
+            secondaryWeaponViewPrefab,
             PrototypeWeaponFireMode.Semi);
         PrototypeWeaponDefinition knifeWeapon = CreateOrUpdateMeleeDefinition(
             KnifeWeaponPath,
@@ -134,7 +148,8 @@ public static class PrototypeIndoorSceneBuilder
             62f,
             2.15f,
             0.42f,
-            0.52f);
+            0.52f,
+            meleeWeaponViewPrefab);
 
         Material floorMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Floor.mat", new Color(0.25f, 0.27f, 0.30f));
         Material wallMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Wall.mat", new Color(0.54f, 0.59f, 0.66f));
@@ -147,6 +162,41 @@ public static class PrototypeIndoorSceneBuilder
         Material extractMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Extract.mat", new Color(0.21f, 0.79f, 0.55f));
         Material glassMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Glass.mat", new Color(0.52f, 0.84f, 0.95f, 0.75f));
         Material woodMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Wood.mat", new Color(0.58f, 0.38f, 0.19f));
+        GameObject regularZombiePrefab = CreateOrGetEnemyPrefab(
+            RegularZombiePrefabPath,
+            "Enemy_RegularZombie",
+            PrototypeEnemyArchetype.RegularZombie,
+            targetMat,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            humanoidDefinition,
+            knifeWeapon);
+        GameObject policeZombiePrefab = CreateOrGetEnemyPrefab(
+            PoliceZombiePrefabPath,
+            "Enemy_PoliceZombie",
+            PrototypeEnemyArchetype.PoliceZombie,
+            wallMat,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            humanoidDefinition,
+            sidearmWeapon,
+            helmetArmor);
+        GameObject soldierZombiePrefab = CreateOrGetEnemyPrefab(
+            SoldierZombiePrefabPath,
+            "Enemy_SoldierZombie",
+            PrototypeEnemyArchetype.SoldierZombie,
+            propMat,
+            new Vector3(0.9f, 1.1f, 0.9f),
+            humanoidDefinition,
+            carbineWeapon,
+            helmetArmor,
+            vestArmor);
+        GameObject zombieDogPrefab = CreateOrGetEnemyPrefab(
+            ZombieDogPrefabPath,
+            "Enemy_ZombieDog",
+            PrototypeEnemyArchetype.ZombieDog,
+            accentMat,
+            new Vector3(0.68f, 0.72f, 1.05f),
+            humanoidDefinition,
+            knifeWeapon);
         LootTableDefinition ammoLootTable = CreateOrUpdateLootTable(
             AmmoLootTablePath,
             "ammo_cache",
@@ -185,6 +235,7 @@ public static class PrototypeIndoorSceneBuilder
             "普通丧尸",
             PrototypeEnemyArchetype.RegularZombie,
             humanoidDefinition,
+            regularZombiePrefab,
             knifeWeapon,
             targetMat,
             new Vector3(0.9f, 1.1f, 0.9f));
@@ -194,6 +245,7 @@ public static class PrototypeIndoorSceneBuilder
             "警察丧尸",
             PrototypeEnemyArchetype.PoliceZombie,
             humanoidDefinition,
+            policeZombiePrefab,
             sidearmWeapon,
             wallMat,
             new Vector3(0.9f, 1.1f, 0.9f),
@@ -204,6 +256,7 @@ public static class PrototypeIndoorSceneBuilder
             "军人丧尸",
             PrototypeEnemyArchetype.SoldierZombie,
             humanoidDefinition,
+            soldierZombiePrefab,
             carbineWeapon,
             propMat,
             new Vector3(0.9f, 1.1f, 0.9f),
@@ -215,6 +268,7 @@ public static class PrototypeIndoorSceneBuilder
             "丧尸犬",
             PrototypeEnemyArchetype.ZombieDog,
             humanoidDefinition,
+            zombieDogPrefab,
             knifeWeapon,
             accentMat,
             new Vector3(0.68f, 0.72f, 1.05f));
@@ -222,6 +276,10 @@ public static class PrototypeIndoorSceneBuilder
         policeZombieProfile.SetCarriedLootTable(medicalLootTable);
         soldierZombieProfile.SetCarriedLootTable(ammoLootTable);
         zombieDogProfile.SetCarriedLootTable(null);
+        regularZombieProfile.SetWeaponPool(knifeWeapon);
+        policeZombieProfile.SetWeaponPool(sidearmWeapon);
+        soldierZombieProfile.SetWeaponPool(carbineWeapon);
+        zombieDogProfile.SetWeaponPool(knifeWeapon);
         EditorUtility.SetDirty(regularZombieProfile);
         EditorUtility.SetDirty(policeZombieProfile);
         EditorUtility.SetDirty(soldierZombieProfile);
@@ -350,6 +408,10 @@ public static class PrototypeIndoorSceneBuilder
             "MainMenu");
         PrototypeEncounterDirector encounterDirector = raidSystems.AddComponent<PrototypeEncounterDirector>();
         encounterDirector.Configure(player.transform, humanoidDefinition);
+        CreatePlayerSpawnPoint(raidSystems.transform, "PlayerSpawn_South", new Vector3(0f, 0f, -6.2f), Quaternion.identity);
+        CreatePlayerSpawnPoint(raidSystems.transform, "PlayerSpawn_West", new Vector3(-5.4f, 0f, -4.6f), Quaternion.Euler(0f, 28f, 0f));
+        CreatePlayerSpawnPoint(raidSystems.transform, "PlayerSpawn_East", new Vector3(5.2f, 0f, -3.9f), Quaternion.Euler(0f, -26f, 0f));
+        CreatePlayerSpawnPoint(raidSystems.transform, "PlayerSpawn_North", new Vector3(0.4f, 0f, 5.8f), Quaternion.Euler(0f, 180f, 0f));
         CreateEnemySpawnPoint(
             raidSystems.transform,
             "SpawnPoint_Regular",
@@ -643,6 +705,7 @@ public static class PrototypeIndoorSceneBuilder
         float spread,
         float addedImpactForce,
         int burstCount,
+        GameObject firstPersonViewPrefab,
         params PrototypeWeaponFireMode[] supportedModes)
     {
         PrototypeWeaponDefinition definition = AssetDatabase.LoadAssetAtPath<PrototypeWeaponDefinition>(assetPath);
@@ -665,6 +728,7 @@ public static class PrototypeIndoorSceneBuilder
             addedImpactForce,
             burstCount,
             supportedModes);
+        definition.SetFirstPersonViewPrefab(firstPersonViewPrefab);
         EditorUtility.SetDirty(definition);
         return definition;
     }
@@ -677,7 +741,8 @@ public static class PrototypeIndoorSceneBuilder
         float damage,
         float range,
         float radius,
-        float cooldown)
+        float cooldown,
+        GameObject firstPersonViewPrefab)
     {
         PrototypeWeaponDefinition definition = AssetDatabase.LoadAssetAtPath<PrototypeWeaponDefinition>(assetPath);
         if (definition == null)
@@ -687,6 +752,7 @@ public static class PrototypeIndoorSceneBuilder
         }
 
         definition.ConfigureMelee(weaponId, displayName, description, damage, range, radius, cooldown);
+        definition.SetFirstPersonViewPrefab(firstPersonViewPrefab);
         EditorUtility.SetDirty(definition);
         return definition;
     }
@@ -729,6 +795,7 @@ public static class PrototypeIndoorSceneBuilder
         string displayName,
         PrototypeEnemyArchetype archetype,
         PrototypeUnitDefinition unitDefinition,
+        GameObject enemyPrefab,
         PrototypeWeaponDefinition primaryWeapon,
         Material bodyMaterial,
         Vector3 localScale,
@@ -742,8 +809,133 @@ public static class PrototypeIndoorSceneBuilder
         }
 
         profile.Configure(enemyId, displayName, archetype, unitDefinition, primaryWeapon, bodyMaterial, localScale, armorLoadout);
+        profile.SetEnemyPrefab(enemyPrefab);
         EditorUtility.SetDirty(profile);
         return profile;
+    }
+
+    private static GameObject CreateOrGetEnemyPrefab(
+        string assetPath,
+        string prefabName,
+        PrototypeEnemyArchetype archetype,
+        Material bodyMaterial,
+        Vector3 localScale,
+        PrototypeUnitDefinition unitDefinition,
+        PrototypeWeaponDefinition weaponDefinition,
+        params ArmorDefinition[] armorLoadout)
+    {
+        GameObject existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (existingPrefab != null)
+        {
+            return existingPrefab;
+        }
+
+        GameObject prefabRoot = new GameObject(prefabName);
+        prefabRoot.layer = IgnoreRaycastLayer;
+
+        CapsuleCollider capsuleCollider = prefabRoot.AddComponent<CapsuleCollider>();
+        if (archetype == PrototypeEnemyArchetype.ZombieDog)
+        {
+            capsuleCollider.center = new Vector3(0f, 0.52f, 0f);
+            capsuleCollider.height = 1.1f;
+            capsuleCollider.radius = 0.36f;
+        }
+        else
+        {
+            capsuleCollider.center = new Vector3(0f, 1f, 0f);
+            capsuleCollider.height = 2f;
+            capsuleCollider.radius = 0.38f;
+        }
+
+        CreateEnemyPrefabVisual(prefabRoot.transform, archetype, bodyMaterial);
+
+        Rigidbody rigidbody = prefabRoot.AddComponent<Rigidbody>();
+        rigidbody.mass = 1.6f;
+        rigidbody.angularDamping = 1.8f;
+        rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+
+        PrototypeUnitVitals vitals = prefabRoot.AddComponent<PrototypeUnitVitals>();
+        vitals.SetUnitDefinition(unitDefinition);
+        vitals.SetArmorLoadout(armorLoadout);
+        vitals.SetAllowImpactForceWhenAlive(false);
+
+        PrototypeStatusEffectController statusEffects = GetOrAddComponent<PrototypeStatusEffectController>(prefabRoot);
+        statusEffects.Bind(vitals);
+        GetOrAddComponent<PrototypeCombatTextController>(prefabRoot);
+        CreateTargetHitboxes(prefabRoot.transform, vitals);
+
+        PrototypeTargetHealthBar targetHealthBar = prefabRoot.AddComponent<PrototypeTargetHealthBar>();
+        targetHealthBar.Configure(vitals, null, unitDefinition != null ? unitDefinition.HealthBarAnchorPartId : HeadPartId);
+
+        PrototypeBotController botController = prefabRoot.AddComponent<PrototypeBotController>();
+        SetSerializedReference(botController, "primaryWeapon", weaponDefinition);
+        SetSerializedInt(botController, "archetype", (int)archetype);
+
+        GameObject weaponAnchorObject = new GameObject("WeaponVisualAnchor");
+        weaponAnchorObject.transform.SetParent(prefabRoot.transform, false);
+        weaponAnchorObject.transform.localPosition = Vector3.zero;
+        weaponAnchorObject.transform.localRotation = Quaternion.identity;
+        weaponAnchorObject.layer = IgnoreRaycastLayer;
+
+        PrototypeEquippedWeaponVisual equippedWeaponVisual = prefabRoot.AddComponent<PrototypeEquippedWeaponVisual>();
+        equippedWeaponVisual.Configure(weaponAnchorObject.transform);
+        equippedWeaponVisual.SetEquippedWeapon(weaponDefinition);
+
+        prefabRoot.transform.localScale = localScale;
+        GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, assetPath);
+        Object.DestroyImmediate(prefabRoot);
+        return savedPrefab != null ? savedPrefab : AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+    }
+
+    private static void CreateEnemyPrefabVisual(Transform parent, PrototypeEnemyArchetype archetype, Material material)
+    {
+        if (archetype == PrototypeEnemyArchetype.ZombieDog)
+        {
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            body.name = "BodyMesh";
+            body.transform.SetParent(parent, false);
+            body.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+            body.transform.localScale = new Vector3(0.9f, 0.55f, 1.35f);
+            ApplyEnemyVisualMaterial(body, material);
+
+            GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = "HeadMesh";
+            head.transform.SetParent(parent, false);
+            head.transform.localPosition = new Vector3(0f, 0.62f, 0.72f);
+            head.transform.localScale = new Vector3(0.42f, 0.34f, 0.46f);
+            ApplyEnemyVisualMaterial(head, material);
+            return;
+        }
+
+        GameObject bodyMesh = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        bodyMesh.name = "BodyMesh";
+        bodyMesh.transform.SetParent(parent, false);
+        bodyMesh.transform.localPosition = Vector3.zero;
+        bodyMesh.transform.localScale = Vector3.one;
+        ApplyEnemyVisualMaterial(bodyMesh, material);
+    }
+
+    private static void ApplyEnemyVisualMaterial(GameObject visualObject, Material material)
+    {
+        if (visualObject == null)
+        {
+            return;
+        }
+
+        Collider collider = visualObject.GetComponent<Collider>();
+        if (collider != null)
+        {
+            Object.DestroyImmediate(collider);
+        }
+
+        Renderer renderer = visualObject.GetComponent<Renderer>();
+        if (renderer != null && material != null)
+        {
+            renderer.sharedMaterial = material;
+        }
+
+        visualObject.layer = IgnoreRaycastLayer;
     }
 
     private static void ConfigureDirectionalLight()
@@ -823,41 +1015,25 @@ public static class PrototypeIndoorSceneBuilder
 
     private static void CreatePrimaryWeaponViewModel(Transform parent, Material bodyMaterial, Material barrelMaterial, Material gripMaterial)
     {
-        GameObject root = new GameObject("WeaponView_Primary");
-        root.transform.SetParent(parent, false);
-        root.transform.localPosition = new Vector3(0f, 0f, 0f);
-        root.transform.localRotation = Quaternion.identity;
-
-        CreateWeaponPiece("Body", root.transform, new Vector3(0.25f, -0.22f, 0.55f), new Vector3(0.22f, 0.14f, 0.65f), bodyMaterial);
-        CreateWeaponPiece("Barrel", root.transform, new Vector3(0.25f, -0.18f, 0.94f), new Vector3(0.08f, 0.08f, 0.34f), barrelMaterial);
-        CreateWeaponPiece("Grip", root.transform, new Vector3(0.19f, -0.34f, 0.5f), new Vector3(0.08f, 0.2f, 0.12f), gripMaterial);
-        CreateWeaponPiece("Magazine", root.transform, new Vector3(0.24f, -0.34f, 0.62f), new Vector3(0.08f, 0.2f, 0.14f), gripMaterial);
+        CreateWeaponViewAnchor(parent, "WeaponView_Primary");
     }
 
     private static void CreateSecondaryWeaponViewModel(Transform parent, Material bodyMaterial, Material barrelMaterial, Material gripMaterial)
     {
-        GameObject root = new GameObject("WeaponView_Secondary");
-        root.transform.SetParent(parent, false);
-        root.transform.localPosition = new Vector3(-0.02f, 0.02f, -0.04f);
-        root.transform.localRotation = Quaternion.identity;
-
-        CreateWeaponPiece("Body", root.transform, new Vector3(0.18f, -0.2f, 0.46f), new Vector3(0.16f, 0.11f, 0.32f), bodyMaterial);
-        CreateWeaponPiece("Slide", root.transform, new Vector3(0.18f, -0.15f, 0.54f), new Vector3(0.12f, 0.06f, 0.28f), barrelMaterial);
-        CreateWeaponPiece("Barrel", root.transform, new Vector3(0.18f, -0.15f, 0.73f), new Vector3(0.05f, 0.05f, 0.14f), barrelMaterial);
-        CreateWeaponPiece("Grip", root.transform, new Vector3(0.13f, -0.31f, 0.43f), new Vector3(0.08f, 0.18f, 0.1f), gripMaterial);
+        CreateWeaponViewAnchor(parent, "WeaponView_Secondary");
     }
 
     private static void CreateMeleeWeaponViewModel(Transform parent, Material bladeMaterial, Material handleMaterial)
     {
-        GameObject root = new GameObject("WeaponView_Melee");
-        root.transform.SetParent(parent, false);
-        root.transform.localPosition = new Vector3(0f, 0f, 0f);
-        root.transform.localRotation = Quaternion.identity;
+        CreateWeaponViewAnchor(parent, "WeaponView_Melee");
+    }
 
-        CreateWeaponPiece("Handle", root.transform, new Vector3(0.16f, -0.28f, 0.42f), new Vector3(0.06f, 0.18f, 0.06f), handleMaterial);
-        CreateWeaponPiece("Guard", root.transform, new Vector3(0.16f, -0.18f, 0.48f), new Vector3(0.12f, 0.02f, 0.04f), handleMaterial);
-        CreateWeaponPiece("Blade", root.transform, new Vector3(0.16f, -0.14f, 0.7f), new Vector3(0.03f, 0.03f, 0.36f), bladeMaterial);
-        root.SetActive(false);
+    private static void CreateWeaponViewAnchor(Transform parent, string anchorName)
+    {
+        GameObject root = new GameObject(anchorName);
+        root.transform.SetParent(parent, false);
+        root.transform.localPosition = Vector3.zero;
+        root.transform.localRotation = Quaternion.identity;
     }
 
     private static void CreateTarget(
@@ -1119,6 +1295,15 @@ public static class PrototypeIndoorSceneBuilder
 
         PrototypeEnemySpawnPoint spawnPoint = spawnPointObject.AddComponent<PrototypeEnemySpawnPoint>();
         spawnPoint.Configure(profile, waypointTransforms, true);
+    }
+
+    private static void CreatePlayerSpawnPoint(Transform parent, string objectName, Vector3 localPosition, Quaternion localRotation)
+    {
+        GameObject spawnPointObject = new GameObject(objectName);
+        spawnPointObject.transform.SetParent(parent, false);
+        spawnPointObject.transform.localPosition = localPosition;
+        spawnPointObject.transform.localRotation = localRotation;
+        spawnPointObject.AddComponent<RaidPlayerSpawnPoint>();
     }
 
     private static void CreateEnemySpawnArea(

@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: VX-9 手枪
   description: 一把可靠的半自动备用手枪。
   meleeWeapon: 0
+  firstPersonViewPrefab: {fileID: 1020674589845976761, guid: cb800ad7d030e184e8bbf4e47a6537e6, type: 3}
   ammoDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
   magazineSize: 15
   reloadDuration: 1.45

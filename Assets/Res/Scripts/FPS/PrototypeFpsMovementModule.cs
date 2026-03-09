@@ -143,6 +143,31 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         UpdateSprintSpeedBlend(Time.unscaledDeltaTime);
     }
 
+    public void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        EnsureReferences();
+
+        planarVelocity = Vector3.zero;
+        verticalVelocity = 0f;
+        landingRecoveryTimer = 0f;
+        sprintSpeedBlend = 0f;
+        isSprinting = false;
+
+        if (characterController != null)
+        {
+            bool previousEnabled = characterController.enabled;
+            characterController.enabled = false;
+            transform.SetPositionAndRotation(position, rotation);
+            characterController.enabled = previousEnabled;
+        }
+        else
+        {
+            transform.SetPositionAndRotation(position, rotation);
+        }
+
+        wasGroundedLastFrame = characterController != null && characterController.isGrounded;
+    }
+
     public void TickMovement()
     {
         if (characterController == null || fpsInput == null || !fpsInput.IsReady)

@@ -29,6 +29,7 @@ public class RaidGameMode : MonoBehaviour
     [SerializeField] private float remainingSeconds;
     [SerializeField] private string lastResultMessage = string.Empty;
     [SerializeField] private List<ExtractionZone> extractionZones = new List<ExtractionZone>();
+    [SerializeField] private List<RaidPlayerSpawnPoint> playerSpawnPoints = new List<RaidPlayerSpawnPoint>();
 
     private GUIStyle hudStyle;
     private GUIStyle resultStyle;
@@ -187,6 +188,8 @@ public class RaidGameMode : MonoBehaviour
     public void StartRaid()
     {
         ResolveReferences();
+        RefreshPlayerSpawnPoints();
+        MovePlayerToRandomSpawn();
         remainingSeconds = raidDurationSeconds;
         lastResultMessage = string.Empty;
         SetState(RaidState.Running);
@@ -235,6 +238,19 @@ public class RaidGameMode : MonoBehaviour
     public void UnregisterExtractionZone(ExtractionZone zone)
     {
         extractionZones.Remove(zone);
+    }
+
+    public void RegisterPlayerSpawnPoint(RaidPlayerSpawnPoint spawnPoint)
+    {
+        if (spawnPoint != null && !playerSpawnPoints.Contains(spawnPoint))
+        {
+            playerSpawnPoints.Add(spawnPoint);
+        }
+    }
+
+    public void UnregisterPlayerSpawnPoint(RaidPlayerSpawnPoint spawnPoint)
+    {
+        playerSpawnPoints.Remove(spawnPoint);
     }
 
     private void ExpireRaid()
@@ -296,6 +312,9 @@ public class RaidGameMode : MonoBehaviour
                 interactionState = playerVitals.GetComponent<PlayerInteractionState>();
             }
         }
+
+        SanitizeList(extractionZones);
+        RefreshPlayerSpawnPoints();
     }
 
     private void ApplyResultUiFocus(bool focused)
@@ -310,6 +329,52 @@ public class RaidGameMode : MonoBehaviour
         bool keepCursorFree = focused || interactionState.IsUiFocused;
         Cursor.lockState = keepCursorFree ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = keepCursorFree;
+    }
+
+    private void RefreshPlayerSpawnPoints()
+    {
+        if (playerSpawnPoints == null)
+        {
+            playerSpawnPoints = new List<RaidPlayerSpawnPoint>();
+        }
+
+        if (playerSpawnPoints.Count == 0)
+        {
+            playerSpawnPoints = new List<RaidPlayerSpawnPoint>(FindObjectsByType<RaidPlayerSpawnPoint>(FindObjectsSortMode.None));
+        }
+        else
+        {
+            SanitizeList(playerSpawnPoints);
+        }
+    }
+
+    private void MovePlayerToRandomSpawn()
+    {
+        if (playerSpawnPoints == null || playerSpawnPoints.Count == 0)
+        {
+            return;
+        }
+
+        Transform playerTransform = playerInteractor != null ? playerInteractor.transform : playerVitals != null ? playerVitals.transform : null;
+        if (playerTransform == null)
+        {
+            return;
+        }
+
+        RaidPlayerSpawnPoint spawnPoint = playerSpawnPoints[UnityEngine.Random.Range(0, playerSpawnPoints.Count)];
+        if (spawnPoint == null)
+        {
+            return;
+        }
+
+        PrototypeFpsController controller = playerTransform.GetComponent<PrototypeFpsController>();
+        if (controller != null)
+        {
+            controller.ApplySpawnPose(spawnPoint.transform.position, spawnPoint.transform.rotation);
+            return;
+        }
+
+        playerTransform.SetPositionAndRotation(spawnPoint.transform.position, spawnPoint.transform.rotation);
     }
 
     private ExtractionZone GetActiveExtractionZone()
@@ -387,6 +452,22 @@ public class RaidGameMode : MonoBehaviour
                 return "Raid Expired";
             default:
                 return "Raid Result";
+        }
+    }
+
+    private static void SanitizeList<T>(List<T> list) where T : class
+    {
+        if (list == null)
+        {
+            return;
+        }
+
+        for (int index = list.Count - 1; index >= 0; index--)
+        {
+            if (list[index] == null)
+            {
+                list.RemoveAt(index);
+            }
         }
     }
 }

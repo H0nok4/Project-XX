@@ -1651,14 +1651,14 @@ MonoBehaviour:
   meleeWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
   shootDistance: 60
   baseDamage: 42
-  shootForce: 18
-  meleeImpactForce: 9
+  shootForce: 17.9
+  meleeImpactForce: 8.91
   meleeStaminaCost: 22
   impactMarkerLifetime: 0.2
   shootMask:
     serializedVersion: 2
     m_Bits: 51
-  medicalUseCooldown: 0.28
+  medicalUseCooldown: 0.31
   medicalFeedbackLifetime: 1.4
   firearmNoiseRadius: 26
   meleeNoiseRadius: 8
@@ -1886,14 +1886,14 @@ MonoBehaviour:
   gravity: -20
   groundAcceleration: 16
   groundFriction: 24
-  directionChangeBrakeAcceleration: 32
+  directionChangeBrakeAcceleration: 31.8
   directionChangeBrakeDotThreshold: 0.2
   movementStartAccelerationMultiplier: 0.65
   movementTurnAccelerationMultiplier: 0.3
   backwardMoveSpeedMultiplier: 0.72
   strafeMoveSpeedMultiplier: 0.8
   stopSpeed: 2.2
-  airPlanarDrag: 1.8
+  airPlanarDrag: 1
   sprintStrafeMultiplier: 0.35
   landingRecoveryTime: 0.14
   landingRecoveryMoveMultiplier: 0.72
@@ -2205,6 +2205,7 @@ MonoBehaviour:
   remainingSeconds: 0
   lastResultMessage: 
   extractionZones: []
+  playerSpawnPoints: []
 --- !u!114 &394060433
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5576,7 +5577,7 @@ Transform:
   m_GameObject: {fileID: 1619271564}
   serializedVersion: 2
   m_LocalRotation: {x: -0.08715574, y: 0, z: 0, w: 0.9961947}
-  m_LocalPosition: {x: 0, y: 0.32479998, z: -0.054}
+  m_LocalPosition: {x: 0, y: 0.338, z: -0.056}
   m_LocalScale: {x: 0.92, y: 0.18, z: 0.88}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6751,7 +6752,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ExtractionZone
   raidGameMode: {fileID: 394060432}
   extractionName: Dock Alpha
-  interactionLabel: Extract
+  extractionDurationSeconds: 4
   requirePlayerInsideVolume: 1
   triggerVolume: {fileID: 1966949719}
 --- !u!65 &1966949719

@@ -13,10 +13,14 @@ MonoBehaviour:
   m_Name: Spawn_RegularZombie
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
   enemyId: regular_zombie
-  displayName: 普通丧尸
+  displayName: "\u666E\u901A\u4E27\u5C38"
   archetype: 0
   unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
+  enemyPrefab: {fileID: 7246522315192871778, guid: ddfadfa6594051f4185f343a6e75ff3d, type: 3}
   primaryWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  weaponPool:
+  - {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  carriedLootTable: {fileID: 11400000, guid: 8efd7ac511919af4e9d33b119241303d, type: 2}
   bodyMaterial: {fileID: 2100000, guid: a45cc4632bbbdc34598c50db12a59ce9, type: 2}
   localScale: {x: 0.9, y: 1.1, z: 0.9}
   armorLoadout: []
