@@ -117,6 +117,12 @@ public class RaidGameMode : MonoBehaviour
             $"Raid {currentState}\nTime {FormatTime(remainingSeconds)}{inventorySummary}",
             hudStyle);
 
+        ExtractionZone activeExtractionZone = GetActiveExtractionZone();
+        if (activeExtractionZone != null)
+        {
+            DrawExtractionProgress(new Rect(18f, 96f, 320f, 44f), activeExtractionZone);
+        }
+
         if (string.IsNullOrWhiteSpace(lastResultMessage) || currentState == RaidState.Running)
         {
             return;
@@ -304,6 +310,36 @@ public class RaidGameMode : MonoBehaviour
         bool keepCursorFree = focused || interactionState.IsUiFocused;
         Cursor.lockState = keepCursorFree ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = keepCursorFree;
+    }
+
+    private ExtractionZone GetActiveExtractionZone()
+    {
+        for (int index = 0; index < extractionZones.Count; index++)
+        {
+            ExtractionZone zone = extractionZones[index];
+            if (zone != null && zone.HasActiveExtraction)
+            {
+                return zone;
+            }
+        }
+
+        return null;
+    }
+
+    private void DrawExtractionProgress(Rect rect, ExtractionZone zone)
+    {
+        GUI.Box(rect, GUIContent.none, hudStyle);
+
+        Rect fillRect = new Rect(rect.x + 3f, rect.y + 22f, Mathf.Max(0f, (rect.width - 6f) * zone.ExtractionProgressNormalized), rect.height - 25f);
+        Color previousColor = GUI.color;
+        GUI.color = new Color(0.22f, 0.86f, 0.48f, 0.95f);
+        GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
+        GUI.color = previousColor;
+
+        GUI.Label(
+            new Rect(rect.x + 10f, rect.y + 4f, rect.width - 20f, 18f),
+            $"Extracting {zone.ExtractionName}  {zone.ExtractionRemainingSeconds:0.0}s",
+            hudStyle);
     }
 
     private void EnsureHudStyles()
