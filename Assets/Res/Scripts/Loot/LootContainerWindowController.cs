@@ -8,6 +8,7 @@ public class LootContainerWindowController : MonoBehaviour
     [SerializeField] private PrototypeFpsInput fpsInput;
     [SerializeField] private PlayerInteractionState interactionState;
     [SerializeField] private PlayerInventoryWindowController inventoryWindowController;
+    [SerializeField] private PrototypeUnitVitals playerVitals;
     [SerializeField] private float maxOpenDistance = 3.5f;
 
     private LootContainer openContainer;
@@ -23,8 +24,27 @@ public class LootContainerWindowController : MonoBehaviour
         ResolveReferences();
     }
 
+    private void OnEnable()
+    {
+        ResolveReferences();
+        if (playerVitals != null)
+        {
+            playerVitals.Died += HandlePlayerDied;
+        }
+
+        if (IsPlayerDead())
+        {
+            Close();
+        }
+    }
+
     private void OnDisable()
     {
+        if (playerVitals != null)
+        {
+            playerVitals.Died -= HandlePlayerDied;
+        }
+
         Close();
     }
 
@@ -36,6 +56,16 @@ public class LootContainerWindowController : MonoBehaviour
 
     private void Update()
     {
+        if (IsPlayerDead())
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            return;
+        }
+
         if (!IsOpen)
         {
             return;
@@ -61,6 +91,16 @@ public class LootContainerWindowController : MonoBehaviour
 
     private void OnGUI()
     {
+        if (IsPlayerDead())
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            return;
+        }
+
         if (!IsOpen || interactor == null || openContainer == null)
         {
             return;
@@ -188,7 +228,7 @@ public class LootContainerWindowController : MonoBehaviour
 
     public void Open(LootContainer container)
     {
-        if (container == null)
+        if (container == null || IsPlayerDead())
         {
             return;
         }
@@ -278,6 +318,21 @@ public class LootContainerWindowController : MonoBehaviour
         {
             inventoryWindowController = GetComponent<PlayerInventoryWindowController>();
         }
+
+        if (playerVitals == null)
+        {
+            playerVitals = GetComponent<PrototypeUnitVitals>();
+        }
+    }
+
+    private void HandlePlayerDied(PrototypeUnitVitals vitals)
+    {
+        Close();
+    }
+
+    private bool IsPlayerDead()
+    {
+        return playerVitals != null && playerVitals.IsDead;
     }
 
     private void SetUiFocus(bool focused)
