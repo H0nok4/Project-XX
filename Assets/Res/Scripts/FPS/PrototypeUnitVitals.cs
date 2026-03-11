@@ -118,14 +118,28 @@ public class PrototypeUnitVitals : MonoBehaviour
         public ArmorDefinition definition;
         public string instanceId = string.Empty;
         public string displayName = string.Empty;
+        public ItemRarity rarity = ItemRarity.Common;
         [Min(1f)] public float maxDurability = 1f;
         [Min(0f)] public float currentDurability = 1f;
 
-        public void ApplyDefinition(ArmorDefinition armorDefinition, float preservedDurability, string desiredInstanceId = null)
+        public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
+        public float StatMultiplier => ItemRarityUtility.GetStatMultiplier(Rarity);
+        public float EffectiveArmorClass => definition != null ? definition.ArmorClass * StatMultiplier : 0f;
+        public float EffectiveBleedProtection => definition != null ? Mathf.Clamp01(definition.BleedProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f)) : 0f;
+        public float EffectiveFractureProtection => definition != null ? Mathf.Clamp01(definition.FractureProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f)) : 0f;
+
+        public void ApplyDefinition(
+            ArmorDefinition armorDefinition,
+            float preservedDurability,
+            string desiredInstanceId = null,
+            ItemRarity itemRarity = ItemRarity.Common)
         {
             definition = armorDefinition;
-            displayName = armorDefinition != null ? armorDefinition.DisplayNameWithLevel : string.Empty;
-            maxDurability = armorDefinition != null ? armorDefinition.MaxDurability : 1f;
+            rarity = ItemRarityUtility.Sanitize(itemRarity);
+            displayName = armorDefinition != null
+                ? $"{armorDefinition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
+                : string.Empty;
+            maxDurability = armorDefinition != null ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(armorDefinition.MaxDurability, Rarity)) : 1f;
             currentDurability = Mathf.Clamp(preservedDurability, 0f, maxDurability);
 
             if (!string.IsNullOrWhiteSpace(desiredInstanceId))
@@ -138,8 +152,11 @@ public class PrototypeUnitVitals : MonoBehaviour
 
         public void Sanitize()
         {
-            displayName = string.IsNullOrWhiteSpace(displayName) && definition != null ? definition.DisplayNameWithLevel : displayName;
-            maxDurability = definition != null ? definition.MaxDurability : Mathf.Max(1f, maxDurability);
+            rarity = ItemRarityUtility.Sanitize(rarity);
+            displayName = string.IsNullOrWhiteSpace(displayName) && definition != null
+                ? $"{definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
+                : displayName;
+            maxDurability = definition != null ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity)) : Mathf.Max(1f, maxDurability);
             currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);
             EnsureInstanceId();
         }
@@ -499,7 +516,7 @@ public class PrototypeUnitVitals : MonoBehaviour
 
                 armorLoadout.Add(armorInstance.Definition);
                 var armorState = new ArmorState();
-                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId);
+                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity);
                 equippedArmor.Add(armorState);
             }
         }
@@ -872,7 +889,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         float durabilityRatio = blockingArmor.DurabilityNormalized;
-        float effectiveArmorStrength = blockingArmor.definition.ArmorClass * 10f * Mathf.Lerp(0.45f, 1f, durabilityRatio);
+        float effectiveArmorStrength = blockingArmor.EffectiveArmorClass * 10f * Mathf.Lerp(0.45f, 1f, durabilityRatio);
         float penetrationRatio = chunk.penetrationPower / Mathf.Max(1f, effectiveArmorStrength);
         float penetrationChance = Mathf.Clamp01(Mathf.InverseLerp(0.58f, 1.12f, penetrationRatio));
         penetratedArmor = penetrationRatio >= 1f || UnityEngine.Random.value < penetrationChance;
@@ -905,10 +922,10 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         float armorBleedProtection = blockingArmor != null && blockingArmor.definition != null
-            ? blockingArmor.definition.BleedProtection
+            ? blockingArmor.EffectiveBleedProtection
             : 0f;
         float armorFractureProtection = blockingArmor != null && blockingArmor.definition != null
-            ? blockingArmor.definition.FractureProtection
+            ? blockingArmor.EffectiveFractureProtection
             : 0f;
         float mitigationFactor = penetratedArmor ? 0.5f : 1f;
 
@@ -1097,7 +1114,7 @@ public class PrototypeUnitVitals : MonoBehaviour
             }
 
             if (bestArmor == null
-                || (armorState.definition != null && bestArmor.definition != null && armorState.definition.ArmorClass > bestArmor.definition.ArmorClass)
+                || armorState.EffectiveArmorClass > bestArmor.EffectiveArmorClass
                 || (armorState.definition == bestArmor.definition && armorState.currentDurability > bestArmor.currentDurability))
             {
                 bestArmor = armorState;
@@ -1243,7 +1260,7 @@ public class PrototypeUnitVitals : MonoBehaviour
                 }
 
                 var armorState = new ArmorState();
-                armorState.ApplyDefinition(armorDefinition, currentDurability);
+                armorState.ApplyDefinition(armorDefinition, currentDurability, null, ItemRarity.Common);
                 updatedArmor.Add(armorState);
             }
         }

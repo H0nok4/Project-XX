@@ -1308,7 +1308,7 @@ public class PrototypeBotController : MonoBehaviour
             corpseLoot.Configure(BuildCorpseLootLabel());
             if (primaryWeapon != null)
             {
-                corpseLoot.AddWeapon(primaryWeapon, primaryWeapon.IsMeleeWeapon ? 0 : magazineAmmo);
+                corpseLoot.AddWeapon(primaryWeapon, primaryWeapon.IsMeleeWeapon ? 0 : magazineAmmo, 1f, ItemRarity.Common);
             }
         }
 
@@ -1332,7 +1332,7 @@ public class PrototypeBotController : MonoBehaviour
                 continue;
             }
 
-            corpseInventory.TryAddItem(armorDefinition, 1, out _);
+            corpseInventory.TryAddItemInstance(ItemInstance.Create(armorDefinition, armorState.currentDurability, null, armorState.Rarity));
         }
     }
 
@@ -1349,7 +1349,7 @@ public class PrototypeBotController : MonoBehaviour
             LootTableDefinition.LootRoll roll = lootRolls[index];
             if (roll.Definition != null && roll.Quantity > 0)
             {
-                corpseInventory.TryAddItem(roll.Definition, roll.Quantity, out _);
+                corpseInventory.TryAddItem(roll.Definition, roll.Quantity, roll.Rarity, out _);
             }
         }
     }

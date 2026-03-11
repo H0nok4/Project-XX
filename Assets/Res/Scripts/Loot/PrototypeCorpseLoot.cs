@@ -9,20 +9,43 @@ public class PrototypeCorpseLoot : MonoBehaviour
     public sealed class WeaponEntry
     {
         [SerializeField] private PrototypeWeaponDefinition weaponDefinition;
+        [SerializeField] private ItemRarity rarity = ItemRarity.Common;
         [Min(0)]
         [SerializeField] private int magazineAmmo;
+        [Min(0f)]
+        [SerializeField] private float durability = 1f;
 
         public PrototypeWeaponDefinition WeaponDefinition => weaponDefinition;
+        public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
+        public float Durability => Mathf.Max(0f, durability);
         public int MagazineAmmo => weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
             ? Mathf.Clamp(magazineAmmo, 0, weaponDefinition.MagazineSize)
             : 0;
 
-        public void Configure(PrototypeWeaponDefinition definition, int loadedAmmo)
+        public void Configure(PrototypeWeaponDefinition definition, int loadedAmmo, float startingDurability = 1f, ItemRarity itemRarity = ItemRarity.Common)
         {
             weaponDefinition = definition;
+            rarity = ItemRarityUtility.Sanitize(itemRarity);
             magazineAmmo = definition != null && !definition.IsMeleeWeapon
                 ? Mathf.Clamp(loadedAmmo, 0, definition.MagazineSize)
                 : 0;
+            durability = Mathf.Max(0f, startingDurability);
+        }
+
+        public void Configure(WeaponInstance instance)
+        {
+            Configure(
+                instance != null ? instance.Definition : null,
+                instance != null ? instance.MagazineAmmo : 0,
+                instance != null ? instance.Durability : 1f,
+                instance != null ? instance.Rarity : ItemRarity.Common);
+        }
+
+        public WeaponInstance CreateInstance()
+        {
+            return weaponDefinition != null
+                ? WeaponInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity)
+                : null;
         }
     }
 
@@ -53,7 +76,7 @@ public class PrototypeCorpseLoot : MonoBehaviour
         SanitizeWeapons();
     }
 
-    public void AddWeapon(PrototypeWeaponDefinition weaponDefinition, int loadedAmmo)
+    public void AddWeapon(PrototypeWeaponDefinition weaponDefinition, int loadedAmmo, float durability = 1f, ItemRarity rarity = ItemRarity.Common)
     {
         if (weaponDefinition == null)
         {
@@ -63,7 +86,20 @@ public class PrototypeCorpseLoot : MonoBehaviour
         weapons ??= new List<WeaponEntry>();
 
         var entry = new WeaponEntry();
-        entry.Configure(weaponDefinition, loadedAmmo);
+        entry.Configure(weaponDefinition, loadedAmmo, durability, rarity);
+        weapons.Add(entry);
+    }
+
+    public void AddWeapon(WeaponInstance instance)
+    {
+        if (instance == null || instance.Definition == null)
+        {
+            return;
+        }
+
+        weapons ??= new List<WeaponEntry>();
+        var entry = new WeaponEntry();
+        entry.Configure(instance);
         weapons.Add(entry);
     }
 
@@ -91,7 +127,8 @@ public class PrototypeCorpseLoot : MonoBehaviour
             return false;
         }
 
-        if (!controller.TryEquipLootedWeapon(entry.WeaponDefinition, entry.MagazineAmmo, out PrototypeWeaponDefinition replacedWeapon, out int replacedAmmo))
+        WeaponInstance incomingWeapon = entry.CreateInstance();
+        if (!controller.TryEquipLootedWeapon(incomingWeapon, out WeaponInstance replacedWeapon))
         {
             return false;
         }
@@ -99,7 +136,7 @@ public class PrototypeCorpseLoot : MonoBehaviour
         weapons.RemoveAt(index);
         if (replacedWeapon != null)
         {
-            AddWeapon(replacedWeapon, replacedAmmo);
+            AddWeapon(replacedWeapon);
         }
 
         PrototypeEquippedWeaponVisual equippedWeaponVisual = GetComponent<PrototypeEquippedWeaponVisual>();

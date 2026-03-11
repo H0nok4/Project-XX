@@ -25,6 +25,7 @@ public static class PrototypeProfileService
         public List<SavedItemInstanceDto> specialEquipmentItemInstances = new List<SavedItemInstanceDto>();
         public List<SavedArmorInstanceDto> equippedArmorInstances = new List<SavedArmorInstanceDto>();
         public List<SavedWeaponInstanceDto> stashWeaponInstances = new List<SavedWeaponInstanceDto>();
+        public List<SavedWeaponInstanceDto> raidBackpackWeaponInstances = new List<SavedWeaponInstanceDto>();
         public SavedWeaponInstanceDto equippedPrimaryWeaponInstance;
         public SavedWeaponInstanceDto equippedSecondaryWeaponInstance;
         public SavedWeaponInstanceDto equippedMeleeWeaponInstance;
@@ -200,31 +201,19 @@ public static class PrototypeProfileService
         for (int index = 0; index < records.Count; index++)
         {
             SavedItemInstanceDto record = records[index];
-            if (record == null || record.quantity <= 0)
+            if (record == null)
             {
                 continue;
             }
 
-            ItemDefinition definition = catalog.FindByItemId(record.itemId);
-            if (definition == null)
+            if (!TryCreateInventoryItemInstance(record, catalog, out ItemInstance instance) || instance == null)
             {
                 continue;
             }
 
-            int remainingQuantity = record.quantity;
-            bool usedRecordId = false;
-            while (remainingQuantity > 0)
+            if (!inventory.TryAddItemInstance(instance))
             {
-                int stackSize = Mathf.Min(remainingQuantity, definition.MaxStackSize);
-                string instanceId = !usedRecordId ? record.instanceId : null;
-                ItemInstance instance = ItemInstance.Create(definition, stackSize, instanceId);
-                if (!inventory.TryAddItemInstance(instance))
-                {
-                    break;
-                }
-
-                usedRecordId = true;
-                remainingQuantity -= stackSize;
+                break;
             }
         }
     }
@@ -240,7 +229,7 @@ public static class PrototypeProfileService
         for (int index = 0; index < inventory.Items.Count; index++)
         {
             ItemInstance item = inventory.Items[index];
-            if (item == null || !item.IsDefined() || item.Quantity <= 0)
+            if (item == null || !item.IsDefined() || item.Quantity <= 0 || item.IsWeapon || item.Definition == null)
             {
                 continue;
             }
@@ -268,15 +257,108 @@ public static class PrototypeProfileService
             }
 
             item.Sanitize();
-            records.Add(new SavedItemInstanceDto
+            SavedItemInstanceDto record = CreateInventoryItemInstanceRecord(item);
+            if (record != null)
             {
-                instanceId = item.InstanceId,
-                itemId = item.Definition.ItemId,
-                quantity = item.Quantity
-            });
+                records.Add(record);
+            }
         }
 
         return records;
+    }
+
+    private static bool TryCreateInventoryItemInstance(
+        SavedItemInstanceDto record,
+        PrototypeItemCatalog catalog,
+        out ItemInstance instance)
+    {
+        instance = null;
+        if (record == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(record.weaponId))
+        {
+            PrototypeWeaponDefinition weaponDefinition = catalog != null ? catalog.FindWeaponById(record.weaponId) : null;
+            if (catalog != null && weaponDefinition == null)
+            {
+                return false;
+            }
+
+            string instanceId = EnsureInstanceId(record.instanceId);
+            string weaponId = weaponDefinition != null ? weaponDefinition.WeaponId : record.weaponId.Trim();
+            int magazineAmmo = weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
+                ? Mathf.Clamp(record.magazineAmmo, 0, weaponDefinition.MagazineSize)
+                : 0;
+            float durability = Mathf.Max(0f, record.durability >= 0f ? record.durability : 1f);
+            PrototypeWeaponDefinition resolvedDefinition = weaponDefinition;
+            if (resolvedDefinition == null && catalog != null)
+            {
+                resolvedDefinition = catalog.FindWeaponById(weaponId);
+            }
+
+            instance = resolvedDefinition != null
+                ? ItemInstance.Create(resolvedDefinition, magazineAmmo, durability, instanceId, record.rarity)
+                : null;
+            return instance != null;
+        }
+
+        if (string.IsNullOrWhiteSpace(record.itemId) || record.quantity <= 0)
+        {
+            return false;
+        }
+
+        ItemDefinition definition = catalog != null ? catalog.FindByItemId(record.itemId) : null;
+        if (catalog != null && definition == null)
+        {
+            return false;
+        }
+
+        if (definition is ArmorDefinition armorDefinition)
+        {
+            float durability = GetStoredArmorDurability(armorDefinition, record.rarity, record.durability);
+            instance = ItemInstance.Create(armorDefinition, durability, EnsureInstanceId(record.instanceId), record.rarity);
+            return true;
+        }
+
+        instance = ItemInstance.Create(definition, Mathf.Max(1, record.quantity), EnsureInstanceId(record.instanceId), record.rarity);
+        return instance != null;
+    }
+
+    private static SavedItemInstanceDto CreateInventoryItemInstanceRecord(ItemInstance item)
+    {
+        if (item == null || !item.IsDefined())
+        {
+            return null;
+        }
+
+        if (item.IsWeapon && item.WeaponDefinition != null)
+        {
+            return new SavedItemInstanceDto
+            {
+                instanceId = item.InstanceId,
+                weaponId = item.WeaponDefinition.WeaponId,
+                rarity = item.Rarity,
+                quantity = 1,
+                magazineAmmo = item.MagazineAmmo,
+                durability = Mathf.Max(0f, item.CurrentDurability)
+            };
+        }
+
+        if (item.Definition == null)
+        {
+            return null;
+        }
+
+        return new SavedItemInstanceDto
+        {
+            instanceId = item.InstanceId,
+            itemId = item.Definition.ItemId,
+            rarity = item.Rarity,
+            quantity = item.IsArmor ? 1 : item.Quantity,
+            durability = item.IsArmor ? Mathf.Max(0f, item.CurrentDurability) : -1f
+        };
     }
 
     public static List<ItemStackRecord> CaptureDefinitions(IEnumerable<ItemDefinition> definitions)
@@ -357,12 +439,13 @@ public static class PrototypeProfileService
                 continue;
             }
 
-            records.Add(new SavedArmorInstanceDto
-            {
-                instanceId = EnsureInstanceId(armorInstance.InstanceId),
-                itemId = armorInstance.Definition.ItemId,
-                currentDurability = armorInstance.CurrentDurability
-            });
+                records.Add(new SavedArmorInstanceDto
+                {
+                    instanceId = EnsureInstanceId(armorInstance.InstanceId),
+                    itemId = armorInstance.Definition.ItemId,
+                    rarity = armorInstance.Rarity,
+                    currentDurability = armorInstance.CurrentDurability
+                });
         }
 
         return records;
@@ -383,12 +466,13 @@ public static class PrototypeProfileService
                 continue;
             }
 
-            records.Add(new SavedArmorInstanceDto
-            {
-                instanceId = EnsureInstanceId(armorState.instanceId),
-                itemId = armorState.definition.ItemId,
-                currentDurability = armorState.currentDurability
-            });
+                records.Add(new SavedArmorInstanceDto
+                {
+                    instanceId = EnsureInstanceId(armorState.instanceId),
+                    itemId = armorState.definition.ItemId,
+                    rarity = armorState.Rarity,
+                    currentDurability = armorState.currentDurability
+                });
         }
 
         return records;
@@ -445,7 +529,7 @@ public static class PrototypeProfileService
                 continue;
             }
 
-            ArmorInstance instance = ArmorInstance.Create(armorDefinition, record.currentDurability, record.instanceId);
+            ArmorInstance instance = ArmorInstance.Create(armorDefinition, record.currentDurability, record.instanceId, record.rarity);
             armorInstances.Add(instance);
         }
 
@@ -520,6 +604,7 @@ public static class PrototypeProfileService
         {
             instanceId = EnsureInstanceId(weaponInstance.InstanceId),
             weaponId = weaponInstance.Definition.WeaponId,
+            rarity = weaponInstance.Rarity,
             magazineAmmo = weaponInstance.MagazineAmmo,
             durability = weaponInstance.Durability
         };
@@ -538,7 +623,7 @@ public static class PrototypeProfileService
             return null;
         }
 
-        return WeaponInstance.Create(definition, record.magazineAmmo, record.durability, record.instanceId);
+        return WeaponInstance.Create(definition, record.magazineAmmo, record.durability, record.instanceId, record.rarity);
     }
 
     public static List<WeaponInstance> ResolveWeaponInstances(List<SavedWeaponInstanceDto> records, PrototypeItemCatalog catalog)
@@ -576,7 +661,7 @@ public static class PrototypeProfileService
         for (int index = 0; index < inventory.Items.Count; index++)
         {
             ItemInstance item = inventory.Items[index];
-            if (item == null || !item.IsDefined() || item.Quantity <= 0)
+            if (item == null || !item.IsDefined() || item.Quantity <= 0 || item.IsWeapon || item.Definition == null)
             {
                 continue;
             }
@@ -602,6 +687,7 @@ public static class PrototypeProfileService
             specialEquipmentItems = new List<ItemStackRecord>(),
             equippedArmorItems = new List<ItemStackRecord>(),
             stashWeaponIds = CreateWeaponIdsFromPresets(catalog != null ? catalog.DefaultStashWeapons : null),
+            raidBackpackWeaponInstances = new List<SavedWeaponInstanceDto>(),
             equippedPrimaryWeaponId = catalog != null && catalog.DefaultPrimaryWeapon != null ? catalog.DefaultPrimaryWeapon.WeaponId : string.Empty,
             equippedSecondaryWeaponId = catalog != null && catalog.DefaultSecondaryWeapon != null ? catalog.DefaultSecondaryWeapon.WeaponId : string.Empty,
             equippedMeleeWeaponId = catalog != null && catalog.DefaultMeleeWeapon != null ? catalog.DefaultMeleeWeapon.WeaponId : string.Empty
@@ -692,6 +778,7 @@ public static class PrototypeProfileService
         }
 
         profile.stashWeaponInstances ??= new List<SavedWeaponInstanceDto>();
+        profile.raidBackpackWeaponInstances ??= new List<SavedWeaponInstanceDto>();
         if (profile.stashWeaponInstances.Count == 0 && profile.stashWeaponIds != null && profile.stashWeaponIds.Count > 0)
         {
             profile.stashWeaponInstances = CreateWeaponInstanceDtosFromIds(profile.stashWeaponIds, catalog);
@@ -737,6 +824,7 @@ public static class PrototypeProfileService
         profile.specialEquipmentItemInstances ??= new List<SavedItemInstanceDto>();
         profile.equippedArmorInstances ??= new List<SavedArmorInstanceDto>();
         profile.stashWeaponInstances ??= new List<SavedWeaponInstanceDto>();
+        profile.raidBackpackWeaponInstances ??= new List<SavedWeaponInstanceDto>();
         profile.stashItems ??= new List<ItemStackRecord>();
         profile.loadoutItems ??= new List<ItemStackRecord>();
         profile.extractedItems ??= new List<ItemStackRecord>();
@@ -758,12 +846,18 @@ public static class PrototypeProfileService
         profile.worldState.questChainStages ??= new List<WorldStateData.QuestChainStageRecord>();
         profile.worldState.storyFlags ??= new List<string>();
 
+        if (profile.raidBackpackWeaponInstances != null && profile.raidBackpackWeaponInstances.Count > 0)
+        {
+            MergeLegacyBackpackWeaponInstances(profile);
+        }
+
         profile.stashItemInstances = SanitizeItemInstanceRecords(profile.stashItemInstances, catalog);
         profile.raidBackpackItemInstances = SanitizeItemInstanceRecords(profile.raidBackpackItemInstances, catalog);
         profile.secureContainerItemInstances = SanitizeItemInstanceRecords(profile.secureContainerItemInstances, catalog);
         profile.specialEquipmentItemInstances = SanitizeItemInstanceRecords(profile.specialEquipmentItemInstances, catalog);
         profile.equippedArmorInstances = SanitizeArmorInstanceRecords(profile.equippedArmorInstances, catalog);
         profile.stashWeaponInstances = SanitizeWeaponInstanceRecords(profile.stashWeaponInstances, catalog);
+        profile.raidBackpackWeaponInstances = SanitizeWeaponInstanceRecords(profile.raidBackpackWeaponInstances, catalog);
         profile.equippedPrimaryWeaponInstance = SanitizeWeaponInstance(profile.equippedPrimaryWeaponInstance, catalog);
         profile.equippedSecondaryWeaponInstance = SanitizeWeaponInstance(profile.equippedSecondaryWeaponInstance, catalog);
         profile.equippedMeleeWeaponInstance = SanitizeWeaponInstance(profile.equippedMeleeWeaponInstance, catalog);
@@ -956,6 +1050,36 @@ public static class PrototypeProfileService
         return Guid.NewGuid().ToString("N");
     }
 
+    private static void MergeLegacyBackpackWeaponInstances(ProfileData profile)
+    {
+        if (profile == null || profile.raidBackpackWeaponInstances == null || profile.raidBackpackWeaponInstances.Count == 0)
+        {
+            return;
+        }
+
+        profile.raidBackpackItemInstances ??= new List<SavedItemInstanceDto>();
+        for (int index = 0; index < profile.raidBackpackWeaponInstances.Count; index++)
+        {
+            SavedWeaponInstanceDto weaponRecord = profile.raidBackpackWeaponInstances[index];
+            if (weaponRecord == null || string.IsNullOrWhiteSpace(weaponRecord.weaponId))
+            {
+                continue;
+            }
+
+            profile.raidBackpackItemInstances.Add(new SavedItemInstanceDto
+            {
+                instanceId = weaponRecord.instanceId,
+                weaponId = weaponRecord.weaponId,
+                rarity = weaponRecord.rarity,
+                quantity = 1,
+                magazineAmmo = weaponRecord.magazineAmmo,
+                durability = weaponRecord.durability
+            });
+        }
+
+        profile.raidBackpackWeaponInstances.Clear();
+    }
+
     private static List<SavedItemInstanceDto> SanitizeItemInstanceRecords(
         List<SavedItemInstanceDto> records,
         PrototypeItemCatalog catalog)
@@ -969,7 +1093,39 @@ public static class PrototypeProfileService
         for (int index = 0; index < records.Count; index++)
         {
             SavedItemInstanceDto record = records[index];
-            if (record == null || string.IsNullOrWhiteSpace(record.itemId) || record.quantity <= 0)
+            if (record == null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.weaponId))
+            {
+                SavedWeaponInstanceDto sanitizedWeaponRecord = SanitizeWeaponInstance(new SavedWeaponInstanceDto
+                {
+                    instanceId = record.instanceId,
+                    weaponId = record.weaponId,
+                    rarity = record.rarity,
+                    magazineAmmo = record.magazineAmmo,
+                    durability = record.durability
+                }, catalog);
+
+                if (sanitizedWeaponRecord != null)
+                {
+                    sanitized.Add(new SavedItemInstanceDto
+                    {
+                        instanceId = sanitizedWeaponRecord.instanceId,
+                        weaponId = sanitizedWeaponRecord.weaponId,
+                        rarity = sanitizedWeaponRecord.rarity,
+                        quantity = 1,
+                        magazineAmmo = sanitizedWeaponRecord.magazineAmmo,
+                        durability = sanitizedWeaponRecord.durability
+                    });
+                }
+
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(record.itemId) || record.quantity <= 0)
             {
                 continue;
             }
@@ -981,6 +1137,19 @@ public static class PrototypeProfileService
             }
 
             string itemId = definition != null ? definition.ItemId : record.itemId.Trim();
+            if (definition is ArmorDefinition armorDefinition)
+            {
+                sanitized.Add(new SavedItemInstanceDto
+                {
+                    instanceId = EnsureInstanceId(record.instanceId),
+                    itemId = itemId,
+                    rarity = ItemRarityUtility.Sanitize(record.rarity),
+                    quantity = 1,
+                    durability = GetStoredArmorDurability(armorDefinition, record.rarity, record.durability)
+                });
+                continue;
+            }
+
             int maxStackSize = definition != null ? definition.MaxStackSize : Mathf.Max(1, record.quantity);
             int remainingQuantity = record.quantity;
             bool usedRecordId = false;
@@ -992,7 +1161,9 @@ public static class PrototypeProfileService
                 {
                     instanceId = instanceId,
                     itemId = itemId,
-                    quantity = stackSize
+                    rarity = ItemRarityUtility.Sanitize(record.rarity),
+                    quantity = stackSize,
+                    durability = -1f
                 });
 
                 usedRecordId = true;
@@ -1048,8 +1219,23 @@ public static class PrototypeProfileService
         {
             instanceId = EnsureInstanceId(record.instanceId),
             itemId = itemId,
+            rarity = ItemRarityUtility.Sanitize(record.rarity),
             currentDurability = clampedDurability
         };
+    }
+
+    private static float GetStoredArmorDurability(ArmorDefinition armorDefinition, ItemRarity rarity, float storedDurability)
+    {
+        float maxDurability = armorDefinition != null
+            ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(armorDefinition.MaxDurability, rarity))
+            : Mathf.Max(1f, storedDurability);
+
+        if (storedDurability < 0f)
+        {
+            return maxDurability;
+        }
+
+        return Mathf.Clamp(storedDurability, 0f, maxDurability);
     }
 
     private static List<SavedWeaponInstanceDto> SanitizeWeaponInstanceRecords(
@@ -1099,6 +1285,7 @@ public static class PrototypeProfileService
         {
             instanceId = EnsureInstanceId(record.instanceId),
             weaponId = weaponId,
+            rarity = ItemRarityUtility.Sanitize(record.rarity),
             magazineAmmo = ammo,
             durability = Mathf.Max(0f, record.durability)
         };
@@ -1129,6 +1316,24 @@ public static class PrototypeProfileService
             }
 
             string itemId = definition != null ? definition.ItemId : record.itemId.Trim();
+            if (definition is ArmorDefinition armorDefinition)
+            {
+                int count = Mathf.Max(1, record.quantity);
+                for (int instanceIndex = 0; instanceIndex < count; instanceIndex++)
+                {
+                    instances.Add(new SavedItemInstanceDto
+                    {
+                        instanceId = Guid.NewGuid().ToString("N"),
+                        itemId = itemId,
+                        rarity = ItemRarity.Common,
+                        quantity = 1,
+                        durability = GetStoredArmorDurability(armorDefinition, ItemRarity.Common, -1f)
+                    });
+                }
+
+                continue;
+            }
+
             int maxStackSize = definition != null ? definition.MaxStackSize : Mathf.Max(1, record.quantity);
             int remainingQuantity = record.quantity;
             while (remainingQuantity > 0)
@@ -1138,7 +1343,9 @@ public static class PrototypeProfileService
                 {
                     instanceId = Guid.NewGuid().ToString("N"),
                     itemId = itemId,
-                    quantity = stackSize
+                    rarity = ItemRarity.Common,
+                    quantity = stackSize,
+                    durability = -1f
                 });
 
                 remainingQuantity -= stackSize;
@@ -1181,6 +1388,7 @@ public static class PrototypeProfileService
                 {
                     instanceId = Guid.NewGuid().ToString("N"),
                     itemId = itemId,
+                    rarity = ItemRarity.Common,
                     currentDurability = durability
                 });
             }
@@ -1248,6 +1456,7 @@ public static class PrototypeProfileService
         {
             instanceId = Guid.NewGuid().ToString("N"),
             weaponId = weaponId.Trim(),
+            rarity = ItemRarity.Common,
             magazineAmmo = magazineAmmo,
             durability = 1f
         };

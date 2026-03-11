@@ -21,6 +21,7 @@ public class PlayerInteractor : MonoBehaviour
     [Header("Prompt")]
     [SerializeField] private bool showPrompt = true;
     [SerializeField] private Vector2 promptSize = new Vector2(320f, 42f);
+    [SerializeField] private bool autoAddInventoryWindowController = true;
 
     private InteractionQueryResult currentQuery;
     private GUIStyle promptStyle;
@@ -211,6 +212,11 @@ public class PlayerInteractor : MonoBehaviour
 
     private void EnsureInventoryWindowController()
     {
+        if (!autoAddInventoryWindowController)
+        {
+            return;
+        }
+
         if (GetComponent<PlayerInventoryWindowController>() != null)
         {
             return;

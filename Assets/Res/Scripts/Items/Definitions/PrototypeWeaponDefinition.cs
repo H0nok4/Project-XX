@@ -7,6 +7,8 @@ public class PrototypeWeaponDefinition : ScriptableObject
     [SerializeField] private string displayName = "Weapon";
     [TextArea]
     [SerializeField] private string description = string.Empty;
+    [Min(0f)]
+    [SerializeField] private float unitWeight = 3.5f;
     [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
     [SerializeField] private int itemLevel = ItemDefinition.MinItemLevel;
     [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
@@ -51,6 +53,7 @@ public class PrototypeWeaponDefinition : ScriptableObject
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
     public string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
     public string Description => description ?? string.Empty;
+    public float UnitWeight => Mathf.Max(0f, unitWeight);
     public int ItemLevel => Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
@@ -105,6 +108,7 @@ public class PrototypeWeaponDefinition : ScriptableObject
         weaponId = string.IsNullOrWhiteSpace(id) ? name : id.Trim();
         displayName = string.IsNullOrWhiteSpace(nameLabel) ? weaponId : nameLabel.Trim();
         description = weaponDescription ?? string.Empty;
+        unitWeight = Mathf.Max(0f, unitWeight);
         meleeWeapon = false;
         ammoDefinition = ammo;
         magazineSize = Mathf.Max(1, magSize);
@@ -130,6 +134,7 @@ public class PrototypeWeaponDefinition : ScriptableObject
         weaponId = string.IsNullOrWhiteSpace(id) ? name : id.Trim();
         displayName = string.IsNullOrWhiteSpace(nameLabel) ? weaponId : nameLabel.Trim();
         description = weaponDescription ?? string.Empty;
+        unitWeight = Mathf.Max(0f, unitWeight);
         meleeWeapon = true;
         ammoDefinition = null;
         penetrationPower = 6f;
@@ -172,6 +177,7 @@ public class PrototypeWeaponDefinition : ScriptableObject
     {
         weaponId = string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
         displayName = string.IsNullOrWhiteSpace(displayName) ? weaponId : displayName.Trim();
+        unitWeight = Mathf.Max(0f, unitWeight);
         magazineSize = Mathf.Max(1, magazineSize);
         reloadDuration = Mathf.Max(0.05f, reloadDuration);
         roundsPerMinute = Mathf.Max(30f, roundsPerMinute);

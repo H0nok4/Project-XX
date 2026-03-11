@@ -175,17 +175,20 @@ public class PrototypeFpsMovementModule : MonoBehaviour
             return;
         }
 
-        if (interactionState != null && interactionState.IsUiFocused)
+        float deltaTime = Time.deltaTime;
+        bool uiFocused = interactionState != null && interactionState.IsUiFocused;
+        bool grounded = characterController.isGrounded;
+        Vector2 moveInput = uiFocused ? Vector2.zero : Vector2.ClampMagnitude(fpsInput.Move, 1f);
+
+        if (uiFocused)
         {
             HandleUiFocus();
-            return;
+        }
+        else
+        {
+            HandleMovementModeInput();
         }
 
-        float deltaTime = Time.deltaTime;
-        bool grounded = characterController.isGrounded;
-        Vector2 moveInput = Vector2.ClampMagnitude(fpsInput.Move, 1f);
-
-        HandleMovementModeInput();
         UpdateStance(deltaTime, grounded);
 
         if (landingRecoveryTimer > 0f)
@@ -202,7 +205,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         }
 
         UpdateSprintSpeedBlend(deltaTime);
-        bool jumpedThisFrame = TryStartJump(grounded);
+        bool jumpedThisFrame = !uiFocused && TryStartJump(grounded);
 
         if (grounded && !jumpedThisFrame)
         {

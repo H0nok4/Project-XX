@@ -117,7 +117,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
         GUILayout.Label("Raid Backpack", windowStyle);
         GUILayout.Label(
-            $"Backpack {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\nSecure {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  Special {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\nPress Tab or Esc to close. Only raid backpack items can be dropped.",
+            $"Backpack {inventory.OccupiedSlots}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\nSecure {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  Special {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\nPress Tab or Esc to close. Only raid backpack contents can be dropped.",
             windowStyle);
 
         GUILayout.Space(6f);
@@ -138,9 +138,15 @@ public class PlayerInventoryWindowController : MonoBehaviour
                 }
 
                 GUILayout.BeginVertical(listStyle);
-                GUILayout.Label($"{item.DisplayName} x{item.Quantity}", windowStyle);
-                GUILayout.Label($"Weight {item.TotalWeight:0.00}", windowStyle);
+                GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, windowStyle);
+                GUILayout.Label(GetInventoryEntryDetail(item), windowStyle);
                 GUILayout.BeginHorizontal();
+
+                if (item.IsWeapon && GUILayout.Button("Equip", buttonStyle, GUILayout.Width(100f)))
+                {
+                    EquipWeaponFromInventory(index);
+                    GUIUtility.ExitGUI();
+                }
 
                 if (item.Quantity > 1 && GUILayout.Button("Drop 1", buttonStyle, GUILayout.Width(100f)))
                 {
@@ -148,7 +154,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
                     GUIUtility.ExitGUI();
                 }
 
-                if (GUILayout.Button("Drop Stack", buttonStyle, GUILayout.Width(120f)))
+                if (GUILayout.Button(item.Quantity > 1 ? "Drop Stack" : "Drop", buttonStyle, GUILayout.Width(120f)))
                 {
                     DropItem(index, item.Quantity);
                     GUIUtility.ExitGUI();
@@ -217,7 +223,46 @@ public class PlayerInventoryWindowController : MonoBehaviour
         }
 
         Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
-        GroundLootItem.SpawnDroppedItem(dropOrigin, extractedItem.Definition, extractedItem.Quantity);
+        if (extractedItem.IsWeapon)
+        {
+            PrototypeWeaponPickup.SpawnDroppedWeapon(dropOrigin, extractedItem.ToWeaponInstance());
+            return;
+        }
+
+        GroundLootItem.SpawnDroppedItem(dropOrigin, extractedItem);
+    }
+
+    private void EquipWeaponFromInventory(int itemIndex)
+    {
+        if (interactor == null || interactor.PrimaryInventory == null)
+        {
+            return;
+        }
+
+        PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
+        if (controller == null)
+        {
+            return;
+        }
+
+        if (!interactor.PrimaryInventory.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsWeapon)
+        {
+            return;
+        }
+
+        if (!controller.TryEquipInventoryWeapon(extractedItem, out WeaponInstance overflowWeapon))
+        {
+            interactor.PrimaryInventory.TryAddItemInstance(extractedItem);
+            return;
+        }
+
+        if (overflowWeapon == null)
+        {
+            return;
+        }
+
+        Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
+        PrototypeWeaponPickup.SpawnDroppedWeapon(dropOrigin, overflowWeapon);
     }
 
     private void DrawProtectedSection(string title, InventoryContainer inventory)
@@ -245,10 +290,32 @@ public class PlayerInventoryWindowController : MonoBehaviour
             }
 
             GUILayout.BeginVertical(listStyle);
-            GUILayout.Label($"{item.DisplayName} x{item.Quantity}", windowStyle);
-            GUILayout.Label($"Weight {item.TotalWeight:0.00}", windowStyle);
+            GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, windowStyle);
+            GUILayout.Label(GetInventoryEntryDetail(item), windowStyle);
             GUILayout.EndVertical();
         }
+    }
+
+    private static string GetInventoryEntryDetail(ItemInstance item)
+    {
+        if (item == null)
+        {
+            return string.Empty;
+        }
+
+        if (item.IsWeapon && item.WeaponDefinition != null)
+        {
+            return item.WeaponDefinition.IsMeleeWeapon
+                ? $"Melee  Weight {item.TotalWeight:0.00}"
+                : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
+        }
+
+        if (item.IsArmor)
+        {
+            return $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
+        }
+
+        return $"Weight {item.TotalWeight:0.00}";
     }
 
     private static int GetStackCount(InventoryContainer inventory)
@@ -320,6 +387,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
                 fontSize = 15,
                 alignment = TextAnchor.UpperLeft,
                 wordWrap = true,
+                richText = true,
                 normal = { textColor = Color.white }
             };
             windowStyle.padding = new RectOffset(12, 12, 10, 10);

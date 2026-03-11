@@ -36,6 +36,7 @@ public static class MetaMenuStyleUtility
             {
                 fontSize = 14,
                 wordWrap = true,
+                richText = true,
                 normal = { textColor = new Color(0.92f, 0.94f, 0.98f, 1f) }
             };
         }

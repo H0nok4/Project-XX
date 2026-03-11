@@ -122,7 +122,7 @@ public class LootContainerWindowController : MonoBehaviour
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
         GUILayout.Label($"{openContainer.ContainerLabel}", windowStyle);
         GUILayout.Label(
-            $"Loot {lootInventory.Items.Count}/{lootInventory.MaxSlots}  Weapons {(corpseLoot != null ? corpseLoot.Weapons.Count : 0)}\nBackpack {playerInventory.Items.Count}/{playerInventory.MaxSlots}  Weight {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
+            $"Loot {lootInventory.Items.Count}/{lootInventory.MaxSlots}  Weapons {(corpseLoot != null ? corpseLoot.Weapons.Count : 0)}\nBackpack {playerInventory.OccupiedSlots}/{playerInventory.MaxSlots}  Weight {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
             windowStyle);
 
         GUILayout.Space(6f);
@@ -146,12 +146,16 @@ public class LootContainerWindowController : MonoBehaviour
                     }
 
                     PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
-                    string buttonLabel = controller != null && controller.PickupWouldReplaceEquippedWeapon(entry.WeaponDefinition)
-                        ? "Swap"
-                        : "Take";
+                    string buttonLabel = controller != null && controller.PickupWouldStoreInBackpack(entry.WeaponDefinition)
+                        ? "Pack"
+                        : controller != null && controller.PickupWouldReplaceEquippedWeapon(entry.WeaponDefinition)
+                            ? "Swap"
+                            : "Take";
+                    WeaponInstance previewInstance = entry.CreateInstance();
+                    string weaponLabel = previewInstance != null ? previewInstance.RichDisplayName : entry.WeaponDefinition.DisplayNameWithLevel;
                     string weaponText = entry.WeaponDefinition.IsMeleeWeapon
-                        ? entry.WeaponDefinition.DisplayNameWithLevel
-                        : $"{entry.WeaponDefinition.DisplayNameWithLevel} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
+                        ? weaponLabel
+                        : $"{weaponLabel} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label(weaponText, windowStyle, GUILayout.Width(320f));
@@ -177,7 +181,7 @@ public class LootContainerWindowController : MonoBehaviour
                 }
 
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"{item.DisplayName} x{item.Quantity}", windowStyle, GUILayout.Width(320f));
+                GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", windowStyle, GUILayout.Width(320f));
 
                 if (GUILayout.Button("Take", buttonStyle, GUILayout.Width(90f)))
                 {
@@ -356,6 +360,7 @@ public class LootContainerWindowController : MonoBehaviour
                 fontSize = 15,
                 alignment = TextAnchor.UpperLeft,
                 wordWrap = true,
+                richText = true,
                 normal = { textColor = Color.white }
             };
             windowStyle.padding = new RectOffset(12, 12, 10, 10);

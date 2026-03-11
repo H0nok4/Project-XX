@@ -183,6 +183,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         if (raidGameMode.CurrentState == RaidGameMode.RaidState.Extracted)
         {
             latestProfile.raidBackpackItemInstances = PrototypeProfileService.CaptureInventoryInstances(inventory);
+            latestProfile.raidBackpackWeaponInstances.Clear();
             latestProfile.equippedArmorInstances = PrototypeProfileService.CaptureArmorInstances(
                 playerVitals != null ? playerVitals.EquippedArmor : null);
             latestProfile.equippedPrimaryWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(currentPrimaryWeapon);
@@ -201,6 +202,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         else
         {
             latestProfile.raidBackpackItemInstances.Clear();
+            latestProfile.raidBackpackWeaponInstances.Clear();
             latestProfile.equippedArmorInstances.Clear();
             latestProfile.equippedPrimaryWeaponInstance = null;
             latestProfile.equippedSecondaryWeaponInstance = null;
@@ -216,6 +218,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         PrototypeProfileService.SaveProfile(latestProfile, itemCatalog);
         profile = latestProfile;
         resultSaved = true;
+        MetaEntryRouter.RecordRaidReturnArrival(raidGameMode.CurrentState);
 
         Debug.Log(
             $"[PrototypeRaidProfileFlow] Saved raid result {raidGameMode.CurrentState} to {PrototypeProfileService.SavePath}. " +

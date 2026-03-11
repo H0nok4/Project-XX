@@ -52,7 +52,7 @@ public sealed class MetaInventoryPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label($"{item.DisplayName} x{item.Quantity}", host.BodyStyle);
+                GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
                 GUILayout.Label($"Weight {item.TotalWeight:0.00}", host.BodyStyle);
                 GUILayout.BeginHorizontal();
                 if (item.Definition is ArmorDefinition)
@@ -116,7 +116,7 @@ public sealed class MetaInventoryPresenter
     {
         InventoryContainer raidBackpackInventory = host.RaidBackpackInventory;
         host.BeginPanel(rect, "Raid Backpack", host.BackpackColor, raidBackpackInventory != null
-            ? $"Stacks {raidBackpackInventory.Items.Count}/{raidBackpackInventory.MaxSlots}  Weight {raidBackpackInventory.CurrentWeight:0.0}/{raidBackpackInventory.MaxWeight:0.0}"
+            ? $"Slots {raidBackpackInventory.OccupiedSlots}/{raidBackpackInventory.MaxSlots}  Weight {raidBackpackInventory.CurrentWeight:0.0}/{raidBackpackInventory.MaxWeight:0.0}"
             : "No inventory");
 
         if (raidBackpackInventory == null || raidBackpackInventory.IsEmpty)
@@ -135,12 +135,19 @@ public sealed class MetaInventoryPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label($"{item.DisplayName} x{item.Quantity}", host.BodyStyle);
-                GUILayout.Label($"Weight {item.TotalWeight:0.00}", host.BodyStyle);
+                GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, host.BodyStyle);
+                GUILayout.Label(GetInventoryEntryDetail(item), host.BodyStyle);
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(72f)))
                 {
-                    MoveItemBetweenInventories(raidBackpackInventory, host.StashInventory, index, item.Quantity, "Stored", "Warehouse has no space for that stack.");
+                    if (item.IsWeapon)
+                    {
+                        StoreWeaponItemFromInventory(raidBackpackInventory, index);
+                    }
+                    else
+                    {
+                        MoveItemBetweenInventories(raidBackpackInventory, host.StashInventory, index, item.Quantity, "Stored", "Warehouse has no space for that stack.");
+                    }
                     GUIUtility.ExitGUI();
                 }
 
@@ -148,6 +155,31 @@ public sealed class MetaInventoryPresenter
                 {
                     EquipArmorFromInventory(raidBackpackInventory, index, "Raid backpack");
                     GUIUtility.ExitGUI();
+                }
+                else if (item.IsWeapon && item.WeaponDefinition != null)
+                {
+                    if (item.WeaponDefinition.IsMeleeWeapon)
+                    {
+                        if (GUILayout.Button("Equip", host.ButtonStyle, GUILayout.Width(72f)))
+                        {
+                            EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Melee);
+                            GUIUtility.ExitGUI();
+                        }
+                    }
+                    else
+                    {
+                        if (GUILayout.Button("Primary", host.ButtonStyle, GUILayout.Width(80f)))
+                        {
+                            EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Primary);
+                            GUIUtility.ExitGUI();
+                        }
+
+                        if (GUILayout.Button("Secondary", host.ButtonStyle, GUILayout.Width(88f)))
+                        {
+                            EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Secondary);
+                            GUIUtility.ExitGUI();
+                        }
+                    }
                 }
 
                 GUILayout.EndHorizontal();
@@ -187,7 +219,7 @@ public sealed class MetaInventoryPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label(weapon.DisplayName, host.BodyStyle);
+                GUILayout.Label(weapon.RichDisplayName, host.BodyStyle);
                 GUILayout.Label(weapon.Definition.IsMeleeWeapon ? "Melee" : "Firearm", host.BodyStyle);
                 if (weapon.Definition.IsMeleeWeapon)
                 {
@@ -268,7 +300,7 @@ public sealed class MetaInventoryPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label(armorInstance.DisplayName, host.BodyStyle);
+                GUILayout.Label(armorInstance.RichDisplayName, host.BodyStyle);
                 GUILayout.Label($"Durability {armorInstance.CurrentDurability:0}/{armorInstance.MaxDurability:0}", host.BodyStyle);
                 GUILayout.Label($"Coverage {string.Join(", ", armorDefinition.CoveredPartIds)}", host.BodyStyle);
                 GUILayout.BeginHorizontal();
@@ -321,7 +353,7 @@ public sealed class MetaInventoryPresenter
             }
 
             GUILayout.BeginVertical(host.ListStyle);
-            GUILayout.Label($"{item.DisplayName} x{item.Quantity}", host.BodyStyle);
+            GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
             GUILayout.Label($"Weight {item.TotalWeight:0.00}", host.BodyStyle);
             if (GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(72f)))
             {
@@ -336,7 +368,7 @@ public sealed class MetaInventoryPresenter
     private void DrawWeaponSlotEntry(string label, WeaponInstance weaponInstance, PrototypeMainMenuController.WeaponSlotType slotType, bool protectedOnDeath)
     {
         GUILayout.BeginVertical(host.ListStyle);
-        GUILayout.Label($"{label}: {(weaponInstance != null ? weaponInstance.DisplayName : "Empty")}", host.BodyStyle);
+        GUILayout.Label($"{label}: {(weaponInstance != null ? weaponInstance.RichDisplayName : "Empty")}", host.BodyStyle);
         if (protectedOnDeath)
         {
             GUILayout.Label("This slot survives raid death.", host.BodyStyle);
@@ -405,13 +437,20 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (!source.TryExtractItem(itemIndex, 1, out _))
+        if (!source.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null)
         {
             host.SetFeedback($"Could not equip armor from {sourceLabel.ToLowerInvariant()}.");
             return;
         }
 
-        ArmorInstance armorInstance = ArmorInstance.Create(armorDefinition, armorDefinition.MaxDurability);
+        ArmorInstance armorInstance = extractedItem.ToArmorInstance();
+        if (armorInstance == null)
+        {
+            source.TryAddItemInstance(extractedItem);
+            host.SetFeedback($"Could not equip armor from {sourceLabel.ToLowerInvariant()}.");
+            return;
+        }
+
         host.EquippedArmor.Add(armorInstance);
         host.SetFeedback($"Equipped {armorInstance.DisplayName}.");
         host.AutoSaveIfNeeded();
@@ -433,7 +472,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (host.StashInventory == null || !host.StashInventory.TryAddItem(armorDefinition, 1, out int addedQuantity) || addedQuantity <= 0)
+        if (host.StashInventory == null || !host.StashInventory.TryAddItemInstance(ItemInstance.Create(armorInstance)))
         {
             host.SetFeedback("Warehouse has no space for that armor.");
             return;
@@ -460,7 +499,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (host.RaidBackpackInventory == null || !host.RaidBackpackInventory.TryAddItem(armorDefinition, 1, out int addedQuantity) || addedQuantity <= 0)
+        if (host.RaidBackpackInventory == null || !host.RaidBackpackInventory.TryAddItemInstance(ItemInstance.Create(armorInstance)))
         {
             host.SetFeedback("Raid backpack has no room for that armor.");
             return;
@@ -473,11 +512,12 @@ public sealed class MetaInventoryPresenter
 
     private void StoreAllRaidBackpack()
     {
-        if (host.RaidBackpackInventory == null || host.StashInventory == null || host.RaidBackpackInventory.IsEmpty)
+        if (host.RaidBackpackInventory == null || host.StashInventory == null)
         {
             return;
         }
 
+        bool movedAnything = false;
         for (int index = host.RaidBackpackInventory.Items.Count - 1; index >= 0; index--)
         {
             ItemInstance item = host.RaidBackpackInventory.Items[index];
@@ -486,10 +526,110 @@ public sealed class MetaInventoryPresenter
                 continue;
             }
 
-            host.RaidBackpackInventory.TryTransferItemTo(host.StashInventory, index, item.Quantity, out _);
+            if (item.IsWeapon)
+            {
+                if (!host.RaidBackpackInventory.TryExtractItem(index, 1, out ItemInstance extractedItem) || extractedItem == null)
+                {
+                    continue;
+                }
+
+                WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
+                if (weaponInstance == null)
+                {
+                    host.RaidBackpackInventory.TryAddItemInstance(extractedItem);
+                    continue;
+                }
+
+                host.WeaponLocker.Add(weaponInstance);
+                movedAnything = true;
+                continue;
+            }
+
+            if (host.RaidBackpackInventory.TryTransferItemTo(host.StashInventory, index, item.Quantity, out _))
+            {
+                movedAnything = true;
+            }
         }
 
-        host.SetFeedback("Stored raid backpack items.");
+        if (!movedAnything)
+        {
+            return;
+        }
+
+        host.SetFeedback("Stored raid backpack contents.");
+        host.AutoSaveIfNeeded();
+    }
+
+    private void StoreWeaponItemFromInventory(InventoryContainer source, int itemIndex)
+    {
+        if (source == null || itemIndex < 0 || itemIndex >= source.Items.Count)
+        {
+            return;
+        }
+
+        if (!source.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null)
+        {
+            return;
+        }
+
+        WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
+        if (weaponInstance == null)
+        {
+            source.TryAddItemInstance(extractedItem);
+            return;
+        }
+
+        host.WeaponLocker.Add(weaponInstance);
+        host.SetFeedback($"Stored {weaponInstance.DisplayName}.");
+        host.AutoSaveIfNeeded();
+    }
+
+    private void EquipWeaponFromInventory(InventoryContainer source, int itemIndex, PrototypeMainMenuController.WeaponSlotType slotType)
+    {
+        if (source == null || itemIndex < 0 || itemIndex >= source.Items.Count)
+        {
+            return;
+        }
+
+        if (!source.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null)
+        {
+            return;
+        }
+
+        WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
+        if (weaponInstance == null || weaponInstance.Definition == null)
+        {
+            source.TryAddItemInstance(extractedItem);
+            return;
+        }
+
+        bool expectsMelee = slotType == PrototypeMainMenuController.WeaponSlotType.Melee;
+        if (weaponInstance.Definition.IsMeleeWeapon != expectsMelee)
+        {
+            source.TryAddItemInstance(extractedItem);
+            host.SetFeedback(expectsMelee
+                ? "Only melee weapons can be equipped in the melee slot."
+                : "Melee weapons must be equipped in the melee slot.");
+            return;
+        }
+
+        if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
+        {
+            source.TryAddItemInstance(extractedItem);
+            host.SetFeedback($"Requires level {weaponInstance.Definition.RequiredLevel} to equip {weaponInstance.DisplayName}.");
+            return;
+        }
+
+        WeaponInstance replacedWeapon = GetEquippedWeapon(slotType);
+        if (replacedWeapon != null && !source.TryAddItemInstance(ItemInstance.Create(replacedWeapon)))
+        {
+            source.TryAddItemInstance(extractedItem);
+            host.SetFeedback("Raid backpack has no room for the replaced weapon.");
+            return;
+        }
+
+        SetEquippedWeapon(slotType, weaponInstance);
+        host.SetFeedback($"Equipped {weaponInstance.DisplayName}.");
         host.AutoSaveIfNeeded();
     }
 
@@ -582,6 +722,28 @@ public sealed class MetaInventoryPresenter
         }
     }
 
+    private static string GetInventoryEntryDetail(ItemInstance item)
+    {
+        if (item == null)
+        {
+            return string.Empty;
+        }
+
+        if (item.IsWeapon && item.WeaponDefinition != null)
+        {
+            return item.WeaponDefinition.IsMeleeWeapon
+                ? $"Melee  Weight {item.TotalWeight:0.00}"
+                : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
+        }
+
+        if (item.IsArmor)
+        {
+            return $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
+        }
+
+        return $"Weight {item.TotalWeight:0.00}";
+    }
+
     private void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
@@ -591,7 +753,7 @@ public sealed class MetaInventoryPresenter
         }
 
         ItemInstance item = source.Items[itemIndex];
-        if (item == null || !item.IsDefined() || item.Definition == host.CashDefinition)
+        if (item == null || !item.IsDefined() || item.IsWeapon || item.Definition == null || item.Definition == host.CashDefinition)
         {
             return;
         }
@@ -609,7 +771,7 @@ public sealed class MetaInventoryPresenter
 
         if (!host.TryAddFunds(sellPrice))
         {
-            source.TryAddItem(extractedItem.Definition, extractedItem.Quantity, out _);
+            source.TryAddItemInstance(extractedItem);
             host.SetFeedback("Warehouse has no room for the payment.");
             return;
         }

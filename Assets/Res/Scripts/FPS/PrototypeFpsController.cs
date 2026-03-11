@@ -14,6 +14,7 @@ public class PrototypeFpsController : MonoBehaviour
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
     [SerializeField] private float maxLookAngle = 85f;
+    [SerializeField] private bool showHud = true;
 
     [Header("Combat")]
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
@@ -154,13 +155,14 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (interactionState != null && interactionState.IsUiFocused)
         {
-            movementModule?.HandleUiFocus();
+            movementModule?.TickMovement();
             if (Cursor.lockState != CursorLockMode.None)
             {
                 LockCursor(false);
             }
 
             weaponController?.TickVisuals(Time.deltaTime);
+            medicalController?.TickFeedback(Time.deltaTime);
             return;
         }
 
@@ -241,6 +243,11 @@ public class PrototypeFpsController : MonoBehaviour
         return weaponController != null && weaponController.PickupWouldReplaceEquippedWeapon(weaponDefinition);
     }
 
+    public bool PickupWouldStoreInBackpack(PrototypeWeaponDefinition weaponDefinition)
+    {
+        return weaponController != null && weaponController.PickupWouldStoreInBackpack(weaponDefinition);
+    }
+
     public bool TryEquipLootedWeapon(
         PrototypeWeaponDefinition weaponDefinition,
         int startingMagazineAmmo,
@@ -260,6 +267,40 @@ public class PrototypeFpsController : MonoBehaviour
             out droppedWeaponDefinition,
             out droppedMagazineAmmo);
 
+        if (result)
+        {
+            SyncWeaponDefinitionsFromController();
+        }
+
+        return result;
+    }
+
+    public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    {
+        droppedWeapon = null;
+        if (weaponController == null)
+        {
+            return false;
+        }
+
+        bool result = weaponController.TryEquipLootedWeapon(weaponInstance, out droppedWeapon);
+        if (result)
+        {
+            SyncWeaponDefinitionsFromController();
+        }
+
+        return result;
+    }
+
+    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out WeaponInstance droppedWeapon)
+    {
+        droppedWeapon = null;
+        if (weaponController == null)
+        {
+            return false;
+        }
+
+        bool result = weaponController.TryEquipInventoryWeapon(itemInstance, out droppedWeapon);
         if (result)
         {
             SyncWeaponDefinitionsFromController();
@@ -336,6 +377,11 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void OnGUI()
     {
+        if (!showHud)
+        {
+            return;
+        }
+
         EnsureHudStyles();
 
         float centerX = Screen.width * 0.5f;
@@ -354,7 +400,9 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
-        string weaponLine = hudState.Definition.DisplayNameWithLevel;
+        string weaponLine = ItemRarityUtility.FormatRichText(
+            $"{hudState.Definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(hudState.Rarity)}]",
+            hudState.Rarity);
         string stateLine;
         if (hudState.Definition.IsMeleeWeapon)
         {
@@ -496,6 +544,7 @@ public class PrototypeFpsController : MonoBehaviour
             {
                 fontSize = 15,
                 alignment = TextAnchor.UpperLeft,
+                richText = true,
                 normal = { textColor = Color.white }
             };
             hudStyle.padding = new RectOffset(12, 12, 10, 10);

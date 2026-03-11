@@ -3,41 +3,53 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class GroundLootItem : MonoBehaviour, IInteractable
 {
-    [SerializeField] private ItemDefinition itemDefinition;
-    [Min(1)]
-    [SerializeField] private int quantity = 1;
+    [SerializeField] private ItemInstance itemInstance;
     [SerializeField] private string interactionVerb = "Pick Up";
     [SerializeField] private bool destroyWhenCollected = true;
 
-    public ItemDefinition ItemDefinition => itemDefinition;
-    public int Quantity => quantity;
+    public ItemDefinition ItemDefinition => itemInstance != null ? itemInstance.Definition : null;
+    public ItemRarity Rarity => itemInstance != null ? itemInstance.Rarity : ItemRarity.Common;
+    public int Quantity => itemInstance != null ? itemInstance.Quantity : 0;
 
     private void OnValidate()
     {
-        quantity = Mathf.Max(1, quantity);
+        itemInstance?.Sanitize();
         interactionVerb = string.IsNullOrWhiteSpace(interactionVerb) ? "Pick Up" : interactionVerb.Trim();
+        RefreshVisuals();
     }
 
     public void Configure(ItemDefinition definition, int amount, string verb = "Pick Up")
     {
-        itemDefinition = definition;
-        quantity = Mathf.Max(1, amount);
+        Configure(ItemInstance.Create(definition, amount), verb);
+    }
+
+    public void Configure(ItemInstance instance, string verb = "Pick Up")
+    {
+        itemInstance = instance != null ? instance.Clone() : null;
         interactionVerb = string.IsNullOrWhiteSpace(verb) ? "Pick Up" : verb.Trim();
+        RefreshVisuals();
     }
 
     public string GetInteractionLabel(PlayerInteractor interactor)
     {
-        string itemName = itemDefinition != null ? itemDefinition.DisplayNameWithLevel : "Unknown Item";
-        return $"{interactionVerb} {itemName} x{quantity}";
+        string itemName = itemInstance != null ? itemInstance.DisplayName : "Unknown Item";
+        return $"{interactionVerb} {itemName} x{Quantity}";
     }
 
     public bool CanInteract(PlayerInteractor interactor)
     {
-        return interactor != null
-            && interactor.PrimaryInventory != null
-            && itemDefinition != null
-            && quantity > 0
-            && interactor.PrimaryInventory.GetAddableQuantity(itemDefinition, quantity) > 0;
+        if (interactor == null || interactor.PrimaryInventory == null || itemInstance == null || !itemInstance.IsDefined() || Quantity <= 0)
+        {
+            return false;
+        }
+
+        if (itemInstance.HasInstanceState || itemInstance.MaxStackSize <= 1)
+        {
+            return interactor.PrimaryInventory.CanAccept(itemInstance);
+        }
+
+        return itemInstance.Definition != null
+            && interactor.PrimaryInventory.GetAddableQuantity(itemInstance.Definition, Quantity, itemInstance.Rarity) > 0;
     }
 
     public void Interact(PlayerInteractor interactor)
@@ -48,36 +60,66 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         }
 
         InventoryContainer inventory = interactor.PrimaryInventory;
-        if (!inventory.TryAddItem(itemDefinition, quantity, out int addedQuantity) || addedQuantity <= 0)
+        if (itemInstance.HasInstanceState || itemInstance.MaxStackSize <= 1)
+        {
+            if (!inventory.TryAddItemInstance(itemInstance.Clone()))
+            {
+                return;
+            }
+
+            if (destroyWhenCollected)
+            {
+                Destroy(gameObject);
+            }
+
+            return;
+        }
+
+        if (!inventory.TryAddItem(itemInstance.Definition, Quantity, itemInstance.Rarity, out int addedQuantity) || addedQuantity <= 0)
         {
             return;
         }
 
-        quantity = Mathf.Max(0, quantity - addedQuantity);
-        if (quantity <= 0 && destroyWhenCollected)
+        int remainingQuantity = Mathf.Max(0, Quantity - addedQuantity);
+        if (remainingQuantity <= 0)
         {
-            Destroy(gameObject);
+            if (destroyWhenCollected)
+            {
+                Destroy(gameObject);
+            }
+
+            return;
+        }
+
+        itemInstance.SetQuantity(remainingQuantity);
+        if (!destroyWhenCollected)
+        {
+            RefreshVisuals();
         }
     }
 
     public static GroundLootItem SpawnDroppedItem(Transform dropOrigin, ItemDefinition definition, int amount, string verb = "Pick Up")
     {
-        if (dropOrigin == null || definition == null || amount <= 0)
+        return SpawnDroppedItem(dropOrigin, ItemInstance.Create(definition, amount), verb);
+    }
+
+    public static GroundLootItem SpawnDroppedItem(Transform dropOrigin, ItemInstance instance, string verb = "Pick Up")
+    {
+        if (dropOrigin == null || instance == null || !instance.IsDefined() || instance.Quantity <= 0)
         {
             return null;
         }
 
         GameObject pickupObject = CreatePickupObject(
-            $"Dropped_{definition.ItemId}",
+            $"Dropped_{instance.Definition.ItemId}",
             ResolveDropPosition(dropOrigin),
             Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
-            GetDropScale(definition, amount),
-            definition,
-            amount,
+            GetDropScale(instance.Definition, instance.Quantity),
+            instance,
             verb);
 
         Rigidbody body = pickupObject.AddComponent<Rigidbody>();
-        body.mass = Mathf.Clamp(definition.UnitWeight * Mathf.Max(amount, 1), 0.2f, 5f);
+        body.mass = Mathf.Clamp(instance.Definition.UnitWeight * Mathf.Max(instance.Quantity, 1), 0.2f, 5f);
         body.interpolation = RigidbodyInterpolation.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         body.AddForce((dropOrigin.forward.normalized + Vector3.up * 0.25f) * 2.4f, ForceMode.VelocityChange);
@@ -92,18 +134,26 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         string verb = "Pick Up",
         Transform parent = null)
     {
-        if (definition == null || amount <= 0)
+        return SpawnScenePickup(worldPosition, ItemInstance.Create(definition, amount), verb, parent);
+    }
+
+    public static GroundLootItem SpawnScenePickup(
+        Vector3 worldPosition,
+        ItemInstance instance,
+        string verb = "Pick Up",
+        Transform parent = null)
+    {
+        if (instance == null || !instance.IsDefined() || instance.Quantity <= 0)
         {
             return null;
         }
 
         GameObject pickupObject = CreatePickupObject(
-            $"Spawned_{definition.ItemId}",
+            $"Spawned_{instance.Definition.ItemId}",
             worldPosition,
             Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
-            GetDropScale(definition, amount),
-            definition,
-            amount,
+            GetDropScale(instance.Definition, instance.Quantity),
+            instance,
             verb);
 
         if (parent != null)
@@ -144,8 +194,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         Vector3 worldPosition,
         Quaternion worldRotation,
         Vector3 localScale,
-        ItemDefinition definition,
-        int amount,
+        ItemInstance instance,
         string verb)
     {
         GameObject pickupObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -159,11 +208,30 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             renderer.material = new Material(shader);
-            renderer.material.color = new Color(0.91f, 0.79f, 0.29f, 1f);
+            renderer.material.color = ItemRarityUtility.GetDisplayColor(instance.Rarity);
         }
 
         GroundLootItem groundLoot = pickupObject.AddComponent<GroundLootItem>();
-        groundLoot.Configure(definition, amount, verb);
+        groundLoot.Configure(instance, verb);
         return pickupObject;
+    }
+
+    private void RefreshVisuals()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer == null)
+        {
+            return;
+        }
+
+        Material material = renderer.material;
+        if (material == null)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            material = new Material(shader);
+            renderer.material = material;
+        }
+
+        material.color = ItemRarityUtility.GetDisplayColor(Rarity);
     }
 }

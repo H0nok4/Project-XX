@@ -1,9 +1,32 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public class PrototypeMainMenuController : MonoBehaviour
 {
+    [Serializable]
+    private sealed class RaidSceneOption
+    {
+        public string displayName = "Prototype Raid";
+        public string sceneName = "SampleScene";
+        [TextArea(2, 4)] public string description = "Prototype indoor combat zone.";
+
+        public void Sanitize(string fallbackSceneName, int fallbackIndex)
+        {
+            sceneName = string.IsNullOrWhiteSpace(sceneName)
+                ? fallbackSceneName
+                : sceneName.Trim();
+            displayName = string.IsNullOrWhiteSpace(displayName)
+                ? $"Raid {fallbackIndex + 1}"
+                : displayName.Trim();
+            description = string.IsNullOrWhiteSpace(description)
+                ? "Deploy into the selected combat zone."
+                : description.Trim();
+        }
+    }
+
     internal enum MenuPage
     {
         Home = 0,
@@ -33,6 +56,10 @@ public class PrototypeMainMenuController : MonoBehaviour
     [SerializeField] private int specialEquipmentSlots = 4;
     [SerializeField] private float specialEquipmentMaxWeight = 8f;
     [SerializeField] private bool autoSaveOnInventoryChange = true;
+    [SerializeField] private bool uiVisible = true;
+    [SerializeField] private bool allowBaseHubEntryButton = true;
+    [SerializeField] private List<RaidSceneOption> raidSceneOptions = new List<RaidSceneOption>();
+    [SerializeField] private int selectedRaidSceneIndex;
 
     [Header("Scene Dressing")]
     [SerializeField] private Color stashColor = new Color(0.2f, 0.65f, 0.38f, 1f);
@@ -108,6 +135,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal GUIStyle BodyStyle => bodyStyle;
     internal GUIStyle ListStyle => listStyle;
     internal GUIStyle ButtonStyle => buttonStyle;
+    internal bool IsUiVisible => uiVisible;
 
     internal Color StashColor => stashColor;
     internal Color BackpackColor => backpackColor;
@@ -129,17 +157,29 @@ public class PrototypeMainMenuController : MonoBehaviour
         EnsurePresenters();
         ResolveCatalog();
         EnsureContainers();
+        SanitizeRaidSceneOptions();
         LoadProfileIntoContainers();
-        EnsureMenuCursorState();
+        if (uiVisible)
+        {
+            EnsureMenuCursorState();
+        }
     }
 
     private void OnEnable()
     {
-        EnsureMenuCursorState();
+        if (uiVisible)
+        {
+            EnsureMenuCursorState();
+        }
     }
 
     private void Update()
     {
+        if (!uiVisible)
+        {
+            return;
+        }
+
         if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
         {
             EnsureMenuCursorState();
@@ -148,7 +188,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     private void OnApplicationFocus(bool hasFocus)
     {
-        if (hasFocus)
+        if (hasFocus && uiVisible)
         {
             EnsureMenuCursorState();
         }
@@ -175,10 +215,16 @@ public class PrototypeMainMenuController : MonoBehaviour
         specialEquipmentSlots = Mathf.Max(1, specialEquipmentSlots);
         specialEquipmentMaxWeight = Mathf.Max(0f, specialEquipmentMaxWeight);
         ResolveCatalog();
+        SanitizeRaidSceneOptions();
     }
 
     private void OnGUI()
     {
+        if (!uiVisible)
+        {
+            return;
+        }
+
         EnsurePresenters();
         MetaMenuStyleUtility.EnsureStyles(ref titleStyle, ref sectionStyle, ref bodyStyle, ref listStyle, ref buttonStyle);
         shellPresenter.DrawBackground();
@@ -309,7 +355,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal void StartRaid()
     {
         SaveProfileFromContainers();
-        MetaEntryRouter.EnterRaid(raidSceneName);
+        MetaEntryRouter.EnterRaid(GetSelectedRaidSceneName());
     }
 
     internal void EnterBaseHub()
@@ -320,7 +366,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal bool ShouldShowBaseHubEntry()
     {
-        return MetaEntryRouter.IsDebugEntryEnabled;
+        return allowBaseHubEntryButton && MetaEntryRouter.IsDebugEntryEnabled;
     }
 
     private InventoryContainer EnsureContainer(InventoryContainer existing, string objectName, string label, int slots, float maxWeight)
@@ -395,7 +441,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal int GetInventoryStackCount(InventoryContainer inventory)
     {
-        return inventory != null ? inventory.Items.Count : 0;
+        return inventory != null ? inventory.OccupiedSlots : 0;
     }
 
     private void ResolveCatalog()
@@ -451,6 +497,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         profile.specialEquipmentItemInstances = PrototypeProfileService.CaptureInventoryInstances(specialEquipmentInventory);
         profile.equippedArmorInstances = PrototypeProfileService.CaptureArmorInstances(equippedArmor);
         profile.stashWeaponInstances = PrototypeProfileService.CaptureWeaponInstances(weaponLocker);
+        profile.raidBackpackWeaponInstances.Clear();
         profile.equippedPrimaryWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(equippedPrimaryWeapon);
         profile.equippedSecondaryWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(equippedSecondaryWeapon);
         profile.equippedMeleeWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(equippedMeleeWeapon);
@@ -483,10 +530,115 @@ public class PrototypeMainMenuController : MonoBehaviour
         feedbackUntilTime = Time.time + 2.6f;
     }
 
+    internal void ShowPage(MenuPage page)
+    {
+        currentPage = page;
+        uiVisible = true;
+        EnsureMenuCursorState();
+    }
+
+    internal void HideUi()
+    {
+        uiVisible = false;
+    }
+
+    internal int GetRaidSceneOptionCount()
+    {
+        SanitizeRaidSceneOptions();
+        return raidSceneOptions.Count;
+    }
+
+    internal int GetSelectedRaidSceneIndex()
+    {
+        SanitizeRaidSceneOptions();
+        return selectedRaidSceneIndex;
+    }
+
+    internal void SelectRaidScene(int index)
+    {
+        SanitizeRaidSceneOptions();
+        if (raidSceneOptions.Count == 0)
+        {
+            selectedRaidSceneIndex = 0;
+            return;
+        }
+
+        selectedRaidSceneIndex = Mathf.Clamp(index, 0, raidSceneOptions.Count - 1);
+    }
+
+    internal string GetRaidSceneOptionDisplayName(int index)
+    {
+        RaidSceneOption option = GetRaidSceneOption(index);
+        return option != null ? option.displayName : "Unavailable";
+    }
+
+    internal string GetRaidSceneOptionDescription(int index)
+    {
+        RaidSceneOption option = GetRaidSceneOption(index);
+        return option != null ? option.description : "No deployment target is configured.";
+    }
+
+    internal string GetSelectedRaidSceneDisplayName()
+    {
+        return GetRaidSceneOptionDisplayName(GetSelectedRaidSceneIndex());
+    }
+
+    internal string GetSelectedRaidSceneDescription()
+    {
+        return GetRaidSceneOptionDescription(GetSelectedRaidSceneIndex());
+    }
+
     private static void EnsureMenuCursorState()
     {
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    private string GetSelectedRaidSceneName()
+    {
+        RaidSceneOption option = GetRaidSceneOption(GetSelectedRaidSceneIndex());
+        if (option != null && !string.IsNullOrWhiteSpace(option.sceneName))
+        {
+            return option.sceneName;
+        }
+
+        return string.IsNullOrWhiteSpace(raidSceneName) ? "SampleScene" : raidSceneName.Trim();
+    }
+
+    private RaidSceneOption GetRaidSceneOption(int index)
+    {
+        SanitizeRaidSceneOptions();
+        return index >= 0 && index < raidSceneOptions.Count ? raidSceneOptions[index] : null;
+    }
+
+    private void SanitizeRaidSceneOptions()
+    {
+        string fallbackSceneName = string.IsNullOrWhiteSpace(raidSceneName) ? "SampleScene" : raidSceneName.Trim();
+        raidSceneOptions ??= new List<RaidSceneOption>();
+
+        for (int index = raidSceneOptions.Count - 1; index >= 0; index--)
+        {
+            RaidSceneOption option = raidSceneOptions[index];
+            if (option == null)
+            {
+                raidSceneOptions.RemoveAt(index);
+                continue;
+            }
+
+            option.Sanitize(fallbackSceneName, index);
+        }
+
+        if (raidSceneOptions.Count == 0)
+        {
+            raidSceneOptions.Add(new RaidSceneOption
+            {
+                displayName = "Prototype Raid",
+                sceneName = fallbackSceneName,
+                description = "Prototype indoor combat zone."
+            });
+        }
+
+        selectedRaidSceneIndex = Mathf.Clamp(selectedRaidSceneIndex, 0, raidSceneOptions.Count - 1);
     }
 
 }

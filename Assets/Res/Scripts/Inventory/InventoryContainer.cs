@@ -15,6 +15,7 @@ public class InventoryContainer : MonoBehaviour
     public int MaxSlots => Mathf.Max(1, maxSlots);
     public float MaxWeight => Mathf.Max(0f, maxWeight);
     public IReadOnlyList<ItemInstance> Items => items;
+    public int OccupiedSlots => items != null ? items.Count : 0;
     public bool IsEmpty => items == null || items.Count == 0;
 
     public float CurrentWeight
@@ -34,7 +35,7 @@ public class InventoryContainer : MonoBehaviour
         }
     }
 
-    public bool HasFreeSlot => items.Count < MaxSlots;
+    public bool HasFreeSlot => OccupiedSlots < MaxSlots;
 
     private void Awake()
     {
@@ -58,15 +59,25 @@ public class InventoryContainer : MonoBehaviour
 
     public bool CanAccept(ItemDefinition definition, int quantity = 1)
     {
+        return CanAccept(definition, quantity, ItemRarity.Common);
+    }
+
+    public bool CanAccept(ItemDefinition definition, int quantity, ItemRarity rarity)
+    {
         if (definition == null || quantity <= 0)
         {
             return false;
         }
 
-        return GetAddableQuantity(definition, quantity) >= quantity;
+        return GetAddableQuantity(definition, quantity, rarity) >= quantity;
     }
 
     public int GetAddableQuantity(ItemDefinition definition, int requestedQuantity)
+    {
+        return GetAddableQuantity(definition, requestedQuantity, ItemRarity.Common);
+    }
+
+    public int GetAddableQuantity(ItemDefinition definition, int requestedQuantity, ItemRarity rarity)
     {
         if (definition == null || requestedQuantity <= 0)
         {
@@ -75,7 +86,7 @@ public class InventoryContainer : MonoBehaviour
 
         int remainingQuantity = requestedQuantity;
         float projectedWeight = CurrentWeight;
-        int projectedSlotCount = items.Count;
+        int projectedSlotCount = OccupiedSlots;
 
         foreach (ItemInstance item in items)
         {
@@ -84,7 +95,7 @@ public class InventoryContainer : MonoBehaviour
                 break;
             }
 
-            if (item == null || !item.CanStackWith(definition))
+            if (item == null || !item.CanStackWith(definition, rarity))
             {
                 continue;
             }
@@ -115,6 +126,11 @@ public class InventoryContainer : MonoBehaviour
 
     public bool TryAddItem(ItemDefinition definition, int quantity, out int addedQuantity)
     {
+        return TryAddItem(definition, quantity, ItemRarity.Common, out addedQuantity);
+    }
+
+    public bool TryAddItem(ItemDefinition definition, int quantity, ItemRarity rarity, out int addedQuantity)
+    {
         addedQuantity = 0;
         if (definition == null || quantity <= 0)
         {
@@ -132,7 +148,7 @@ public class InventoryContainer : MonoBehaviour
                 break;
             }
 
-            if (item == null || !item.CanStackWith(definition))
+            if (item == null || !item.CanStackWith(definition, rarity))
             {
                 continue;
             }
@@ -157,7 +173,7 @@ public class InventoryContainer : MonoBehaviour
                 break;
             }
 
-            items.Add(ItemInstance.Create(definition, weightLimitedStackSize));
+            items.Add(ItemInstance.Create(definition, weightLimitedStackSize, null, rarity));
             addedQuantity += weightLimitedStackSize;
             remainingQuantity -= weightLimitedStackSize;
         }
@@ -173,7 +189,35 @@ public class InventoryContainer : MonoBehaviour
         }
 
         SanitizeItems();
-        if (items.Count >= MaxSlots)
+        instance.Sanitize();
+        if (!CanAccept(instance))
+        {
+            return false;
+        }
+
+        if (instance.MaxStackSize > 1)
+        {
+            foreach (ItemInstance existing in items)
+            {
+                if (existing == null || !existing.CanStackWith(instance))
+                {
+                    continue;
+                }
+
+                int acceptedAmount = existing.AddQuantity(instance.Quantity);
+                if (acceptedAmount >= instance.Quantity)
+                {
+                    return true;
+                }
+
+                if (acceptedAmount > 0)
+                {
+                    instance.SetQuantity(instance.Quantity - acceptedAmount);
+                }
+            }
+        }
+
+        if (OccupiedSlots >= MaxSlots)
         {
             return false;
         }
@@ -183,9 +227,39 @@ public class InventoryContainer : MonoBehaviour
             return false;
         }
 
-        instance.Sanitize();
         items.Add(instance);
         return true;
+    }
+
+    public bool CanAccept(ItemInstance instance)
+    {
+        return GetAddableQuantity(instance) >= (instance != null ? instance.Quantity : 0);
+    }
+
+    public int GetAddableQuantity(ItemInstance instance)
+    {
+        if (instance == null || !instance.IsDefined() || instance.Quantity <= 0)
+        {
+            return 0;
+        }
+
+        instance.Sanitize();
+        if (instance.Definition != null && instance.MaxStackSize > 1 && !instance.HasInstanceState)
+        {
+            return GetAddableQuantity(instance.Definition, instance.Quantity, instance.Rarity);
+        }
+
+        if (OccupiedSlots >= MaxSlots)
+        {
+            return 0;
+        }
+
+        if (MaxWeight > 0f && CurrentWeight + instance.TotalWeight > MaxWeight + 0.0001f)
+        {
+            return 0;
+        }
+
+        return instance.Quantity;
     }
 
     public bool TryRemoveItem(ItemDefinition definition, int quantity, out int removedQuantity)
@@ -248,13 +322,13 @@ public class InventoryContainer : MonoBehaviour
             }
         }
 
-        int transferableQuantity = destination.GetAddableQuantity(sourceItem.Definition, desiredQuantity);
+        int transferableQuantity = destination.GetAddableQuantity(sourceItem.Definition, desiredQuantity, sourceItem.Rarity);
         if (transferableQuantity <= 0)
         {
             return false;
         }
 
-        if (!destination.TryAddItem(sourceItem.Definition, transferableQuantity, out movedQuantity) || movedQuantity <= 0)
+        if (!destination.TryAddItem(sourceItem.Definition, transferableQuantity, sourceItem.Rarity, out movedQuantity) || movedQuantity <= 0)
         {
             return false;
         }
@@ -291,13 +365,21 @@ public class InventoryContainer : MonoBehaviour
         }
 
         int extractQuantity = Mathf.Clamp(requestedQuantity, 1, sourceItem.Quantity);
+        if (extractQuantity >= sourceItem.Quantity)
+        {
+            extractedItem = sourceItem;
+            items.RemoveAt(itemIndex);
+            SanitizeItems();
+            return true;
+        }
+
         int removedQuantity = sourceItem.RemoveQuantity(extractQuantity);
         if (removedQuantity <= 0)
         {
             return false;
         }
 
-        extractedItem = ItemInstance.Create(sourceItem.Definition, removedQuantity);
+        extractedItem = sourceItem.CloneWithQuantity(removedQuantity);
 
         if (sourceItem.Quantity <= 0)
         {

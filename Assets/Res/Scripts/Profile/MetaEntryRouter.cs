@@ -47,6 +47,7 @@ public static class MetaEntryRouter
     public static void EnterBaseHub()
     {
         EnsureSession();
+        session.baseHubArrivalMode = BaseHubArrivalMode.Default;
         LoadMetaTarget(MetaEntryTarget.BaseScene, ResolveMainMenuSceneName());
     }
 
@@ -61,6 +62,22 @@ public static class MetaEntryRouter
         EnsureSession();
         string fallback = ResolveFallbackSceneName(fallbackSceneName);
         LoadMetaTarget(session.returnFromRaidTarget, fallback);
+    }
+
+    public static void RecordRaidReturnArrival(RaidGameMode.RaidState raidState)
+    {
+        EnsureSession();
+        session.baseHubArrivalMode = raidState == RaidGameMode.RaidState.Extracted
+            ? BaseHubArrivalMode.Departure
+            : BaseHubArrivalMode.Respawn;
+    }
+
+    public static BaseHubArrivalMode ConsumeBaseHubArrivalMode()
+    {
+        EnsureSession();
+        BaseHubArrivalMode arrivalMode = session.baseHubArrivalMode;
+        session.baseHubArrivalMode = BaseHubArrivalMode.Default;
+        return arrivalMode;
     }
 
     private static void EnsureSession()

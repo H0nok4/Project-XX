@@ -66,8 +66,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
             Vector3 spawnPosition = ResolveSpawnPosition(index);
             GroundLootItem pickup = GroundLootItem.SpawnScenePickup(
                 spawnPosition,
-                roll.Definition,
-                roll.Quantity,
+                ItemInstance.Create(roll.Definition, roll.Quantity, null, roll.Rarity),
                 pickupVerb,
                 pickupParent);
 

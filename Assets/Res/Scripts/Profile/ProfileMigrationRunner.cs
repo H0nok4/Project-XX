@@ -148,6 +148,7 @@ public static class ProfileMigrationRunner
             || rawJson.Contains("\"equippedPrimaryWeaponId\"")
             || rawJson.Contains("\"stashItemInstances\"")
             || rawJson.Contains("\"stashWeaponInstances\"")
+            || rawJson.Contains("\"raidBackpackWeaponInstances\"")
             || rawJson.Contains("\"equippedPrimaryWeaponInstance\"")
             || rawJson.Contains("\"equippedArmorInstances\"");
     }

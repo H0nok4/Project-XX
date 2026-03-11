@@ -100,7 +100,7 @@ public class LootContainer : MonoBehaviour, IInteractable
             LootTableDefinition.LootRoll roll = rolls[index];
             if (roll.Definition != null && roll.Quantity > 0)
             {
-                inventory.TryAddItem(roll.Definition, roll.Quantity, out _);
+                inventory.TryAddItem(roll.Definition, roll.Quantity, roll.Rarity, out _);
             }
         }
 
