@@ -116,16 +116,24 @@ public class PrototypeUnitVitals : MonoBehaviour
     public class ArmorState
     {
         public ArmorDefinition definition;
+        public string instanceId = string.Empty;
         public string displayName = string.Empty;
         [Min(1f)] public float maxDurability = 1f;
         [Min(0f)] public float currentDurability = 1f;
 
-        public void ApplyDefinition(ArmorDefinition armorDefinition, float preservedDurability)
+        public void ApplyDefinition(ArmorDefinition armorDefinition, float preservedDurability, string desiredInstanceId = null)
         {
             definition = armorDefinition;
             displayName = armorDefinition != null ? armorDefinition.DisplayName : string.Empty;
             maxDurability = armorDefinition != null ? armorDefinition.MaxDurability : 1f;
             currentDurability = Mathf.Clamp(preservedDurability, 0f, maxDurability);
+
+            if (!string.IsNullOrWhiteSpace(desiredInstanceId))
+            {
+                instanceId = desiredInstanceId.Trim();
+            }
+
+            EnsureInstanceId();
         }
 
         public void Sanitize()
@@ -133,6 +141,15 @@ public class PrototypeUnitVitals : MonoBehaviour
             displayName = string.IsNullOrWhiteSpace(displayName) && definition != null ? definition.DisplayName : displayName;
             maxDurability = definition != null ? definition.MaxDurability : Mathf.Max(1f, maxDurability);
             currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);
+            EnsureInstanceId();
+        }
+
+        private void EnsureInstanceId()
+        {
+            if (string.IsNullOrWhiteSpace(instanceId))
+            {
+                instanceId = Guid.NewGuid().ToString("N");
+            }
         }
 
         public bool CoversPart(string partId)
@@ -464,6 +481,31 @@ public class PrototypeUnitVitals : MonoBehaviour
     {
         armorLoadout = CopyArmorLoadoutDefinitions(armorDefinitions);
         SyncArmorLoadout(armorLoadout, true);
+    }
+
+    public void SetArmorInstances(System.Collections.Generic.IEnumerable<ArmorInstance> armorInstances)
+    {
+        armorLoadout = new System.Collections.Generic.List<ArmorDefinition>();
+        equippedArmor = new System.Collections.Generic.List<ArmorState>();
+
+        if (armorInstances != null)
+        {
+            foreach (ArmorInstance armorInstance in armorInstances)
+            {
+                if (armorInstance == null || armorInstance.Definition == null)
+                {
+                    continue;
+                }
+
+                armorLoadout.Add(armorInstance.Definition);
+                var armorState = new ArmorState();
+                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId);
+                equippedArmor.Add(armorState);
+            }
+        }
+
+        SanitizeArmorLoadout();
+        SanitizeArmor();
     }
 
     public bool TryConsumeStamina(float amount)
@@ -1445,7 +1487,7 @@ public class PrototypeUnitVitals : MonoBehaviour
                 0f),
             CreateFallbackPart(
                 FallbackTorsoPartId,
-                "躯干",
+                "躯体",
                 155f,
                 1.05f,
                 true,

@@ -1,0 +1,1146 @@
+using System;
+using UnityEngine;
+
+[DisallowMultipleComponent]
+public class PlayerWeaponController : MonoBehaviour
+{
+    private enum WeaponSlot
+    {
+        Primary = 0,
+        Secondary = 1,
+        Melee = 2
+    }
+
+    private sealed class WeaponRuntime
+    {
+        public WeaponSlot Slot;
+        public PrototypeWeaponDefinition Definition;
+        public int MagazineAmmo;
+        public int FireModeIndex;
+        public int PendingBurstShots;
+        public float NextAttackTime;
+        public float ReloadEndTime;
+        public string InstanceId;
+        public float Durability;
+        public bool IsReloading;
+
+        public bool IsConfigured => Definition != null;
+        public PrototypeWeaponFireMode CurrentFireMode => Definition != null
+            ? Definition.GetFireMode(FireModeIndex)
+            : PrototypeWeaponFireMode.Semi;
+    }
+
+    public readonly struct WeaponHudState
+    {
+        public readonly PrototypeWeaponDefinition Definition;
+        public readonly PrototypeWeaponFireMode FireMode;
+        public readonly int MagazineAmmo;
+        public readonly int ReserveAmmo;
+        public readonly bool IsReloading;
+        public readonly float ReloadEndTime;
+        public readonly float NextAttackTime;
+
+        public WeaponHudState(
+            PrototypeWeaponDefinition definition,
+            PrototypeWeaponFireMode fireMode,
+            int magazineAmmo,
+            int reserveAmmo,
+            bool isReloading,
+            float reloadEndTime,
+            float nextAttackTime)
+        {
+            Definition = definition;
+            FireMode = fireMode;
+            MagazineAmmo = magazineAmmo;
+            ReserveAmmo = reserveAmmo;
+            IsReloading = isReloading;
+            ReloadEndTime = reloadEndTime;
+            NextAttackTime = nextAttackTime;
+        }
+    }
+
+    [Header("Settings")]
+    [SerializeField] private bool useHostSettings = true;
+
+    [Header("References")]
+    [SerializeField] private Camera viewCamera;
+    [SerializeField] private Transform muzzle;
+    [SerializeField] private Transform primaryViewModel;
+    [SerializeField] private Transform secondaryViewModel;
+    [SerializeField] private Transform meleeViewModel;
+
+    [Header("Combat")]
+    [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
+    [SerializeField] private PrototypeWeaponDefinition secondaryWeapon;
+    [SerializeField] private PrototypeWeaponDefinition meleeWeapon;
+    [SerializeField] private float shootDistance = 60f;
+    [SerializeField] private float baseDamage = 42f;
+    [SerializeField] private float shootForce = 18f;
+    [SerializeField] private float meleeImpactForce = 9f;
+    [SerializeField] private float meleeStaminaCost = 22f;
+    [SerializeField] private float impactMarkerLifetime = 0.2f;
+    [SerializeField] private LayerMask shootMask = Physics.DefaultRaycastLayers;
+
+    [Header("AI Awareness")]
+    [SerializeField] private float firearmNoiseRadius = 26f;
+    [SerializeField] private float meleeNoiseRadius = 8f;
+
+    private PrototypeUnitVitals playerVitals;
+    private InventoryContainer inventory;
+    private readonly WeaponRuntime primaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Primary };
+    private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
+    private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
+    private WeaponSlot activeWeaponSlot = WeaponSlot.Primary;
+    private GameObject primaryViewModelInstance;
+    private GameObject secondaryViewModelInstance;
+    private GameObject meleeViewModelInstance;
+    private PrototypeWeaponDefinition primaryViewModelSource;
+    private PrototypeWeaponDefinition secondaryViewModelSource;
+    private PrototypeWeaponDefinition meleeViewModelSource;
+    private float hitMarkerTimer;
+
+    public bool ShowHitMarker => hitMarkerTimer > 0f;
+    public PrototypeWeaponDefinition EquippedPrimaryWeapon => primaryRuntime.Definition;
+    public PrototypeWeaponDefinition EquippedSecondaryWeapon => secondaryRuntime.Definition;
+    public PrototypeWeaponDefinition EquippedMeleeWeapon => meleeRuntime.Definition;
+
+    private void Awake()
+    {
+        ResolveReferences();
+        EnsureCombatSettings();
+        ResolveViewCamera();
+        ResolveMuzzle();
+        ResolveViewModels();
+    }
+
+    private void OnValidate()
+    {
+        EnsureCombatSettings();
+        ResolveViewCamera();
+        ResolveMuzzle();
+        ResolveViewModels();
+    }
+
+    public void SetPlayerDependencies(PrototypeUnitVitals vitals, InventoryContainer inventoryContainer)
+    {
+        playerVitals = vitals;
+        inventory = inventoryContainer;
+    }
+
+    public void ApplyHostSettings(
+        Camera hostCamera,
+        Transform hostMuzzle,
+        Transform hostPrimaryViewModel,
+        Transform hostSecondaryViewModel,
+        Transform hostMeleeViewModel,
+        PrototypeWeaponDefinition hostPrimaryWeapon,
+        PrototypeWeaponDefinition hostSecondaryWeapon,
+        PrototypeWeaponDefinition hostMeleeWeapon,
+        float hostShootDistance,
+        float hostBaseDamage,
+        float hostShootForce,
+        float hostMeleeImpactForce,
+        float hostMeleeStaminaCost,
+        float hostImpactMarkerLifetime,
+        LayerMask hostShootMask,
+        float hostFirearmNoiseRadius,
+        float hostMeleeNoiseRadius)
+    {
+        if (useHostSettings)
+        {
+            viewCamera = hostCamera;
+            muzzle = hostMuzzle;
+            primaryViewModel = hostPrimaryViewModel;
+            secondaryViewModel = hostSecondaryViewModel;
+            meleeViewModel = hostMeleeViewModel;
+            primaryWeapon = hostPrimaryWeapon;
+            secondaryWeapon = hostSecondaryWeapon;
+            meleeWeapon = hostMeleeWeapon;
+            shootDistance = hostShootDistance;
+            baseDamage = hostBaseDamage;
+            shootForce = hostShootForce;
+            meleeImpactForce = hostMeleeImpactForce;
+            meleeStaminaCost = hostMeleeStaminaCost;
+            impactMarkerLifetime = hostImpactMarkerLifetime;
+            shootMask = hostShootMask;
+            firearmNoiseRadius = hostFirearmNoiseRadius;
+            meleeNoiseRadius = hostMeleeNoiseRadius;
+        }
+
+        ResolveViewCamera();
+        ResolveMuzzle();
+        EnsureCombatSettings();
+        ResolveViewModels();
+    }
+
+    public void InitializeRuntime()
+    {
+        ConfigureRuntimeWeapons();
+    }
+
+    public void TickVisuals(float deltaTime)
+    {
+        if (hitMarkerTimer > 0f)
+        {
+            hitMarkerTimer -= deltaTime;
+        }
+    }
+
+    public void ConfigureWeaponLoadout(
+        PrototypeWeaponDefinition primaryDefinition,
+        PrototypeWeaponDefinition secondaryDefinition,
+        PrototypeWeaponDefinition meleeDefinition)
+    {
+        primaryWeapon = primaryDefinition;
+        secondaryWeapon = secondaryDefinition;
+        meleeWeapon = meleeDefinition;
+
+        if (Application.isPlaying)
+        {
+            ConfigureRuntimeWeapons();
+        }
+    }
+
+    public void ConfigureWeaponLoadout(
+        WeaponInstance primaryInstance,
+        WeaponInstance secondaryInstance,
+        WeaponInstance meleeInstance)
+    {
+        primaryWeapon = primaryInstance != null ? primaryInstance.Definition : null;
+        secondaryWeapon = secondaryInstance != null ? secondaryInstance.Definition : null;
+        meleeWeapon = meleeInstance != null ? meleeInstance.Definition : null;
+
+        if (Application.isPlaying)
+        {
+            ConfigureRuntimeWeapons(primaryInstance, secondaryInstance, meleeInstance);
+        }
+    }
+
+    public WeaponInstance GetPrimaryWeaponInstance()
+    {
+        return BuildWeaponInstance(primaryRuntime);
+    }
+
+    public WeaponInstance GetSecondaryWeaponInstance()
+    {
+        return BuildWeaponInstance(secondaryRuntime);
+    }
+
+    public WeaponInstance GetMeleeWeaponInstance()
+    {
+        return BuildWeaponInstance(meleeRuntime);
+    }
+
+    public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
+    {
+        return GetSlotDisplayName(ChoosePickupSlot(weaponDefinition));
+    }
+
+    public bool PickupWouldReplaceEquippedWeapon(PrototypeWeaponDefinition weaponDefinition)
+    {
+        WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponDefinition));
+        return runtime != null && runtime.IsConfigured;
+    }
+
+    public bool TryEquipLootedWeapon(
+        PrototypeWeaponDefinition weaponDefinition,
+        int startingMagazineAmmo,
+        out PrototypeWeaponDefinition droppedWeaponDefinition,
+        out int droppedMagazineAmmo)
+    {
+        droppedWeaponDefinition = null;
+        droppedMagazineAmmo = 0;
+
+        if (weaponDefinition == null)
+        {
+            return false;
+        }
+
+        WeaponSlot slot = ChoosePickupSlot(weaponDefinition);
+        WeaponRuntime runtime = GetWeaponRuntime(slot);
+        if (runtime == null)
+        {
+            return false;
+        }
+
+        droppedWeaponDefinition = runtime.Definition;
+        if (droppedWeaponDefinition != null && !droppedWeaponDefinition.IsMeleeWeapon)
+        {
+            droppedMagazineAmmo = runtime.MagazineAmmo;
+        }
+
+        SetWeaponForSlot(slot, weaponDefinition, startingMagazineAmmo);
+        EquipWeapon(slot);
+        return true;
+    }
+
+    public void HandleWeaponInput(PrototypeFpsInput fpsInput)
+    {
+        if (fpsInput == null)
+        {
+            return;
+        }
+
+        if (fpsInput.EquipPrimaryPressedThisFrame)
+        {
+            EquipWeapon(WeaponSlot.Primary);
+        }
+        else if (fpsInput.EquipSecondaryPressedThisFrame)
+        {
+            EquipWeapon(WeaponSlot.Secondary);
+        }
+        else if (fpsInput.EquipMeleePressedThisFrame)
+        {
+            EquipWeapon(WeaponSlot.Melee);
+        }
+
+        WeaponRuntime activeWeapon = GetActiveWeapon();
+        if (activeWeapon == null || !activeWeapon.IsConfigured)
+        {
+            return;
+        }
+
+        if (fpsInput.ReloadPressedThisFrame)
+        {
+            TryStartReload(activeWeapon);
+        }
+
+        if (fpsInput.ToggleFireModePressedThisFrame)
+        {
+            CycleFireMode(activeWeapon);
+        }
+    }
+
+    public void HandleCombat(PrototypeFpsInput fpsInput)
+    {
+        if (fpsInput == null || viewCamera == null)
+        {
+            return;
+        }
+
+        WeaponRuntime activeWeapon = GetActiveWeapon();
+        if (activeWeapon == null || !activeWeapon.IsConfigured)
+        {
+            return;
+        }
+
+        UpdateReload(activeWeapon);
+
+        if (activeWeapon.IsReloading)
+        {
+            return;
+        }
+
+        if (activeWeapon.Definition.IsMeleeWeapon)
+        {
+            if (fpsInput.ShootPressedThisFrame && Time.time >= activeWeapon.NextAttackTime)
+            {
+                PerformMeleeAttack(activeWeapon);
+            }
+
+            return;
+        }
+
+        if (activeWeapon.PendingBurstShots > 0)
+        {
+            ProcessBurst(activeWeapon);
+            return;
+        }
+
+        switch (activeWeapon.CurrentFireMode)
+        {
+            case PrototypeWeaponFireMode.Auto:
+                if (fpsInput.ShootHeld)
+                {
+                    FireFirearmRound(activeWeapon);
+                }
+                break;
+
+            case PrototypeWeaponFireMode.Burst:
+                if (fpsInput.ShootPressedThisFrame && Time.time >= activeWeapon.NextAttackTime)
+                {
+                    activeWeapon.PendingBurstShots = activeWeapon.Definition.BurstCount;
+                    ProcessBurst(activeWeapon);
+                }
+                break;
+
+            default:
+                if (fpsInput.ShootPressedThisFrame)
+                {
+                    FireFirearmRound(activeWeapon);
+                }
+                break;
+        }
+    }
+
+    public bool TryGetHudState(out WeaponHudState state)
+    {
+        WeaponRuntime activeWeapon = GetActiveWeapon();
+        if (activeWeapon == null || !activeWeapon.IsConfigured)
+        {
+            state = default;
+            return false;
+        }
+
+        state = new WeaponHudState(
+            activeWeapon.Definition,
+            activeWeapon.CurrentFireMode,
+            activeWeapon.MagazineAmmo,
+            GetReserveAmmoCount(activeWeapon),
+            activeWeapon.IsReloading,
+            activeWeapon.ReloadEndTime,
+            activeWeapon.NextAttackTime);
+        return true;
+    }
+
+    public void RefreshWeaponViewModels()
+    {
+        EnsureWeaponViewModel(primaryRuntime, primaryViewModel, ref primaryViewModelInstance, ref primaryViewModelSource);
+        EnsureWeaponViewModel(secondaryRuntime, secondaryViewModel, ref secondaryViewModelInstance, ref secondaryViewModelSource);
+        EnsureWeaponViewModel(meleeRuntime, meleeViewModel, ref meleeViewModelInstance, ref meleeViewModelSource);
+
+        if (primaryViewModel != null)
+        {
+            primaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Primary);
+        }
+
+        if (secondaryViewModel != null)
+        {
+            secondaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Secondary);
+        }
+
+        if (meleeViewModel != null)
+        {
+            meleeViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Melee);
+        }
+    }    private void ProcessBurst(WeaponRuntime runtime)
+    {
+        while (runtime.PendingBurstShots > 0 && Time.time >= runtime.NextAttackTime)
+        {
+            if (!FireFirearmRound(runtime))
+            {
+                runtime.PendingBurstShots = 0;
+                return;
+            }
+
+            runtime.PendingBurstShots--;
+        }
+    }
+
+    private bool FireFirearmRound(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsConfigured || runtime.Definition.IsMeleeWeapon)
+        {
+            return false;
+        }
+
+        if (runtime.IsReloading || Time.time < runtime.NextAttackTime)
+        {
+            return false;
+        }
+
+        if (runtime.MagazineAmmo <= 0)
+        {
+            runtime.PendingBurstShots = 0;
+            return false;
+        }
+
+        runtime.MagazineAmmo--;
+        runtime.NextAttackTime = Time.time + runtime.Definition.SecondsPerShot;
+        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
+
+        AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
+        float shotDamage = ammo != null ? ammo.DirectDamage : baseDamage;
+        float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
+        float shotRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
+        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle);
+        PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
+
+        if (TryGetCombatHit(viewCamera.transform.position, direction, shotRange, out RaycastHit hit))
+        {
+            ResolveCombatHit(hit, damageInfo, shotForce);
+        }
+
+        return true;
+    }
+
+    private void PerformMeleeAttack(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsConfigured || !runtime.Definition.IsMeleeWeapon)
+        {
+            return;
+        }
+
+        EnsureDependencies();
+
+        if (playerVitals != null && meleeStaminaCost > 0f && (!playerVitals.CanStartStaminaAction(meleeStaminaCost) || !playerVitals.TryConsumeStamina(meleeStaminaCost)))
+        {
+            return;
+        }
+
+        runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown;
+        float meleeRadius = Mathf.Max(meleeNoiseRadius, runtime.Definition.MeleeRange * 3.8f);
+        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, meleeRadius);
+
+        if (TryGetMeleeHit(runtime.Definition.MeleeRange, runtime.Definition.MeleeRadius, out RaycastHit hit))
+        {
+            ResolveCombatHit(hit, BuildMeleeDamageInfo(runtime.Definition), meleeImpactForce);
+        }
+    }
+
+    private bool TryGetCombatHit(Vector3 origin, Vector3 direction, float distance, out RaycastHit hit)
+    {
+        RaycastHit[] hits = Physics.RaycastAll(origin, direction, distance, shootMask, QueryTriggerInteraction.Collide);
+        return TrySelectCombatHit(hits, out hit);
+    }
+
+    private bool TryGetMeleeHit(float range, float radius, out RaycastHit hit)
+    {
+        Vector3 origin = viewCamera.transform.position;
+        Vector3 direction = viewCamera.transform.forward;
+        RaycastHit[] hits = Physics.SphereCastAll(origin, radius, direction, range, shootMask, QueryTriggerInteraction.Collide);
+        return TrySelectCombatHit(hits, out hit);
+    }
+
+    private bool TrySelectCombatHit(RaycastHit[] hits, out RaycastHit hit)
+    {
+        if (hits == null || hits.Length == 0)
+        {
+            hit = default;
+            return false;
+        }
+
+        Array.Sort(hits, CompareHitDistance);
+
+        foreach (RaycastHit candidate in hits)
+        {
+            if (candidate.collider == null)
+            {
+                continue;
+            }
+
+            if (candidate.collider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            PrototypeUnitHitbox unitHitbox = candidate.collider.GetComponent<PrototypeUnitHitbox>();
+            if (unitHitbox == null)
+            {
+                unitHitbox = candidate.collider.GetComponentInParent<PrototypeUnitHitbox>();
+            }
+
+            if (candidate.collider.isTrigger && unitHitbox == null)
+            {
+                continue;
+            }
+
+            hit = candidate;
+            return true;
+        }
+
+        hit = default;
+        return false;
+    }
+
+    private PrototypeUnitVitals.DamageInfo BuildFirearmDamageInfo(WeaponRuntime runtime, float defaultDamage, AmmoDefinition ammo)
+    {
+        return new PrototypeUnitVitals.DamageInfo
+        {
+            damage = Mathf.Max(1f, defaultDamage),
+            penetrationPower = ammo != null ? ammo.PenetrationPower : runtime.Definition.PenetrationPower,
+            armorDamage = ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, defaultDamage * 0.5f),
+            lightBleedChance = ammo != null ? ammo.LightBleedChance : runtime.Definition.LightBleedChance,
+            heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : runtime.Definition.HeavyBleedChance,
+            fractureChance = ammo != null ? ammo.FractureChance : runtime.Definition.FractureChance,
+            bypassArmor = false,
+            canApplyAfflictions = true,
+            sourceUnit = playerVitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
+        };
+    }
+
+    private PrototypeUnitVitals.DamageInfo BuildMeleeDamageInfo(PrototypeWeaponDefinition weaponDefinition)
+    {
+        return new PrototypeUnitVitals.DamageInfo
+        {
+            damage = weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage,
+            penetrationPower = weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f,
+            armorDamage = weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.28f) : 6f,
+            lightBleedChance = weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.4f,
+            heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.1f,
+            fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.12f,
+            bypassArmor = false,
+            canApplyAfflictions = true,
+            sourceUnit = playerVitals,
+            sourceDisplayName = gameObject.name,
+            sourceEffectDisplayName = string.Empty
+        };
+    }
+
+    private void ResolveCombatHit(RaycastHit hit, PrototypeUnitVitals.DamageInfo damageInfo, float force)
+    {
+        hitMarkerTimer = 0.08f;
+
+        PrototypeUnitHitbox unitHitbox = hit.collider.GetComponent<PrototypeUnitHitbox>();
+        if (unitHitbox == null)
+        {
+            unitHitbox = hit.collider.GetComponentInParent<PrototypeUnitHitbox>();
+        }
+
+        bool shouldApplyImpactForce = true;
+        if (unitHitbox != null)
+        {
+            unitHitbox.ApplyDamage(damageInfo);
+            if (unitHitbox.Owner != null)
+            {
+                shouldApplyImpactForce = unitHitbox.Owner.ShouldReceiveImpactForce;
+            }
+        }
+        else
+        {
+            PrototypeBreakable breakable = hit.collider.GetComponent<PrototypeBreakable>();
+            if (breakable == null)
+            {
+                breakable = hit.collider.GetComponentInParent<PrototypeBreakable>();
+            }
+
+            if (breakable != null)
+            {
+                breakable.ApplyDamage(damageInfo, hit.point, viewCamera.transform.forward, force);
+                shouldApplyImpactForce = false;
+            }
+        }
+
+        if (shouldApplyImpactForce && hit.rigidbody != null && force > 0f)
+        {
+            hit.rigidbody.AddForce(viewCamera.transform.forward * force, ForceMode.Impulse);
+        }
+
+        SpawnImpactMarker(hit);
+    }
+
+    private void TryStartReload(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsConfigured || runtime.Definition.IsMeleeWeapon)
+        {
+            return;
+        }
+
+        if (runtime.IsReloading || runtime.MagazineAmmo >= runtime.Definition.MagazineSize)
+        {
+            return;
+        }
+
+        AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
+        EnsureDependencies();
+        if (inventory == null || ammo == null || inventory.CountItem(ammo) <= 0)
+        {
+            return;
+        }
+
+        runtime.IsReloading = true;
+        runtime.ReloadEndTime = Time.time + runtime.Definition.ReloadDuration;
+        runtime.PendingBurstShots = 0;
+    }
+
+    private void UpdateReload(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsReloading)
+        {
+            return;
+        }
+
+        if (Time.time < runtime.ReloadEndTime)
+        {
+            return;
+        }
+
+        runtime.IsReloading = false;
+
+        EnsureDependencies();
+        if (inventory == null || runtime.Definition == null || runtime.Definition.AmmoDefinition == null)
+        {
+            return;
+        }
+
+        int roundsNeeded = runtime.Definition.MagazineSize - runtime.MagazineAmmo;
+        if (roundsNeeded <= 0)
+        {
+            return;
+        }
+
+        if (inventory.TryRemoveItem(runtime.Definition.AmmoDefinition, roundsNeeded, out int removedQuantity) && removedQuantity > 0)
+        {
+            runtime.MagazineAmmo = Mathf.Clamp(runtime.MagazineAmmo + removedQuantity, 0, runtime.Definition.MagazineSize);
+        }
+    }
+
+    private void CycleFireMode(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsConfigured || runtime.Definition.IsMeleeWeapon)
+        {
+            return;
+        }
+
+        PrototypeWeaponFireMode[] fireModes = runtime.Definition.FireModes;
+        if (fireModes == null || fireModes.Length <= 1)
+        {
+            return;
+        }
+
+        runtime.FireModeIndex = (runtime.FireModeIndex + 1) % fireModes.Length;
+        runtime.PendingBurstShots = 0;
+    }
+
+    private void EquipWeapon(WeaponSlot slot)
+    {
+        WeaponRuntime runtime = GetWeaponRuntime(slot);
+        if (runtime == null || !runtime.IsConfigured || activeWeaponSlot == slot)
+        {
+            return;
+        }
+
+        WeaponRuntime currentWeapon = GetActiveWeapon();
+        if (currentWeapon != null)
+        {
+            currentWeapon.IsReloading = false;
+            currentWeapon.PendingBurstShots = 0;
+        }
+
+        activeWeaponSlot = slot;
+        RefreshWeaponViewModels();
+    }
+
+    private void ConfigureRuntimeWeapons()
+    {
+        ConfigureRuntimeWeapons(null, null, null);
+    }
+
+    private void ConfigureRuntimeWeapons(
+        WeaponInstance primaryInstance,
+        WeaponInstance secondaryInstance,
+        WeaponInstance meleeInstance)
+    {
+        SetupWeaponRuntime(
+            primaryRuntime,
+            primaryWeapon,
+            primaryInstance != null ? primaryInstance.MagazineAmmo : -1,
+            primaryInstance != null ? primaryInstance.InstanceId : null,
+            primaryInstance != null ? primaryInstance.Durability : -1f);
+        SetupWeaponRuntime(
+            secondaryRuntime,
+            secondaryWeapon,
+            secondaryInstance != null ? secondaryInstance.MagazineAmmo : -1,
+            secondaryInstance != null ? secondaryInstance.InstanceId : null,
+            secondaryInstance != null ? secondaryInstance.Durability : -1f);
+        SetupWeaponRuntime(
+            meleeRuntime,
+            meleeWeapon,
+            meleeInstance != null ? meleeInstance.MagazineAmmo : -1,
+            meleeInstance != null ? meleeInstance.InstanceId : null,
+            meleeInstance != null ? meleeInstance.Durability : -1f);
+        SelectInitialWeapon();
+        RefreshWeaponViewModels();
+    }
+
+    private void SetupWeaponRuntime(
+        WeaponRuntime runtime,
+        PrototypeWeaponDefinition definition,
+        int startingMagazineAmmo = -1,
+        string instanceId = null,
+        float durability = -1f)
+    {
+        runtime.Definition = definition;
+        runtime.PendingBurstShots = 0;
+        runtime.IsReloading = false;
+        runtime.NextAttackTime = 0f;
+        runtime.ReloadEndTime = 0f;
+        runtime.FireModeIndex = 0;
+        runtime.MagazineAmmo = definition != null && !definition.IsMeleeWeapon
+            ? Mathf.Clamp(startingMagazineAmmo >= 0 ? startingMagazineAmmo : definition.MagazineSize, 0, definition.MagazineSize)
+            : 0;
+        runtime.InstanceId = string.Empty;
+        runtime.Durability = 0f;
+
+        if (definition == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(instanceId))
+        {
+            runtime.InstanceId = instanceId.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(runtime.InstanceId))
+        {
+            runtime.InstanceId = Guid.NewGuid().ToString("N");
+        }
+
+        runtime.Durability = durability >= 0f ? Mathf.Max(0f, durability) : 1f;
+    }
+
+    private void SelectInitialWeapon()
+    {
+        if (primaryRuntime.IsConfigured)
+        {
+            activeWeaponSlot = WeaponSlot.Primary;
+        }
+        else if (secondaryRuntime.IsConfigured)
+        {
+            activeWeaponSlot = WeaponSlot.Secondary;
+        }
+        else if (meleeRuntime.IsConfigured)
+        {
+            activeWeaponSlot = WeaponSlot.Melee;
+        }
+    }
+
+    private WeaponRuntime GetActiveWeapon()
+    {
+        return GetWeaponRuntime(activeWeaponSlot);
+    }
+
+    private WeaponRuntime GetWeaponRuntime(WeaponSlot slot)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                return primaryRuntime;
+
+            case WeaponSlot.Secondary:
+                return secondaryRuntime;
+
+            default:
+                return meleeRuntime;
+        }
+    }
+
+    private WeaponSlot ChoosePickupSlot(PrototypeWeaponDefinition weaponDefinition)
+    {
+        if (weaponDefinition == null)
+        {
+            return activeWeaponSlot;
+        }
+
+        if (weaponDefinition.IsMeleeWeapon)
+        {
+            return WeaponSlot.Melee;
+        }
+
+        if (!primaryRuntime.IsConfigured)
+        {
+            return WeaponSlot.Primary;
+        }
+
+        if (!secondaryRuntime.IsConfigured)
+        {
+            return WeaponSlot.Secondary;
+        }
+
+        if (activeWeaponSlot == WeaponSlot.Primary || activeWeaponSlot == WeaponSlot.Secondary)
+        {
+            return activeWeaponSlot;
+        }
+
+        return WeaponSlot.Primary;
+    }
+
+    private string GetSlotDisplayName(WeaponSlot slot)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                return "Primary";
+
+            case WeaponSlot.Secondary:
+                return "Secondary";
+
+            default:
+                return "Melee";
+        }
+    }
+
+    private void SetWeaponForSlot(WeaponSlot slot, WeaponInstance instance)
+    {
+        if (instance == null)
+        {
+            SetWeaponForSlot(slot, (PrototypeWeaponDefinition)null);
+            return;
+        }
+
+        SetWeaponForSlot(slot, instance.Definition, instance.MagazineAmmo, instance.InstanceId, instance.Durability);
+    }
+
+    private void SetWeaponForSlot(WeaponSlot slot, PrototypeWeaponDefinition weaponDefinition, int startingMagazineAmmo = -1, string instanceId = null, float durability = -1f)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                primaryWeapon = weaponDefinition;
+                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability);
+                break;
+
+            case WeaponSlot.Secondary:
+                secondaryWeapon = weaponDefinition;
+                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability);
+                break;
+
+            default:
+                meleeWeapon = weaponDefinition;
+                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability);
+                break;
+        }
+
+        if (Application.isPlaying)
+        {
+            RefreshWeaponViewModels();
+        }
+    }
+
+    private WeaponInstance BuildWeaponInstance(WeaponRuntime runtime)
+    {
+        if (runtime == null || runtime.Definition == null)
+        {
+            return null;
+        }
+
+        return WeaponInstance.Create(
+            runtime.Definition,
+            runtime.MagazineAmmo,
+            runtime.Durability,
+            runtime.InstanceId);
+    }
+
+    private int GetReserveAmmoCount(WeaponRuntime runtime)
+    {
+        EnsureDependencies();
+        if (inventory == null || runtime == null || runtime.Definition == null || runtime.Definition.AmmoDefinition == null)
+        {
+            return 0;
+        }
+
+        return inventory.CountItem(runtime.Definition.AmmoDefinition);
+    }
+
+    private void ResolveViewCamera()
+    {
+        if (viewCamera == null)
+        {
+            viewCamera = GetComponentInChildren<Camera>();
+        }
+    }
+
+    private void ResolveMuzzle()
+    {
+        if (muzzle == null && viewCamera != null)
+        {
+            Transform muzzleTransform = viewCamera.transform.Find("Muzzle");
+            if (muzzleTransform != null)
+            {
+                muzzle = muzzleTransform;
+            }
+        }
+    }
+
+    private void ResolveViewModels()
+    {
+        if (viewCamera == null)
+        {
+            return;
+        }
+
+        primaryViewModel = GetOrCreateViewModelAnchor(primaryViewModel, "WeaponView_Primary");
+        secondaryViewModel = GetOrCreateViewModelAnchor(secondaryViewModel, "WeaponView_Secondary");
+        meleeViewModel = GetOrCreateViewModelAnchor(meleeViewModel, "WeaponView_Melee");
+    }
+
+    private Transform GetOrCreateViewModelAnchor(Transform currentAnchor, string anchorName)
+    {
+        if (viewCamera == null)
+        {
+            return currentAnchor;
+        }
+
+        if (currentAnchor != null)
+        {
+            return currentAnchor;
+        }
+
+        Transform found = viewCamera.transform.Find(anchorName);
+        if (found != null)
+        {
+            return found;
+        }
+
+        GameObject anchorObject = new GameObject(anchorName);
+        anchorObject.transform.SetParent(viewCamera.transform, false);
+        return anchorObject.transform;
+    }
+
+    private void EnsureWeaponViewModel(
+        WeaponRuntime runtime,
+        Transform anchor,
+        ref GameObject currentInstance,
+        ref PrototypeWeaponDefinition currentSource)
+    {
+        if (anchor == null)
+        {
+            DestroyViewModelInstance(ref currentInstance);
+            currentSource = null;
+            return;
+        }
+
+        PrototypeWeaponDefinition nextSource = runtime != null && runtime.IsConfigured ? runtime.Definition : null;
+        GameObject nextPrefab = nextSource != null ? nextSource.FirstPersonViewPrefab : null;
+        bool needsRefresh = currentSource != nextSource || currentInstance == null;
+
+        if (!needsRefresh)
+        {
+            return;
+        }
+
+        DestroyViewModelInstance(ref currentInstance);
+        ClearViewModelAnchor(anchor);
+        currentSource = nextSource;
+
+        if (nextPrefab == null)
+        {
+            return;
+        }
+
+        currentInstance = Instantiate(nextPrefab, anchor, false);
+        currentInstance.name = nextPrefab.name;
+    }
+
+    private void ClearViewModelAnchor(Transform anchor)
+    {
+        if (anchor == null)
+        {
+            return;
+        }
+
+        for (int childIndex = anchor.childCount - 1; childIndex >= 0; childIndex--)
+        {
+            DestroyViewModelObject(anchor.GetChild(childIndex).gameObject);
+        }
+    }
+
+    private void DestroyViewModelInstance(ref GameObject instance)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        DestroyViewModelObject(instance);
+        instance = null;
+    }
+
+    private void DestroyViewModelObject(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(target);
+            return;
+        }
+
+        DestroyImmediate(target);
+    }
+
+    private Vector3 GetSpreadDirection(float spreadAngle)
+    {
+        Vector3 direction = viewCamera.transform.forward;
+        if (spreadAngle <= 0.001f)
+        {
+            return direction;
+        }
+
+        Vector2 spread = UnityEngine.Random.insideUnitCircle * spreadAngle;
+        direction = Quaternion.AngleAxis(spread.x, viewCamera.transform.up)
+            * Quaternion.AngleAxis(spread.y, viewCamera.transform.right)
+            * direction;
+        return direction.normalized;
+    }
+
+    private static int CompareHitDistance(RaycastHit left, RaycastHit right)
+    {
+        return left.distance.CompareTo(right.distance);
+    }
+
+    private void SpawnImpactMarker(RaycastHit hit)
+    {
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.name = "ImpactMarker";
+        marker.transform.position = hit.point + hit.normal * 0.03f;
+        marker.transform.localScale = Vector3.one * 0.12f;
+
+        Destroy(marker.GetComponent<Collider>());
+
+        Renderer markerRenderer = marker.GetComponent<Renderer>();
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        markerRenderer.material = new Material(shader);
+        markerRenderer.material.color = new Color(1f, 0.4f, 0.1f, 1f);
+
+        Destroy(marker, impactMarkerLifetime);
+    }
+
+    private void ReportCombatNoise(float radius)
+    {
+        ReportCombatNoise(transform.position + Vector3.up * 0.9f, radius);
+    }
+
+    private void ReportCombatNoise(Vector3 position, float radius)
+    {
+        if (radius <= 0f)
+        {
+            return;
+        }
+
+        PrototypeCombatNoiseSystem.ReportNoise(position, radius, gameObject);
+    }
+
+    private void EnsureCombatSettings()
+    {
+        shootDistance = Mathf.Max(shootDistance, 1f);
+        baseDamage = Mathf.Max(baseDamage, 1f);
+        shootForce = Mathf.Max(shootForce, 0f);
+        meleeImpactForce = Mathf.Max(meleeImpactForce, 0f);
+        meleeStaminaCost = Mathf.Max(0f, meleeStaminaCost);
+        impactMarkerLifetime = Mathf.Max(impactMarkerLifetime, 0.05f);
+        firearmNoiseRadius = Mathf.Max(0f, firearmNoiseRadius);
+        meleeNoiseRadius = Mathf.Max(0f, meleeNoiseRadius);
+        if (shootMask.value == 0 || shootMask.value == ~0)
+        {
+            shootMask = Physics.DefaultRaycastLayers;
+        }
+    }
+
+    private void ResolveReferences()
+    {
+        if (playerVitals == null)
+        {
+            playerVitals = GetComponent<PrototypeUnitVitals>();
+        }
+
+        if (inventory == null)
+        {
+            inventory = GetComponent<InventoryContainer>();
+        }
+    }
+
+    private void EnsureDependencies()
+    {
+        if (playerVitals == null || inventory == null)
+        {
+            ResolveReferences();
+        }
+    }
+}

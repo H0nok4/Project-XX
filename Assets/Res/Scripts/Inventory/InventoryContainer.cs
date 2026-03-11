@@ -165,6 +165,29 @@ public class InventoryContainer : MonoBehaviour
         return addedQuantity > 0;
     }
 
+    public bool TryAddItemInstance(ItemInstance instance)
+    {
+        if (instance == null || !instance.IsDefined() || instance.Quantity <= 0)
+        {
+            return false;
+        }
+
+        SanitizeItems();
+        if (items.Count >= MaxSlots)
+        {
+            return false;
+        }
+
+        if (MaxWeight > 0f && CurrentWeight + instance.TotalWeight > MaxWeight + 0.0001f)
+        {
+            return false;
+        }
+
+        instance.Sanitize();
+        items.Add(instance);
+        return true;
+    }
+
     public bool TryRemoveItem(ItemDefinition definition, int quantity, out int removedQuantity)
     {
         removedQuantity = 0;
@@ -214,6 +237,17 @@ public class InventoryContainer : MonoBehaviour
         }
 
         int desiredQuantity = Mathf.Clamp(requestedQuantity, 1, sourceItem.Quantity);
+        if (desiredQuantity == sourceItem.Quantity)
+        {
+            if (destination.TryAddItemInstance(sourceItem))
+            {
+                items.RemoveAt(itemIndex);
+                movedQuantity = desiredQuantity;
+                SanitizeItems();
+                return true;
+            }
+        }
+
         int transferableQuantity = destination.GetAddableQuantity(sourceItem.Definition, desiredQuantity);
         if (transferableQuantity <= 0)
         {

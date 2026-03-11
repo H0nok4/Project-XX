@@ -16,12 +16,12 @@ public class ItemInstance
     public float TotalWeight => definition != null ? definition.UnitWeight * quantity : 0f;
     public int MaxStackSize => definition != null ? definition.MaxStackSize : 1;
 
-    public static ItemInstance Create(ItemDefinition itemDefinition, int amount)
+    public static ItemInstance Create(ItemDefinition itemDefinition, int amount, string instanceIdOverride = null)
     {
         var instance = new ItemInstance();
         instance.SetDefinition(itemDefinition);
         instance.SetQuantity(amount);
-        instance.EnsureInstanceId();
+        instance.SetInstanceId(instanceIdOverride);
         return instance;
     }
 
@@ -80,6 +80,16 @@ public class ItemInstance
     public void SetQuantity(int amount)
     {
         quantity = Mathf.Clamp(amount, 1, MaxStackSize);
+        EnsureInstanceId();
+    }
+
+    public void SetInstanceId(string newInstanceId)
+    {
+        if (!string.IsNullOrWhiteSpace(newInstanceId))
+        {
+            instanceId = newInstanceId.Trim();
+        }
+
         EnsureInstanceId();
     }
 

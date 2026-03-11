@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public class PrototypeRaidProfileFlow : MonoBehaviour
@@ -10,7 +10,8 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     [SerializeField] private PlayerInteractor playerInteractor;
     [SerializeField] private PrototypeFpsController fpsController;
     [SerializeField] private PrototypeUnitVitals playerVitals;
-    [SerializeField] private string mainMenuSceneName = "MainMenu";
+    [FormerlySerializedAs("mainMenuSceneName")]
+    [SerializeField] private string fallbackMetaSceneName = "MainMenu";
     [SerializeField] private bool showReturnButton = true;
     [SerializeField] private int secureContainerSlots = 4;
     [SerializeField] private float secureContainerMaxWeight = 6f;
@@ -67,7 +68,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         if (GUI.Button(new Rect(Screen.width - 220f, Screen.height - 76f, 180f, 42f), "Return To Menu", buttonStyle))
         {
             PersistRaidOutcomeIfNeeded();
-            SceneManager.LoadScene(mainMenuSceneName);
+            MetaEntryRouter.ReturnFromRaid(fallbackMetaSceneName);
         }
     }
 
@@ -76,7 +77,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         raidGameMode = gameMode;
         playerInteractor = interactor;
         itemCatalog = catalog;
-        mainMenuSceneName = string.IsNullOrWhiteSpace(menuSceneName) ? "MainMenu" : menuSceneName.Trim();
+        fallbackMetaSceneName = string.IsNullOrWhiteSpace(menuSceneName) ? "MainMenu" : menuSceneName.Trim();
         ResolveReferences();
     }
 
@@ -107,27 +108,33 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         }
 
         profile = PrototypeProfileService.LoadProfile(itemCatalog);
-        PrototypeProfileService.PopulateInventory(inventory, profile != null ? profile.raidBackpackItems : null, itemCatalog);
+        PrototypeProfileService.PopulateInventoryInstances(inventory, profile != null ? profile.raidBackpackItemInstances : null, itemCatalog);
         InventoryContainer secureContainer = GetOrCreateAuxInventory("SecureContainer_Runtime", "Secure Container", secureContainerSlots, secureContainerMaxWeight);
         InventoryContainer specialEquipment = GetOrCreateAuxInventory("SpecialEquipment_Runtime", "Special Equipment", specialEquipmentSlots, specialEquipmentMaxWeight);
-        PrototypeProfileService.PopulateInventory(secureContainer, profile != null ? profile.secureContainerItems : null, itemCatalog);
-        PrototypeProfileService.PopulateInventory(specialEquipment, profile != null ? profile.specialEquipmentItems : null, itemCatalog);
+        PrototypeProfileService.PopulateInventoryInstances(secureContainer, profile != null ? profile.secureContainerItemInstances : null, itemCatalog);
+        PrototypeProfileService.PopulateInventoryInstances(specialEquipment, profile != null ? profile.specialEquipmentItemInstances : null, itemCatalog);
         playerInteractor.Configure(playerInteractor.InteractionCamera, inventory, secureContainer, specialEquipment);
 
         if (playerVitals != null)
         {
-            List<ArmorDefinition> equippedArmor = PrototypeProfileService.ResolveArmorDefinitions(
-                profile != null ? profile.equippedArmorItems : null,
+            List<ArmorInstance> equippedArmor = PrototypeProfileService.ResolveArmorInstances(
+                profile != null ? profile.equippedArmorInstances : null,
                 itemCatalog);
-            playerVitals.SetArmorLoadout(equippedArmor.ToArray());
+            playerVitals.SetArmorInstances(equippedArmor);
         }
 
         if (fpsController != null && itemCatalog != null)
         {
             fpsController.ConfigureWeaponLoadout(
-                itemCatalog.FindWeaponById(profile != null ? profile.equippedPrimaryWeaponId : null),
-                itemCatalog.FindWeaponById(profile != null ? profile.equippedSecondaryWeaponId : null),
-                itemCatalog.FindWeaponById(profile != null ? profile.equippedMeleeWeaponId : null));
+                PrototypeProfileService.ResolveWeaponInstance(
+                    profile != null ? profile.equippedPrimaryWeaponInstance : null,
+                    itemCatalog),
+                PrototypeProfileService.ResolveWeaponInstance(
+                    profile != null ? profile.equippedSecondaryWeaponInstance : null,
+                    itemCatalog),
+                PrototypeProfileService.ResolveWeaponInstance(
+                    profile != null ? profile.equippedMeleeWeaponInstance : null,
+                    itemCatalog));
         }
 
         loadoutApplied = true;
@@ -153,23 +160,51 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             ?? PrototypeProfileService.CreateDefaultProfile(itemCatalog);
         InventoryContainer secureContainer = playerInteractor != null ? playerInteractor.SecureInventory : null;
         InventoryContainer specialEquipment = playerInteractor != null ? playerInteractor.SpecialInventory : null;
-        PrototypeWeaponDefinition currentPrimaryWeapon = fpsController != null ? fpsController.EquippedPrimaryWeapon : itemCatalog != null ? itemCatalog.FindWeaponById(latestProfile.equippedPrimaryWeaponId) : null;
-        PrototypeWeaponDefinition currentSecondaryWeapon = fpsController != null ? fpsController.EquippedSecondaryWeapon : itemCatalog != null ? itemCatalog.FindWeaponById(latestProfile.equippedSecondaryWeaponId) : null;
-        PrototypeWeaponDefinition currentMeleeWeapon = fpsController != null ? fpsController.EquippedMeleeWeapon : itemCatalog != null ? itemCatalog.FindWeaponById(latestProfile.equippedMeleeWeaponId) : null;
+        WeaponInstance currentPrimaryWeapon = fpsController != null
+            ? fpsController.GetPrimaryWeaponInstance()
+            : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedPrimaryWeaponInstance, itemCatalog);
+        WeaponInstance currentSecondaryWeapon = fpsController != null
+            ? fpsController.GetSecondaryWeaponInstance()
+            : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedSecondaryWeaponInstance, itemCatalog);
+        WeaponInstance currentMeleeWeapon = fpsController != null
+            ? fpsController.GetMeleeWeaponInstance()
+            : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedMeleeWeaponInstance, itemCatalog);
+
+        latestProfile.secureContainerItemInstances = PrototypeProfileService.CaptureInventoryInstances(secureContainer);
+        latestProfile.specialEquipmentItemInstances = PrototypeProfileService.CaptureInventoryInstances(specialEquipment);
+        latestProfile.equippedMeleeWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(currentMeleeWeapon);
 
         latestProfile.secureContainerItems = PrototypeProfileService.CaptureInventory(secureContainer);
         latestProfile.specialEquipmentItems = PrototypeProfileService.CaptureInventory(specialEquipment);
-        latestProfile.equippedMeleeWeaponId = currentMeleeWeapon != null ? currentMeleeWeapon.WeaponId : string.Empty;
+        latestProfile.equippedMeleeWeaponId = currentMeleeWeapon != null && currentMeleeWeapon.Definition != null
+            ? currentMeleeWeapon.Definition.WeaponId
+            : string.Empty;
 
         if (raidGameMode.CurrentState == RaidGameMode.RaidState.Extracted)
         {
+            latestProfile.raidBackpackItemInstances = PrototypeProfileService.CaptureInventoryInstances(inventory);
+            latestProfile.equippedArmorInstances = PrototypeProfileService.CaptureArmorInstances(
+                playerVitals != null ? playerVitals.EquippedArmor : null);
+            latestProfile.equippedPrimaryWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(currentPrimaryWeapon);
+            latestProfile.equippedSecondaryWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(currentSecondaryWeapon);
+
             latestProfile.raidBackpackItems = PrototypeProfileService.CaptureInventory(inventory);
-            latestProfile.equippedArmorItems = PrototypeProfileService.CaptureDefinitions(GetCurrentArmorDefinitions());
-            latestProfile.equippedPrimaryWeaponId = currentPrimaryWeapon != null ? currentPrimaryWeapon.WeaponId : string.Empty;
-            latestProfile.equippedSecondaryWeaponId = currentSecondaryWeapon != null ? currentSecondaryWeapon.WeaponId : string.Empty;
+            latestProfile.equippedArmorItems = PrototypeProfileService.CaptureArmorDefinitions(
+                playerVitals != null ? playerVitals.EquippedArmor : null);
+            latestProfile.equippedPrimaryWeaponId = currentPrimaryWeapon != null && currentPrimaryWeapon.Definition != null
+                ? currentPrimaryWeapon.Definition.WeaponId
+                : string.Empty;
+            latestProfile.equippedSecondaryWeaponId = currentSecondaryWeapon != null && currentSecondaryWeapon.Definition != null
+                ? currentSecondaryWeapon.Definition.WeaponId
+                : string.Empty;
         }
         else
         {
+            latestProfile.raidBackpackItemInstances.Clear();
+            latestProfile.equippedArmorInstances.Clear();
+            latestProfile.equippedPrimaryWeaponInstance = null;
+            latestProfile.equippedSecondaryWeaponInstance = null;
+
             latestProfile.raidBackpackItems.Clear();
             latestProfile.equippedArmorItems.Clear();
             latestProfile.equippedPrimaryWeaponId = string.Empty;
@@ -187,26 +222,6 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             $"Backpack stacks: {profile.raidBackpackItems.Count}, secure stacks: {profile.secureContainerItems.Count}, " +
             $"special stacks: {profile.specialEquipmentItems.Count}, equipped armor: {profile.equippedArmorItems.Count}, " +
             $"weapons: {profile.equippedPrimaryWeaponId}/{profile.equippedSecondaryWeaponId}/{profile.equippedMeleeWeaponId}");
-    }
-
-    private List<ArmorDefinition> GetCurrentArmorDefinitions()
-    {
-        var armorDefinitions = new List<ArmorDefinition>();
-        if (playerVitals == null || playerVitals.EquippedArmor == null)
-        {
-            return armorDefinitions;
-        }
-
-        for (int index = 0; index < playerVitals.EquippedArmor.Count; index++)
-        {
-            PrototypeUnitVitals.ArmorState armorState = playerVitals.EquippedArmor[index];
-            if (armorState?.definition != null)
-            {
-                armorDefinitions.Add(armorState.definition);
-            }
-        }
-
-        return armorDefinitions;
     }
 
     private InventoryContainer GetOrCreateAuxInventory(string objectName, string label, int slots, float maxWeight)
