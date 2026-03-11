@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c683cc0cce6e0d44a9ad0fa29377c15, type: 3}
+  m_Name: PrototypeMerchantCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::PrototypeMerchantCatalog
+  merchants:
+  - merchantId: weapons_trader
+    displayName: "\u6B66\u5668\u5546\u4EBA"
+    itemOffers:
+    - definition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
+      quantity: 30
+      price: 6
+    - definition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
+      quantity: 24
+      price: 4
+    weaponOffers:
+    - definition: {fileID: 11400000, guid: 8cff610c8544f0144a9aacd336a93d48, type: 2}
+      price: 24
+    - definition: {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
+      price: 16
+    - definition: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+      price: 10
+  - merchantId: medical_vendor
+    displayName: "\u836F\u54C1\u5546\u4EBA"
+    itemOffers:
+    - definition: {fileID: 11400000, guid: 94d329bee42f14c419e7c0230b717bd8, type: 2}
+      quantity: 1
+      price: 10
+    - definition: {fileID: 11400000, guid: 0fd3f97d4047b3a48867a697f9fbdeb8, type: 2}
+      quantity: 1
+      price: 3
+    - definition: {fileID: 11400000, guid: 59c34098752e1f4429e34cca3629ebb6, type: 2}
+      quantity: 1
+      price: 5
+    - definition: {fileID: 11400000, guid: ff89f2d8776d58c4ebc97a9065270773, type: 2}
+      quantity: 1
+      price: 4
+    - definition: {fileID: 11400000, guid: 83dabb884641b8a4d8705aa348ad8f10, type: 2}
+      quantity: 1
+      price: 4
+    weaponOffers: []
+  - merchantId: armor_vendor
+    displayName: "\u62A4\u7532\u5546\u4EBA"
+    itemOffers:
+    - definition: {fileID: 11400000, guid: d9c180fe32b357048b459e5a32cac308, type: 2}
+      quantity: 1
+      price: 14
+    - definition: {fileID: 11400000, guid: bee26fe239399194a9f3aa307ce8cbde, type: 2}
+      quantity: 1
+      price: 20
+    weaponOffers: []
+  itemSellbackMultiplier: 0.55
+  weaponSellbackMultiplier: 0.6

@@ -25,8 +25,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 59c34098752e1f4429e34cca3629ebb6, type: 2}
   weapons:
   - {fileID: 11400000, guid: 8cff610c8544f0144a9aacd336a93d48, type: 2}
-  - {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
   - {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  - {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
   defaultStashItems:
   - definition: {fileID: 11400000, guid: ec5402d2f4ea7f94fa4812e8ba234fd5, type: 2}
     quantity: 8

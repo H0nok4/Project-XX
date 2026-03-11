@@ -43,6 +43,8 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     [SerializeField] private float stopSpeed = 2.2f;
     [Tooltip("空中时对水平速度施加的阻尼，越大越快失去空中余速。")]
     [SerializeField] private float airPlanarDrag = 1.8f;
+    [Tooltip("Scales air drag while carrying sprint jump momentum. Lower values preserve more speed.")]
+    [SerializeField, Range(0.05f, 1f)] private float sprintJumpAirDragMultiplier = 0.35f;
     [Tooltip("冲刺状态下允许保留的横移倍率，用来限制横向飘移。")]
     [SerializeField, Range(0.1f, 1f)] private float sprintStrafeMultiplier = 0.35f;
     [Tooltip("落地后的短暂恢复时间，期间无法立刻满效率移动和冲刺。")]
@@ -108,6 +110,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     private bool crouchToggleRequested;
     private bool isCrouching;
     private bool isSprinting;
+    private bool sprintMomentumCarryActive;
     private bool wasGroundedLastFrame;
     private float nextMovementNoiseTime;
 
@@ -152,6 +155,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         landingRecoveryTimer = 0f;
         sprintSpeedBlend = 0f;
         isSprinting = false;
+        sprintMomentumCarryActive = false;
 
         if (characterController != null)
         {
@@ -198,14 +202,14 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
         bool wasSprinting = isSprinting;
         isSprinting = CanSprint(moveInput, grounded, wasSprinting);
-        if (isSprinting && playerVitals != null && sprintStaminaPerSecond > 0f)
+        if (isSprinting && grounded && playerVitals != null && sprintStaminaPerSecond > 0f)
         {
             float drained = playerVitals.DrainStamina(sprintStaminaPerSecond * deltaTime);
             isSprinting = drained > StaminaEpsilon;
         }
 
         UpdateSprintSpeedBlend(deltaTime);
-        bool jumpedThisFrame = !uiFocused && TryStartJump(grounded);
+        bool jumpedThisFrame = !uiFocused && TryStartJump(grounded, moveInput);
 
         if (grounded && !jumpedThisFrame)
         {
@@ -456,7 +460,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         return Mathf.MoveTowards(current, desired, responseRate * deltaTime);
     }
 
-    private bool TryStartJump(bool grounded)
+    private bool TryStartJump(bool grounded, Vector2 moveInput)
     {
         if (!grounded || fpsInput == null || !fpsInput.JumpPressedThisFrame)
         {
@@ -473,6 +477,16 @@ public class PrototypeFpsMovementModule : MonoBehaviour
             }
         }
 
+        bool shouldCarrySprintMomentum = isSprinting
+            && fpsInput.SprintHeld
+            && moveInput.y >= 0.35f
+            && moveInput.sqrMagnitude > 0.01f;
+        sprintMomentumCarryActive = shouldCarrySprintMomentum;
+        if (shouldCarrySprintMomentum)
+        {
+            PreserveSprintJumpTakeoffSpeed(moveInput);
+        }
+
         verticalVelocity = Mathf.Sqrt(effectiveJumpHeight * -2f * gravity);
         ReportNoise(isCrouching ? jumpNoiseRadius * crouchNoiseMultiplier : jumpNoiseRadius);
         return true;
@@ -485,8 +499,34 @@ public class PrototypeFpsMovementModule : MonoBehaviour
             return;
         }
 
-        float dragFactor = Mathf.Clamp01(airPlanarDrag * deltaTime);
+        float effectiveAirPlanarDrag = airPlanarDrag;
+        if (sprintMomentumCarryActive)
+        {
+            effectiveAirPlanarDrag *= sprintJumpAirDragMultiplier;
+        }
+
+        float dragFactor = Mathf.Clamp01(effectiveAirPlanarDrag * deltaTime);
         planarVelocity *= 1f - dragFactor;
+    }
+
+    private void PreserveSprintJumpTakeoffSpeed(Vector2 moveInput)
+    {
+        Vector3 desiredTakeoffVelocity = GetDesiredGroundPlanarVelocity(moveInput);
+        if (desiredTakeoffVelocity.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        Vector3 desiredDirection = desiredTakeoffVelocity.normalized;
+        float desiredSpeed = desiredTakeoffVelocity.magnitude;
+        float currentSpeedInDesiredDirection = Vector3.Dot(planarVelocity, desiredDirection);
+        if (currentSpeedInDesiredDirection >= desiredSpeed)
+        {
+            return;
+        }
+
+        planarVelocity += desiredDirection * (desiredSpeed - currentSpeedInDesiredDirection);
+        planarVelocity.y = 0f;
     }
 
     private float GetDirectionalSpeedMultiplier(Vector2 moveInput, float allowedSideInput)
@@ -536,6 +576,11 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
     private bool CanSprint(Vector2 moveInput, bool grounded, bool wasSprinting)
     {
+        if (ShouldCarrySprintMomentum(moveInput, grounded))
+        {
+            return true;
+        }
+
         if (!grounded
             || isCrouching
             || fpsInput == null
@@ -558,6 +603,32 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         }
 
         return wasSprinting || playerVitals.CanStartStaminaAction();
+    }
+
+    private bool ShouldCarrySprintMomentum(Vector2 moveInput, bool grounded)
+    {
+        if (!sprintMomentumCarryActive)
+        {
+            return false;
+        }
+
+        if (fpsInput == null
+            || isCrouching
+            || !fpsInput.SprintHeld
+            || moveInput.y < 0.35f
+            || moveInput.sqrMagnitude <= 0.01f)
+        {
+            sprintMomentumCarryActive = false;
+            return false;
+        }
+
+        if (grounded && landingRecoveryTimer <= 0f)
+        {
+            sprintMomentumCarryActive = false;
+            return false;
+        }
+
+        return true;
     }
 
     private void AdjustMovementSpeedRatio(int stepDirection)
@@ -704,6 +775,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         strafeMoveSpeedMultiplier = Mathf.Clamp(strafeMoveSpeedMultiplier, 0.1f, 1f);
         stopSpeed = stopSpeed > 0f ? stopSpeed : 2.2f;
         airPlanarDrag = Mathf.Max(0f, airPlanarDrag);
+        sprintJumpAirDragMultiplier = Mathf.Clamp(sprintJumpAirDragMultiplier, 0.05f, 1f);
         sprintStrafeMultiplier = Mathf.Clamp(sprintStrafeMultiplier, 0.1f, 1f);
         landingRecoveryTime = Mathf.Max(0f, landingRecoveryTime);
         landingRecoveryMoveMultiplier = Mathf.Clamp(landingRecoveryMoveMultiplier, 0.1f, 1f);
