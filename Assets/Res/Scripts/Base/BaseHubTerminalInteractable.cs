@@ -25,8 +25,8 @@ public sealed class BaseHubTerminalInteractable : MonoBehaviour, IInteractable
         }
 
         return interactionKind == BaseHubInteractionKind.Warehouse
-            ? "Open Warehouse"
-            : "Open Deployment Board";
+            ? "打开仓库"
+            : "打开出击终端";
     }
 
     public bool CanInteract(PlayerInteractor interactor)

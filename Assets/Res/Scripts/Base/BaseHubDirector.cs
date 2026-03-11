@@ -9,9 +9,9 @@ public enum BaseHubInteractionKind
 [DisallowMultipleComponent]
 public class BaseHubDirector : MonoBehaviour
 {
-    [SerializeField] private string hubTitle = "Base Hub";
+    [SerializeField] private string hubTitle = "基地";
     [TextArea(2, 4)]
-    [SerializeField] private string hubHint = "Use E on the departure board to deploy, or on the warehouse terminal to manage storage.";
+    [SerializeField] private string hubHint = "靠近出击终端按 E 可打开出击界面，靠近仓库终端按 E 可管理仓库。按 Esc 可以关闭当前界面。";
     [SerializeField] private bool showOverlayHint = true;
 
     [Header("References")]

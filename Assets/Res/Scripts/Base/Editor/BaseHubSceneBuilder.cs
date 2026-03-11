@@ -121,8 +121,8 @@ public static class BaseHubSceneBuilder
         SetSerializedReference(director, "menuController", menuController);
         SetSerializedReference(director, "departureArrivalPoint", departureArrivalPoint);
         SetSerializedReference(director, "respawnArrivalPoint", respawnArrivalPoint);
-        SetSerializedString(director, "hubTitle", "Base Hub");
-        SetSerializedString(director, "hubHint", "Use E on the departure board to deploy, or on the warehouse terminal to manage storage. Press Esc to close the current panel.");
+        SetSerializedString(director, "hubTitle", "基地");
+        SetSerializedString(director, "hubHint", "靠近出击终端按 E 可打开出击界面，靠近仓库终端按 E 可管理仓库。按 Esc 可以关闭当前界面。");
 
         CreateTerminal(
             "DepartureBoard",
@@ -133,7 +133,7 @@ public static class BaseHubSceneBuilder
             deployMaterial,
             director,
             BaseHubInteractionKind.Deploy,
-            "Open Deployment Board");
+            "打开出击终端");
         CreateTerminal(
             "WarehouseTerminal",
             root.transform,
@@ -143,7 +143,7 @@ public static class BaseHubSceneBuilder
             warehouseMaterial,
             director,
             BaseHubInteractionKind.Warehouse,
-            "Open Warehouse");
+            "打开仓库");
 
         CreatePointLight(root.transform, new Vector3(-5.5f, 2.9f, -5.1f), new Color(0.85f, 0.94f, 1f), 4.2f, 12f);
         CreatePointLight(root.transform, new Vector3(0f, 3.1f, 6.4f), new Color(0.58f, 0.84f, 1f), 4.4f, 13f);
@@ -193,7 +193,7 @@ public static class BaseHubSceneBuilder
         SetSerializedBool(fpsController, "showHud", false);
 
         InventoryContainer inventory = player.AddComponent<InventoryContainer>();
-        inventory.Configure("Base Carry", 4, 12f);
+        inventory.Configure("基地随身", 4, 12f);
 
         player.AddComponent<PlayerInteractionState>();
         PlayerInteractor interactor = player.AddComponent<PlayerInteractor>();
@@ -215,9 +215,9 @@ public static class BaseHubSceneBuilder
         SerializedProperty raidSceneOptions = serializedObject.FindProperty("raidSceneOptions");
         raidSceneOptions.arraySize = 1;
         SerializedProperty option = raidSceneOptions.GetArrayElementAtIndex(0);
-        option.FindPropertyRelative("displayName").stringValue = "Prototype Raid";
+        option.FindPropertyRelative("displayName").stringValue = "原型战区";
         option.FindPropertyRelative("sceneName").stringValue = "SampleScene";
-        option.FindPropertyRelative("description").stringValue = "Prototype indoor combat zone.";
+        option.FindPropertyRelative("description").stringValue = "原型室内战斗区域。";
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 

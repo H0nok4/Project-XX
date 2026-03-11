@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public sealed class MetaInventoryPresenter
 {
@@ -32,13 +32,13 @@ public sealed class MetaInventoryPresenter
     private void DrawStashPanel(Rect rect)
     {
         InventoryContainer stashInventory = host.StashInventory;
-        host.BeginPanel(rect, "Warehouse Stash", host.StashColor, stashInventory != null
-            ? $"Stacks {stashInventory.Items.Count}/{stashInventory.MaxSlots}  Weight {stashInventory.CurrentWeight:0.0}/{stashInventory.MaxWeight:0.0}"
-            : "No inventory");
+        host.BeginPanel(rect, "仓库储藏", host.StashColor, stashInventory != null
+            ? $"堆叠 {stashInventory.Items.Count}/{stashInventory.MaxSlots}  重量 {stashInventory.CurrentWeight:0.0}/{stashInventory.MaxWeight:0.0}"
+            : "未配置容器");
 
         if (stashInventory == null || stashInventory.IsEmpty)
         {
-            GUILayout.Label("Empty.", host.BodyStyle);
+            GUILayout.Label("空。", host.BodyStyle);
         }
         else
         {
@@ -53,51 +53,51 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
-                GUILayout.Label($"Weight {item.TotalWeight:0.00}", host.BodyStyle);
+                GUILayout.Label($"重量 {item.TotalWeight:0.00}", host.BodyStyle);
                 GUILayout.BeginHorizontal();
                 if (item.Definition is ArmorDefinition)
                 {
-                    if (GUILayout.Button("Equip", host.ButtonStyle, GUILayout.Width(70f)))
+                    if (GUILayout.Button("装备", host.ButtonStyle, GUILayout.Width(70f)))
                     {
-                        EquipArmorFromInventory(stashInventory, index, "Warehouse");
+                        EquipArmorFromInventory(stashInventory, index, "仓库");
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Bag", host.ButtonStyle, GUILayout.Width(60f)))
+                    if (GUILayout.Button("装包", host.ButtonStyle, GUILayout.Width(60f)))
                     {
-                        MoveItemBetweenInventories(stashInventory, host.RaidBackpackInventory, index, item.Quantity, "Packed", "Raid backpack has no space for that stack.");
+                        MoveItemBetweenInventories(stashInventory, host.RaidBackpackInventory, index, item.Quantity, "已装入战局背包", "战局背包空间不足，无法放入该堆叠。");
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(60f)))
+                    if (GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(60f)))
                     {
-                        SellItemFromInventory(stashInventory, index, item.Quantity, "Sold armor");
+                        SellItemFromInventory(stashInventory, index, item.Quantity, "已出售护甲");
                         GUIUtility.ExitGUI();
                     }
                 }
                 else
                 {
-                    if (GUILayout.Button("Bag", host.ButtonStyle, GUILayout.Width(56f)))
+                    if (GUILayout.Button("装包", host.ButtonStyle, GUILayout.Width(56f)))
                     {
-                        MoveItemBetweenInventories(stashInventory, host.RaidBackpackInventory, index, item.Quantity, "Packed", "Raid backpack has no space for that stack.");
+                        MoveItemBetweenInventories(stashInventory, host.RaidBackpackInventory, index, item.Quantity, "已装入战局背包", "战局背包空间不足，无法放入该堆叠。");
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Secure", host.ButtonStyle, GUILayout.Width(68f)))
+                    if (GUILayout.Button("放安全箱", host.ButtonStyle, GUILayout.Width(68f)))
                     {
-                        MoveItemBetweenInventories(stashInventory, host.SecureContainerInventory, index, item.Quantity, "Secured", "Secure container has no space for that stack.");
+                        MoveItemBetweenInventories(stashInventory, host.SecureContainerInventory, index, item.Quantity, "已放入安全箱", "安全箱空间不足，无法放入该堆叠。");
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Special", host.ButtonStyle, GUILayout.Width(68f)))
+                    if (GUILayout.Button("放特殊栏", host.ButtonStyle, GUILayout.Width(68f)))
                     {
-                        MoveItemBetweenInventories(stashInventory, host.SpecialEquipmentInventory, index, item.Quantity, "Equipped safely", "Special equipment slots have no space for that stack.");
+                        MoveItemBetweenInventories(stashInventory, host.SpecialEquipmentInventory, index, item.Quantity, "已放入特殊装备栏", "特殊装备栏空间不足，无法放入该堆叠。");
                         GUIUtility.ExitGUI();
                     }
 
-                    if (host.CashDefinition != null && item.Definition != host.CashDefinition && GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(56f)))
+                    if (host.CashDefinition != null && item.Definition != host.CashDefinition && GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(56f)))
                     {
-                        SellItemFromInventory(stashInventory, index, item.Quantity, "Sold item");
+                        SellItemFromInventory(stashInventory, index, item.Quantity, "已出售物品");
                         GUIUtility.ExitGUI();
                     }
                 }
@@ -115,13 +115,13 @@ public sealed class MetaInventoryPresenter
     private void DrawRaidBackpackPanel(Rect rect)
     {
         InventoryContainer raidBackpackInventory = host.RaidBackpackInventory;
-        host.BeginPanel(rect, "Raid Backpack", host.BackpackColor, raidBackpackInventory != null
-            ? $"Slots {raidBackpackInventory.OccupiedSlots}/{raidBackpackInventory.MaxSlots}  Weight {raidBackpackInventory.CurrentWeight:0.0}/{raidBackpackInventory.MaxWeight:0.0}"
-            : "No inventory");
+        host.BeginPanel(rect, "战局背包", host.BackpackColor, raidBackpackInventory != null
+            ? $"格位 {raidBackpackInventory.OccupiedSlots}/{raidBackpackInventory.MaxSlots}  重量 {raidBackpackInventory.CurrentWeight:0.0}/{raidBackpackInventory.MaxWeight:0.0}"
+            : "未配置容器");
 
         if (raidBackpackInventory == null || raidBackpackInventory.IsEmpty)
         {
-            GUILayout.Label("Empty.", host.BodyStyle);
+            GUILayout.Label("空。", host.BodyStyle);
         }
         else
         {
@@ -138,7 +138,7 @@ public sealed class MetaInventoryPresenter
                 GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, host.BodyStyle);
                 GUILayout.Label(GetInventoryEntryDetail(item), host.BodyStyle);
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(72f)))
+                if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
                 {
                     if (item.IsWeapon)
                     {
@@ -146,21 +146,22 @@ public sealed class MetaInventoryPresenter
                     }
                     else
                     {
-                        MoveItemBetweenInventories(raidBackpackInventory, host.StashInventory, index, item.Quantity, "Stored", "Warehouse has no space for that stack.");
+                        MoveItemBetweenInventories(raidBackpackInventory, host.StashInventory, index, item.Quantity, "已存入仓库", "仓库空间不足，无法接收该堆叠。");
                     }
+
                     GUIUtility.ExitGUI();
                 }
 
-                if (item.Definition is ArmorDefinition && GUILayout.Button("Equip", host.ButtonStyle, GUILayout.Width(72f)))
+                if (item.Definition is ArmorDefinition && GUILayout.Button("装备", host.ButtonStyle, GUILayout.Width(72f)))
                 {
-                    EquipArmorFromInventory(raidBackpackInventory, index, "Raid backpack");
+                    EquipArmorFromInventory(raidBackpackInventory, index, "战局背包");
                     GUIUtility.ExitGUI();
                 }
                 else if (item.IsWeapon && item.WeaponDefinition != null)
                 {
                     if (item.WeaponDefinition.IsMeleeWeapon)
                     {
-                        if (GUILayout.Button("Equip", host.ButtonStyle, GUILayout.Width(72f)))
+                        if (GUILayout.Button("装备", host.ButtonStyle, GUILayout.Width(72f)))
                         {
                             EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Melee);
                             GUIUtility.ExitGUI();
@@ -168,13 +169,13 @@ public sealed class MetaInventoryPresenter
                     }
                     else
                     {
-                        if (GUILayout.Button("Primary", host.ButtonStyle, GUILayout.Width(80f)))
+                        if (GUILayout.Button("主武器", host.ButtonStyle, GUILayout.Width(80f)))
                         {
                             EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Primary);
                             GUIUtility.ExitGUI();
                         }
 
-                        if (GUILayout.Button("Secondary", host.ButtonStyle, GUILayout.Width(88f)))
+                        if (GUILayout.Button("副武器", host.ButtonStyle, GUILayout.Width(88f)))
                         {
                             EquipWeaponFromInventory(raidBackpackInventory, index, PrototypeMainMenuController.WeaponSlotType.Secondary);
                             GUIUtility.ExitGUI();
@@ -190,7 +191,7 @@ public sealed class MetaInventoryPresenter
         }
 
         GUILayout.Space(8f);
-        if (GUILayout.Button("Store All", host.ButtonStyle, GUILayout.Height(32f)))
+        if (GUILayout.Button("全部入库", host.ButtonStyle, GUILayout.Height(32f)))
         {
             StoreAllRaidBackpack();
             GUIUtility.ExitGUI();
@@ -201,11 +202,11 @@ public sealed class MetaInventoryPresenter
 
     private void DrawWeaponLockerPanel(Rect rect)
     {
-        host.BeginPanel(rect, "Weapon Locker", host.LockerColor, $"Stored weapons {host.WeaponLocker.Count}");
+        host.BeginPanel(rect, "武器柜", host.LockerColor, $"已存武器 {host.WeaponLocker.Count}");
 
         if (host.WeaponLocker.Count == 0)
         {
-            GUILayout.Label("No safe weapons in storage.", host.BodyStyle);
+            GUILayout.Label("当前没有存放的安全武器。", host.BodyStyle);
         }
         else
         {
@@ -220,17 +221,17 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(weapon.RichDisplayName, host.BodyStyle);
-                GUILayout.Label(weapon.Definition.IsMeleeWeapon ? "Melee" : "Firearm", host.BodyStyle);
+                GUILayout.Label(weapon.Definition.IsMeleeWeapon ? "近战" : "枪械", host.BodyStyle);
                 if (weapon.Definition.IsMeleeWeapon)
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Equip Melee", host.ButtonStyle, GUILayout.Width(108f)))
+                    if (GUILayout.Button("装备近战", host.ButtonStyle, GUILayout.Width(108f)))
                     {
                         EquipWeaponFromLocker(index, PrototypeMainMenuController.WeaponSlotType.Melee);
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(64f)))
+                    if (GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(64f)))
                     {
                         SellWeaponFromLocker(index);
                         GUIUtility.ExitGUI();
@@ -241,19 +242,19 @@ public sealed class MetaInventoryPresenter
                 else
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Primary", host.ButtonStyle, GUILayout.Width(90f)))
+                    if (GUILayout.Button("主武器", host.ButtonStyle, GUILayout.Width(90f)))
                     {
                         EquipWeaponFromLocker(index, PrototypeMainMenuController.WeaponSlotType.Primary);
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Secondary", host.ButtonStyle, GUILayout.Width(90f)))
+                    if (GUILayout.Button("副武器", host.ButtonStyle, GUILayout.Width(90f)))
                     {
                         EquipWeaponFromLocker(index, PrototypeMainMenuController.WeaponSlotType.Secondary);
                         GUIUtility.ExitGUI();
                     }
 
-                    if (GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(64f)))
+                    if (GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(64f)))
                     {
                         SellWeaponFromLocker(index);
                         GUIUtility.ExitGUI();
@@ -273,20 +274,20 @@ public sealed class MetaInventoryPresenter
 
     private void DrawProtectedGearPanel(Rect rect)
     {
-        string subtitle = $"Armor {host.EquippedArmor.Count}  Secure {host.GetInventoryStackCount(host.SecureContainerInventory)}  Special {host.GetInventoryStackCount(host.SpecialEquipmentInventory)}";
-        host.BeginPanel(rect, "Protected Gear", host.ProtectedColor, subtitle);
+        string subtitle = $"护甲 {host.EquippedArmor.Count}  安全箱 {host.GetInventoryStackCount(host.SecureContainerInventory)}  特殊装备 {host.GetInventoryStackCount(host.SpecialEquipmentInventory)}";
+        host.BeginPanel(rect, "保护装备", host.ProtectedColor, subtitle);
 
         protectedScroll = GUILayout.BeginScrollView(protectedScroll, GUILayout.Height(rect.height - 130f));
 
-        DrawWeaponSlotEntry("Primary", host.EquippedPrimaryWeapon, PrototypeMainMenuController.WeaponSlotType.Primary, false);
-        DrawWeaponSlotEntry("Secondary", host.EquippedSecondaryWeapon, PrototypeMainMenuController.WeaponSlotType.Secondary, false);
-        DrawWeaponSlotEntry("Melee (Safe)", host.EquippedMeleeWeapon, PrototypeMainMenuController.WeaponSlotType.Melee, true);
+        DrawWeaponSlotEntry("主武器", host.EquippedPrimaryWeapon, PrototypeMainMenuController.WeaponSlotType.Primary, false);
+        DrawWeaponSlotEntry("副武器", host.EquippedSecondaryWeapon, PrototypeMainMenuController.WeaponSlotType.Secondary, false);
+        DrawWeaponSlotEntry("近战（保护）", host.EquippedMeleeWeapon, PrototypeMainMenuController.WeaponSlotType.Melee, true);
 
         GUILayout.Space(8f);
-        GUILayout.Label("Equipped Armor", host.BodyStyle);
+        GUILayout.Label("已装备护甲", host.BodyStyle);
         if (host.EquippedArmor.Count == 0)
         {
-            GUILayout.Label("No armor equipped.", host.BodyStyle);
+            GUILayout.Label("未装备护甲。", host.BodyStyle);
         }
         else
         {
@@ -301,22 +302,22 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(armorInstance.RichDisplayName, host.BodyStyle);
-                GUILayout.Label($"Durability {armorInstance.CurrentDurability:0}/{armorInstance.MaxDurability:0}", host.BodyStyle);
-                GUILayout.Label($"Coverage {string.Join(", ", armorDefinition.CoveredPartIds)}", host.BodyStyle);
+                GUILayout.Label($"耐久 {armorInstance.CurrentDurability:0}/{armorInstance.MaxDurability:0}", host.BodyStyle);
+                GUILayout.Label($"覆盖部位 {string.Join(", ", armorDefinition.CoveredPartIds)}", host.BodyStyle);
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(72f)))
+                if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
                 {
                     StoreEquippedArmorToStash(index);
                     GUIUtility.ExitGUI();
                 }
 
-                if (GUILayout.Button("Bag", host.ButtonStyle, GUILayout.Width(64f)))
+                if (GUILayout.Button("装包", host.ButtonStyle, GUILayout.Width(64f)))
                 {
                     MoveEquippedArmorToBackpack(index);
                     GUIUtility.ExitGUI();
                 }
 
-                if (GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(64f)))
+                if (GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(64f)))
                 {
                     SellEquippedArmor(index);
                     GUIUtility.ExitGUI();
@@ -327,8 +328,8 @@ public sealed class MetaInventoryPresenter
             }
         }
 
-        DrawProtectedInventorySection("Secure Container", host.SecureContainerInventory);
-        DrawProtectedInventorySection("Special Equipment", host.SpecialEquipmentInventory);
+        DrawProtectedInventorySection("安全箱", host.SecureContainerInventory);
+        DrawProtectedInventorySection("特殊装备", host.SpecialEquipmentInventory);
 
         GUILayout.EndScrollView();
         host.EndPanel();
@@ -340,7 +341,7 @@ public sealed class MetaInventoryPresenter
         GUILayout.Label(title, host.BodyStyle);
         if (inventory == null || inventory.IsEmpty)
         {
-            GUILayout.Label("Empty.", host.BodyStyle);
+            GUILayout.Label("空。", host.BodyStyle);
             return;
         }
 
@@ -354,10 +355,10 @@ public sealed class MetaInventoryPresenter
 
             GUILayout.BeginVertical(host.ListStyle);
             GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
-            GUILayout.Label($"Weight {item.TotalWeight:0.00}", host.BodyStyle);
-            if (GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(72f)))
+            GUILayout.Label($"重量 {item.TotalWeight:0.00}", host.BodyStyle);
+            if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
             {
-                MoveItemBetweenInventories(inventory, host.StashInventory, index, item.Quantity, "Stored", "Warehouse has no space for that stack.");
+                MoveItemBetweenInventories(inventory, host.StashInventory, index, item.Quantity, "已存入仓库", "仓库空间不足，无法接收该堆叠。");
                 GUIUtility.ExitGUI();
             }
 
@@ -368,19 +369,19 @@ public sealed class MetaInventoryPresenter
     private void DrawWeaponSlotEntry(string label, WeaponInstance weaponInstance, PrototypeMainMenuController.WeaponSlotType slotType, bool protectedOnDeath)
     {
         GUILayout.BeginVertical(host.ListStyle);
-        GUILayout.Label($"{label}: {(weaponInstance != null ? weaponInstance.RichDisplayName : "Empty")}", host.BodyStyle);
+        GUILayout.Label($"{label}：{(weaponInstance != null ? weaponInstance.RichDisplayName : "空")}", host.BodyStyle);
         if (protectedOnDeath)
         {
-            GUILayout.Label("This slot survives raid death.", host.BodyStyle);
+            GUILayout.Label("该栏位在战斗死亡后会保留。", host.BodyStyle);
         }
 
-        if (weaponInstance != null && GUILayout.Button("Store", host.ButtonStyle, GUILayout.Width(120f)))
+        if (weaponInstance != null && GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(120f)))
         {
             StoreEquippedWeapon(slotType);
             GUIUtility.ExitGUI();
         }
 
-        if (weaponInstance != null && GUILayout.Button("Sell", host.ButtonStyle, GUILayout.Width(120f)))
+        if (weaponInstance != null && GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(120f)))
         {
             SellEquippedWeapon(slotType);
             GUIUtility.ExitGUI();
@@ -414,7 +415,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback($"{successVerb} {item.DisplayName} x{movedQuantity}.");
+        host.SetFeedback($"{successVerb} {item.DisplayName} x{movedQuantity}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -433,13 +434,13 @@ public sealed class MetaInventoryPresenter
 
         if (host.PlayerLevel < armorDefinition.RequiredLevel)
         {
-            host.SetFeedback($"Requires level {armorDefinition.RequiredLevel} to equip {armorDefinition.DisplayNameWithLevel}.");
+            host.SetFeedback($"需要等级 {armorDefinition.RequiredLevel} 才能装备 {armorDefinition.DisplayNameWithLevel}。");
             return;
         }
 
         if (!source.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null)
         {
-            host.SetFeedback($"Could not equip armor from {sourceLabel.ToLowerInvariant()}.");
+            host.SetFeedback($"无法从{sourceLabel}装备护甲。");
             return;
         }
 
@@ -447,12 +448,12 @@ public sealed class MetaInventoryPresenter
         if (armorInstance == null)
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback($"Could not equip armor from {sourceLabel.ToLowerInvariant()}.");
+            host.SetFeedback($"无法从{sourceLabel}装备护甲。");
             return;
         }
 
         host.EquippedArmor.Add(armorInstance);
-        host.SetFeedback($"Equipped {armorInstance.DisplayName}.");
+        host.SetFeedback($"已装备 {armorInstance.DisplayName}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -474,12 +475,12 @@ public sealed class MetaInventoryPresenter
 
         if (host.StashInventory == null || !host.StashInventory.TryAddItemInstance(ItemInstance.Create(armorInstance)))
         {
-            host.SetFeedback("Warehouse has no space for that armor.");
+            host.SetFeedback("仓库空间不足，无法存放这件护甲。");
             return;
         }
 
         host.EquippedArmor.RemoveAt(armorIndex);
-        host.SetFeedback($"Stored {armorDefinition.DisplayNameWithLevel}.");
+        host.SetFeedback($"已将 {armorDefinition.DisplayNameWithLevel} 存入仓库。");
         host.AutoSaveIfNeeded();
     }
 
@@ -501,12 +502,12 @@ public sealed class MetaInventoryPresenter
 
         if (host.RaidBackpackInventory == null || !host.RaidBackpackInventory.TryAddItemInstance(ItemInstance.Create(armorInstance)))
         {
-            host.SetFeedback("Raid backpack has no room for that armor.");
+            host.SetFeedback("战局背包空间不足，无法放入这件护甲。");
             return;
         }
 
         host.EquippedArmor.RemoveAt(armorIndex);
-        host.SetFeedback($"Moved {armorDefinition.DisplayNameWithLevel} into the raid backpack.");
+        host.SetFeedback($"已将 {armorDefinition.DisplayNameWithLevel} 放入战局背包。");
         host.AutoSaveIfNeeded();
     }
 
@@ -556,7 +557,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback("Stored raid backpack contents.");
+        host.SetFeedback("已将战局背包内容全部存入仓库。");
         host.AutoSaveIfNeeded();
     }
 
@@ -580,7 +581,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.WeaponLocker.Add(weaponInstance);
-        host.SetFeedback($"Stored {weaponInstance.DisplayName}.");
+        host.SetFeedback($"已将 {weaponInstance.DisplayName} 存入武器柜。");
         host.AutoSaveIfNeeded();
     }
 
@@ -608,15 +609,15 @@ public sealed class MetaInventoryPresenter
         {
             source.TryAddItemInstance(extractedItem);
             host.SetFeedback(expectsMelee
-                ? "Only melee weapons can be equipped in the melee slot."
-                : "Melee weapons must be equipped in the melee slot.");
+                ? "只有近战武器可以装备到近战槽。"
+                : "近战武器必须装备到近战槽。");
             return;
         }
 
         if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback($"Requires level {weaponInstance.Definition.RequiredLevel} to equip {weaponInstance.DisplayName}.");
+            host.SetFeedback($"需要等级 {weaponInstance.Definition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
             return;
         }
 
@@ -624,12 +625,12 @@ public sealed class MetaInventoryPresenter
         if (replacedWeapon != null && !source.TryAddItemInstance(ItemInstance.Create(replacedWeapon)))
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback("Raid backpack has no room for the replaced weapon.");
+            host.SetFeedback("战局背包空间不足，无法放入被替换的武器。");
             return;
         }
 
         SetEquippedWeapon(slotType, weaponInstance);
-        host.SetFeedback($"Equipped {weaponInstance.DisplayName}.");
+        host.SetFeedback($"已装备 {weaponInstance.DisplayName}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -652,14 +653,14 @@ public sealed class MetaInventoryPresenter
         if (weaponInstance.Definition.IsMeleeWeapon != expectsMelee)
         {
             host.SetFeedback(expectsMelee
-                ? "Only melee weapons can be equipped in the melee slot."
-                : "Melee weapons must be equipped in the melee slot.");
+                ? "只有近战武器可以装备到近战槽。"
+                : "近战武器必须装备到近战槽。");
             return;
         }
 
         if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
         {
-            host.SetFeedback($"Requires level {weaponInstance.Definition.RequiredLevel} to equip {weaponInstance.DisplayName}.");
+            host.SetFeedback($"需要等级 {weaponInstance.Definition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
             return;
         }
 
@@ -671,7 +672,7 @@ public sealed class MetaInventoryPresenter
         }
 
         SetEquippedWeapon(slotType, weaponInstance);
-        host.SetFeedback($"Equipped {weaponInstance.DisplayName}.");
+        host.SetFeedback($"已装备 {weaponInstance.DisplayName}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -685,7 +686,7 @@ public sealed class MetaInventoryPresenter
 
         host.WeaponLocker.Add(weaponInstance);
         SetEquippedWeapon(slotType, null);
-        host.SetFeedback($"Stored {weaponInstance.DisplayName}.");
+        host.SetFeedback($"已将 {weaponInstance.DisplayName} 存入武器柜。");
         host.AutoSaveIfNeeded();
     }
 
@@ -732,16 +733,16 @@ public sealed class MetaInventoryPresenter
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
             return item.WeaponDefinition.IsMeleeWeapon
-                ? $"Melee  Weight {item.TotalWeight:0.00}"
-                : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
+                ? $"近战  重量 {item.TotalWeight:0.00}"
+                : $"弹药 {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  重量 {item.TotalWeight:0.00}";
         }
 
         if (item.IsArmor)
         {
-            return $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
+            return $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
         }
 
-        return $"Weight {item.TotalWeight:0.00}";
+        return $"重量 {item.TotalWeight:0.00}";
     }
 
     private void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
@@ -772,11 +773,11 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
-        host.SetFeedback($"{successPrefix}: {extractedItem.DisplayName} x{extractedItem.Quantity} for {sellPrice}.");
+        host.SetFeedback($"{successPrefix}：{extractedItem.DisplayName} x{extractedItem.Quantity}，获得 {sellPrice}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -793,7 +794,7 @@ public sealed class MetaInventoryPresenter
         int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -801,11 +802,11 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             host.WeaponLocker.Insert(Mathf.Clamp(lockerIndex, 0, host.WeaponLocker.Count), weaponInstance);
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
-        host.SetFeedback($"Sold {weaponDefinition.DisplayNameWithLevel} for {sellPrice}.");
+        host.SetFeedback($"已出售 {weaponDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -822,7 +823,7 @@ public sealed class MetaInventoryPresenter
         int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -830,11 +831,11 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             SetEquippedWeapon(slotType, weaponInstance);
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
-        host.SetFeedback($"Sold {weaponDefinition.DisplayNameWithLevel} for {sellPrice}.");
+        host.SetFeedback($"已出售 {weaponDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -851,7 +852,7 @@ public sealed class MetaInventoryPresenter
         int sellPrice = merchantCatalog.GetSellPrice(armorDefinition, 1);
         if (armorDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -859,11 +860,11 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             host.EquippedArmor.Insert(Mathf.Clamp(armorIndex, 0, host.EquippedArmor.Count), armorInstance);
-            host.SetFeedback("Warehouse has no room for the payment.");
+            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
-        host.SetFeedback($"Sold {armorDefinition.DisplayNameWithLevel} for {sellPrice}.");
+        host.SetFeedback($"已出售 {armorDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
         host.AutoSaveIfNeeded();
     }
 }

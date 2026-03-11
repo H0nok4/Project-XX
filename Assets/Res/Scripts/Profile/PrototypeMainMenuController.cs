@@ -9,9 +9,9 @@ public class PrototypeMainMenuController : MonoBehaviour
     [Serializable]
     private sealed class RaidSceneOption
     {
-        public string displayName = "Prototype Raid";
+        public string displayName = "原型战区";
         public string sceneName = "SampleScene";
-        [TextArea(2, 4)] public string description = "Prototype indoor combat zone.";
+        [TextArea(2, 4)] public string description = "原型室内战斗区域。";
 
         public void Sanitize(string fallbackSceneName, int fallbackIndex)
         {
@@ -19,10 +19,10 @@ public class PrototypeMainMenuController : MonoBehaviour
                 ? fallbackSceneName
                 : sceneName.Trim();
             displayName = string.IsNullOrWhiteSpace(displayName)
-                ? $"Raid {fallbackIndex + 1}"
+                ? $"战区 {fallbackIndex + 1}"
                 : displayName.Trim();
             description = string.IsNullOrWhiteSpace(description)
-                ? "Deploy into the selected combat zone."
+                ? "进入所选战斗区域。"
                 : description.Trim();
         }
     }
@@ -144,6 +144,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string FeedbackMessage => feedbackMessage;
     internal float FeedbackUntilTime => feedbackUntilTime;
+
     private void EnsurePresenters()
     {
         shellPresenter ??= new MetaShellPresenter(this);
@@ -246,27 +247,6 @@ public class PrototypeMainMenuController : MonoBehaviour
         shellPresenter.DrawFooter();
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     internal int GetAvailableFunds()
     {
         return cashDefinition != null && stashInventory != null ? stashInventory.CountItem(cashDefinition) : 0;
@@ -342,15 +322,6 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         GUILayout.EndArea();
     }
-
-
-
-
-
-
-
-
-
 
     internal void StartRaid()
     {
@@ -438,7 +409,6 @@ public class PrototypeMainMenuController : MonoBehaviour
         }
     }
 
-
     internal int GetInventoryStackCount(InventoryContainer inventory)
     {
         return inventory != null ? inventory.OccupiedSlots : 0;
@@ -464,15 +434,12 @@ public class PrototypeMainMenuController : MonoBehaviour
         cashDefinition = itemCatalog != null ? itemCatalog.FindByItemId("cash_bundle") : null;
     }
 
-
-
-
     private void EnsureContainers()
     {
-        stashInventory = EnsureContainer(stashInventory, "Profile_Stash", "Warehouse", stashSlots, stashMaxWeight);
-        raidBackpackInventory = EnsureContainer(raidBackpackInventory, "Profile_RaidBackpack", "Raid Backpack", raidBackpackSlots, raidBackpackMaxWeight);
-        secureContainerInventory = EnsureContainer(secureContainerInventory, "Profile_SecureContainer", "Secure Container", secureContainerSlots, secureContainerMaxWeight);
-        specialEquipmentInventory = EnsureContainer(specialEquipmentInventory, "Profile_SpecialEquipment", "Special Equipment", specialEquipmentSlots, specialEquipmentMaxWeight);
+        stashInventory = EnsureContainer(stashInventory, "Profile_Stash", "仓库", stashSlots, stashMaxWeight);
+        raidBackpackInventory = EnsureContainer(raidBackpackInventory, "Profile_RaidBackpack", "战局背包", raidBackpackSlots, raidBackpackMaxWeight);
+        secureContainerInventory = EnsureContainer(secureContainerInventory, "Profile_SecureContainer", "安全箱", secureContainerSlots, secureContainerMaxWeight);
+        specialEquipmentInventory = EnsureContainer(specialEquipmentInventory, "Profile_SpecialEquipment", "特殊装备", specialEquipmentSlots, specialEquipmentMaxWeight);
     }
 
     private void LoadProfileIntoContainers()
@@ -521,7 +488,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         profile = PrototypeProfileService.CreateDefaultProfile(itemCatalog);
         ApplyProfileToContainers(profile);
         SaveProfileFromContainers();
-        SetFeedback("Profile reset to defaults.");
+        SetFeedback("档案已重置为默认配置。");
     }
 
     internal void SetFeedback(string message)
@@ -569,13 +536,13 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal string GetRaidSceneOptionDisplayName(int index)
     {
         RaidSceneOption option = GetRaidSceneOption(index);
-        return option != null ? option.displayName : "Unavailable";
+        return option != null ? option.displayName : "未配置";
     }
 
     internal string GetRaidSceneOptionDescription(int index)
     {
         RaidSceneOption option = GetRaidSceneOption(index);
-        return option != null ? option.description : "No deployment target is configured.";
+        return option != null ? option.description : "当前没有配置可用的出击地图。";
     }
 
     internal string GetSelectedRaidSceneDisplayName()
@@ -632,13 +599,12 @@ public class PrototypeMainMenuController : MonoBehaviour
         {
             raidSceneOptions.Add(new RaidSceneOption
             {
-                displayName = "Prototype Raid",
+                displayName = "原型战区",
                 sceneName = fallbackSceneName,
-                description = "Prototype indoor combat zone."
+                description = "原型室内战斗区域。"
             });
         }
 
         selectedRaidSceneIndex = Mathf.Clamp(selectedRaidSceneIndex, 0, raidSceneOptions.Count - 1);
     }
-
 }

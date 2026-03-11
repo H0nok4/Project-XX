@@ -17,7 +17,7 @@ public sealed class MetaShellPresenter
         GUI.color = previousColor;
 
         GUI.Label(new Rect(40f, 32f, 640f, 48f), "Project-XX", host.TitleStyle);
-        GUI.Label(new Rect(44f, 88f, 560f, 28f), "Single-player raid prototype", host.BodyStyle);
+        GUI.Label(new Rect(44f, 88f, 560f, 28f), "单人撤离原型", host.BodyStyle);
     }
 
     public void DrawNavigation()
@@ -26,38 +26,38 @@ public sealed class MetaShellPresenter
         GUI.Box(navRect, string.Empty, host.SectionStyle);
 
         GUILayout.BeginArea(new Rect(navRect.x + 16f, navRect.y + 16f, navRect.width - 32f, navRect.height - 32f));
-        GUILayout.Label("Operations", host.SectionStyle);
+        GUILayout.Label("行动", host.SectionStyle);
         GUILayout.Space(12f);
 
-        if (GUILayout.Button("Deploy", host.ButtonStyle, GUILayout.Height(42f)))
+        if (GUILayout.Button("出击", host.ButtonStyle, GUILayout.Height(42f)))
         {
             host.CurrentPage = PrototypeMainMenuController.MenuPage.Home;
         }
 
-        if (GUILayout.Button("Warehouse", host.ButtonStyle, GUILayout.Height(42f)))
+        if (GUILayout.Button("仓库", host.ButtonStyle, GUILayout.Height(42f)))
         {
             host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse;
         }
 
-        if (GUILayout.Button("Merchants", host.ButtonStyle, GUILayout.Height(42f)))
+        if (GUILayout.Button("商人", host.ButtonStyle, GUILayout.Height(42f)))
         {
             host.CurrentPage = PrototypeMainMenuController.MenuPage.Merchants;
         }
 
         GUILayout.Space(10f);
-        if (GUILayout.Button("Save Profile", host.ButtonStyle, GUILayout.Height(34f)))
+        if (GUILayout.Button("保存档案", host.ButtonStyle, GUILayout.Height(34f)))
         {
             host.SaveProfileFromContainers();
-            host.SetFeedback("Profile saved.");
+            host.SetFeedback("档案已保存。");
         }
 
-        if (GUILayout.Button("Reset Profile", host.ButtonStyle, GUILayout.Height(34f)))
+        if (GUILayout.Button("重置档案", host.ButtonStyle, GUILayout.Height(34f)))
         {
             host.ResetProfile();
         }
 
         GUILayout.Space(10f);
-        if (GUILayout.Button("Quit", host.ButtonStyle, GUILayout.Height(34f)))
+        if (GUILayout.Button("退出", host.ButtonStyle, GUILayout.Height(34f)))
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;

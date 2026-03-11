@@ -20,9 +20,9 @@ public sealed class MetaLoadoutPresenter
         DrawRaidSelection();
 
         GUILayout.Space(16f);
-        GUILayout.Label($"Funds: {host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
+        GUILayout.Label($"资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
         GUILayout.Space(8f);
-        GUILayout.Label($"Level: {host.PlayerLevel}", host.BodyStyle);
+        GUILayout.Label($"等级：{host.PlayerLevel}", host.BodyStyle);
         GUILayout.Space(8f);
         GUILayout.Label(BuildSummaryText(), host.BodyStyle);
 
@@ -42,9 +42,9 @@ public sealed class MetaLoadoutPresenter
         DrawRaidSelection();
 
         GUILayout.Space(16f);
-        GUILayout.Label($"Funds: {host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
+        GUILayout.Label($"资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
         GUILayout.Space(8f);
-        GUILayout.Label($"Level: {host.PlayerLevel}", host.BodyStyle);
+        GUILayout.Label($"等级：{host.PlayerLevel}", host.BodyStyle);
         GUILayout.Space(8f);
 
         float summaryHeight = Mathf.Clamp(panelRect.height - 300f, 96f, 260f);
@@ -59,10 +59,10 @@ public sealed class MetaLoadoutPresenter
 
     private void DrawReadyRoomIntro()
     {
-        GUILayout.Label("Ready Room", host.SectionStyle);
+        GUILayout.Label("战备室", host.SectionStyle);
         GUILayout.Space(10f);
         GUILayout.Label(
-            "Warehouse items and weapon locker weapons are safe. The raid backpack, equipped firearms, and armor are risky. The melee slot, secure container, and special equipment slots are protected and survive raid death.",
+            "仓库物品和武器柜中的武器是安全的。战局背包、已装备枪械和护甲存在丢失风险。近战槽、安全箱和特殊装备槽属于保护栏位，角色在战斗中死亡后仍会保留。",
             host.BodyStyle);
     }
 
@@ -75,7 +75,7 @@ public sealed class MetaLoadoutPresenter
         }
 
         GUILayout.Space(18f);
-        GUILayout.Label("Deployment Target", host.SectionStyle);
+        GUILayout.Label("出击地图", host.SectionStyle);
         GUILayout.Space(6f);
         GUILayout.Label(host.GetSelectedRaidSceneDisplayName(), host.BodyStyle);
         GUILayout.Label(host.GetSelectedRaidSceneDescription(), host.BodyStyle);
@@ -106,17 +106,17 @@ public sealed class MetaLoadoutPresenter
     {
         GUILayout.Space(16f);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Enter Battle", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        if (GUILayout.Button("进入战斗", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
         {
             host.StartRaid();
         }
 
-        if (GUILayout.Button("Open Warehouse", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        if (GUILayout.Button("打开仓库", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
         {
             host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse;
         }
 
-        if (GUILayout.Button("Visit Merchants", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
+        if (GUILayout.Button("拜访商人", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(48f)))
         {
             host.CurrentPage = PrototypeMainMenuController.MenuPage.Merchants;
         }
@@ -126,7 +126,7 @@ public sealed class MetaLoadoutPresenter
         if (host.ShouldShowBaseHubEntry())
         {
             GUILayout.Space(10f);
-            if (GUILayout.Button("Enter Base Hub", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(42f)))
+            if (GUILayout.Button("进入基地", host.ButtonStyle, GUILayout.Width(180f), GUILayout.Height(42f)))
             {
                 host.EnterBaseHub();
             }
@@ -136,30 +136,30 @@ public sealed class MetaLoadoutPresenter
     private string BuildHomePageSummaryText()
     {
         return
-            $"Selected raid: {host.GetSelectedRaidSceneDisplayName()}\n" +
-            $"Funds: {host.GetAvailableFunds()} {host.GetCurrencyLabel()}\n" +
-            $"Warehouse: item stacks {host.GetInventoryStackCount(host.StashInventory)}  weapons {host.WeaponLocker.Count}\n" +
-            $"Raid backpack: {host.GetInventoryStackCount(host.RaidBackpackInventory)}  Secure: {host.GetInventoryStackCount(host.SecureContainerInventory)}\n" +
-            $"Special: {host.GetInventoryStackCount(host.SpecialEquipmentInventory)}  Armor: {host.EquippedArmor.Count}\n" +
-            $"Melee: {(host.EquippedMeleeWeapon != null ? host.EquippedMeleeWeapon.DisplayName : "Empty")}\n" +
-            $"Primary: {(host.EquippedPrimaryWeapon != null ? host.EquippedPrimaryWeapon.DisplayName : "Empty")}\n" +
-            $"Secondary: {(host.EquippedSecondaryWeapon != null ? host.EquippedSecondaryWeapon.DisplayName : "Empty")}";
+            $"已选地图：{host.GetSelectedRaidSceneDisplayName()}\n" +
+            $"资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}\n" +
+            $"仓库：物品堆叠 {host.GetInventoryStackCount(host.StashInventory)}  武器 {host.WeaponLocker.Count}\n" +
+            $"战局背包：{host.GetInventoryStackCount(host.RaidBackpackInventory)}  安全箱：{host.GetInventoryStackCount(host.SecureContainerInventory)}\n" +
+            $"特殊装备：{host.GetInventoryStackCount(host.SpecialEquipmentInventory)}  护甲：{host.EquippedArmor.Count}\n" +
+            $"近战：{(host.EquippedMeleeWeapon != null ? host.EquippedMeleeWeapon.DisplayName : "空")}\n" +
+            $"主武器：{(host.EquippedPrimaryWeapon != null ? host.EquippedPrimaryWeapon.DisplayName : "空")}\n" +
+            $"副武器：{(host.EquippedSecondaryWeapon != null ? host.EquippedSecondaryWeapon.DisplayName : "空")}";
     }
 
     private string BuildSummaryText()
     {
         return
-            $"Selected raid: {host.GetSelectedRaidSceneDisplayName()}\n" +
-            $"Funds: {host.GetAvailableFunds()} {host.GetCurrencyLabel()}\n" +
-            $"Warehouse item stacks: {host.GetInventoryStackCount(host.StashInventory)}\n" +
-            $"Warehouse weapons: {host.WeaponLocker.Count}\n" +
-            $"Raid backpack stacks: {host.GetInventoryStackCount(host.RaidBackpackInventory)}\n" +
-            $"Secure container stacks: {host.GetInventoryStackCount(host.SecureContainerInventory)}\n" +
-            $"Special equipment stacks: {host.GetInventoryStackCount(host.SpecialEquipmentInventory)}\n" +
-            $"Protected melee slot: {(host.EquippedMeleeWeapon != null ? host.EquippedMeleeWeapon.DisplayName : "Empty")}\n" +
-            $"Primary: {(host.EquippedPrimaryWeapon != null ? host.EquippedPrimaryWeapon.DisplayName : "Empty")}\n" +
-            $"Secondary: {(host.EquippedSecondaryWeapon != null ? host.EquippedSecondaryWeapon.DisplayName : "Empty")}\n" +
-            $"Armor pieces: {host.EquippedArmor.Count}\n" +
-            $"Profile file: {PrototypeProfileService.SavePath}";
+            $"已选地图：{host.GetSelectedRaidSceneDisplayName()}\n" +
+            $"资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}\n" +
+            $"仓库物品堆叠：{host.GetInventoryStackCount(host.StashInventory)}\n" +
+            $"仓库武器：{host.WeaponLocker.Count}\n" +
+            $"战局背包堆叠：{host.GetInventoryStackCount(host.RaidBackpackInventory)}\n" +
+            $"安全箱堆叠：{host.GetInventoryStackCount(host.SecureContainerInventory)}\n" +
+            $"特殊装备堆叠：{host.GetInventoryStackCount(host.SpecialEquipmentInventory)}\n" +
+            $"保护近战槽：{(host.EquippedMeleeWeapon != null ? host.EquippedMeleeWeapon.DisplayName : "空")}\n" +
+            $"主武器：{(host.EquippedPrimaryWeapon != null ? host.EquippedPrimaryWeapon.DisplayName : "空")}\n" +
+            $"副武器：{(host.EquippedSecondaryWeapon != null ? host.EquippedSecondaryWeapon.DisplayName : "空")}\n" +
+            $"护甲件数：{host.EquippedArmor.Count}\n" +
+            $"档案文件：{PrototypeProfileService.SavePath}";
     }
 }

@@ -20,7 +20,7 @@ public sealed class MetaMerchantPresenter
         {
             Rect emptyRect = new Rect(292f, 140f, Mathf.Max(560f, Screen.width - 336f), 220f);
             host.BeginPanel(emptyRect, "商人", host.LockerColor, $"资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
-            GUILayout.Label("No merchant catalog configured.", host.BodyStyle);
+            GUILayout.Label("未配置商人目录。", host.BodyStyle);
             host.EndPanel();
             return;
         }
@@ -61,7 +61,7 @@ public sealed class MetaMerchantPresenter
 
         if (merchant.weaponOffers != null && merchant.weaponOffers.Count > 0)
         {
-            GUILayout.Label("Weapons", host.BodyStyle);
+            GUILayout.Label("武器", host.BodyStyle);
             for (int index = 0; index < merchant.weaponOffers.Count; index++)
             {
                 PrototypeMerchantCatalog.WeaponOffer offer = merchant.weaponOffers[index];
@@ -72,8 +72,8 @@ public sealed class MetaMerchantPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(offer.definition.DisplayNameWithLevel, host.BodyStyle);
-                GUILayout.Label($"{(offer.definition.IsMeleeWeapon ? "Melee" : "Firearm")}  Price {offer.price}", host.BodyStyle);
-                if (GUILayout.Button("Buy", host.ButtonStyle, GUILayout.Width(96f)))
+                GUILayout.Label($"{(offer.definition.IsMeleeWeapon ? "近战" : "枪械")}  价格 {offer.price}", host.BodyStyle);
+                if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
                 {
                     BuyWeaponOffer(offer);
                     GUIUtility.ExitGUI();
@@ -87,7 +87,7 @@ public sealed class MetaMerchantPresenter
 
         if (merchant.itemOffers != null && merchant.itemOffers.Count > 0)
         {
-            GUILayout.Label("Supplies", host.BodyStyle);
+            GUILayout.Label("补给", host.BodyStyle);
             for (int index = 0; index < merchant.itemOffers.Count; index++)
             {
                 PrototypeMerchantCatalog.ItemOffer offer = merchant.itemOffers[index];
@@ -98,8 +98,8 @@ public sealed class MetaMerchantPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label($"{offer.definition.DisplayNameWithLevel} x{offer.quantity}", host.BodyStyle);
-                GUILayout.Label($"Price {offer.price}", host.BodyStyle);
-                if (GUILayout.Button("Buy", host.ButtonStyle, GUILayout.Width(96f)))
+                GUILayout.Label($"价格 {offer.price}", host.BodyStyle);
+                if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
                 {
                     BuyItemOffer(offer);
                     GUIUtility.ExitGUI();
@@ -120,7 +120,7 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        if (!host.TrySpendFunds(offer.price, "Not enough cash in warehouse."))
+        if (!host.TrySpendFunds(offer.price, "仓库里的现金不足。"))
         {
             return;
         }
@@ -128,11 +128,11 @@ public sealed class MetaMerchantPresenter
         if (!host.StashInventory.TryAddItem(offer.definition, offer.quantity, out int addedQuantity) || addedQuantity < offer.quantity)
         {
             host.TryAddFunds(offer.price);
-            host.SetFeedback("Warehouse has no space for that purchase.");
+            host.SetFeedback("仓库空间不足，无法完成购买。");
             return;
         }
 
-        host.SetFeedback($"Bought {offer.definition.DisplayNameWithLevel} x{offer.quantity}.");
+        host.SetFeedback($"已购买 {offer.definition.DisplayNameWithLevel} x{offer.quantity}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -143,7 +143,7 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        if (!host.TrySpendFunds(offer.price, "Not enough cash in warehouse."))
+        if (!host.TrySpendFunds(offer.price, "仓库里的现金不足。"))
         {
             return;
         }
@@ -151,7 +151,7 @@ public sealed class MetaMerchantPresenter
         int startingAmmo = offer.definition.IsMeleeWeapon ? 0 : offer.definition.MagazineSize;
         WeaponInstance weaponInstance = WeaponInstance.Create(offer.definition, startingAmmo, 1f);
         host.WeaponLocker.Add(weaponInstance);
-        host.SetFeedback($"Bought {weaponInstance.DisplayName}.");
+        host.SetFeedback($"已购买 {weaponInstance.DisplayName}。");
         host.AutoSaveIfNeeded();
     }
 
