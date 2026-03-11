@@ -399,6 +399,12 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
+        if (host.PlayerLevel < armorDefinition.RequiredLevel)
+        {
+            host.SetFeedback($"Requires level {armorDefinition.RequiredLevel} to equip {armorDefinition.DisplayNameWithLevel}.");
+            return;
+        }
+
         if (!source.TryExtractItem(itemIndex, 1, out _))
         {
             host.SetFeedback($"Could not equip armor from {sourceLabel.ToLowerInvariant()}.");
@@ -434,7 +440,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.EquippedArmor.RemoveAt(armorIndex);
-        host.SetFeedback($"Stored {armorDefinition.DisplayName}.");
+        host.SetFeedback($"Stored {armorDefinition.DisplayNameWithLevel}.");
         host.AutoSaveIfNeeded();
     }
 
@@ -461,7 +467,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.EquippedArmor.RemoveAt(armorIndex);
-        host.SetFeedback($"Moved {armorDefinition.DisplayName} into the raid backpack.");
+        host.SetFeedback($"Moved {armorDefinition.DisplayNameWithLevel} into the raid backpack.");
         host.AutoSaveIfNeeded();
     }
 
@@ -508,6 +514,12 @@ public sealed class MetaInventoryPresenter
             host.SetFeedback(expectsMelee
                 ? "Only melee weapons can be equipped in the melee slot."
                 : "Melee weapons must be equipped in the melee slot.");
+            return;
+        }
+
+        if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
+        {
+            host.SetFeedback($"Requires level {weaponInstance.Definition.RequiredLevel} to equip {weaponInstance.DisplayName}.");
             return;
         }
 
@@ -631,7 +643,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback($"Sold {weaponDefinition.DisplayName} for {sellPrice}.");
+        host.SetFeedback($"Sold {weaponDefinition.DisplayNameWithLevel} for {sellPrice}.");
         host.AutoSaveIfNeeded();
     }
 
@@ -660,7 +672,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback($"Sold {weaponDefinition.DisplayName} for {sellPrice}.");
+        host.SetFeedback($"Sold {weaponDefinition.DisplayNameWithLevel} for {sellPrice}.");
         host.AutoSaveIfNeeded();
     }
 
@@ -689,7 +701,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback($"Sold {armorDefinition.DisplayName} for {sellPrice}.");
+        host.SetFeedback($"Sold {armorDefinition.DisplayNameWithLevel} for {sellPrice}.");
         host.AutoSaveIfNeeded();
     }
 }

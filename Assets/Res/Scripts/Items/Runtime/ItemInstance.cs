@@ -12,7 +12,7 @@ public class ItemInstance
     public string InstanceId => instanceId;
     public ItemDefinition Definition => definition;
     public int Quantity => quantity;
-    public string DisplayName => definition != null ? definition.DisplayName : "Unknown Item";
+    public string DisplayName => definition != null ? definition.DisplayNameWithLevel : "Unknown Item";
     public float TotalWeight => definition != null ? definition.UnitWeight * quantity : 0f;
     public int MaxStackSize => definition != null ? definition.MaxStackSize : 1;
 

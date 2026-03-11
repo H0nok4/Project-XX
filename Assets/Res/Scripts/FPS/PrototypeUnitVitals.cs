@@ -124,7 +124,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         public void ApplyDefinition(ArmorDefinition armorDefinition, float preservedDurability, string desiredInstanceId = null)
         {
             definition = armorDefinition;
-            displayName = armorDefinition != null ? armorDefinition.DisplayName : string.Empty;
+            displayName = armorDefinition != null ? armorDefinition.DisplayNameWithLevel : string.Empty;
             maxDurability = armorDefinition != null ? armorDefinition.MaxDurability : 1f;
             currentDurability = Mathf.Clamp(preservedDurability, 0f, maxDurability);
 
@@ -138,7 +138,7 @@ public class PrototypeUnitVitals : MonoBehaviour
 
         public void Sanitize()
         {
-            displayName = string.IsNullOrWhiteSpace(displayName) && definition != null ? definition.DisplayName : displayName;
+            displayName = string.IsNullOrWhiteSpace(displayName) && definition != null ? definition.DisplayNameWithLevel : displayName;
             maxDurability = definition != null ? definition.MaxDurability : Mathf.Max(1f, maxDurability);
             currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);
             EnsureInstanceId();

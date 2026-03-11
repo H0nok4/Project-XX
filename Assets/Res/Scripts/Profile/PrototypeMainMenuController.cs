@@ -77,6 +77,9 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal InventoryContainer RaidBackpackInventory => raidBackpackInventory;
     internal InventoryContainer SecureContainerInventory => secureContainerInventory;
     internal InventoryContainer SpecialEquipmentInventory => specialEquipmentInventory;
+    internal int PlayerLevel => profile != null && profile.progression != null
+        ? Mathf.Max(1, profile.progression.playerLevel)
+        : 1;
     internal PrototypeItemCatalog ItemCatalog => itemCatalog;
     internal PrototypeMerchantCatalog MerchantCatalog => merchantCatalog;
     internal ItemDefinition CashDefinition => cashDefinition;

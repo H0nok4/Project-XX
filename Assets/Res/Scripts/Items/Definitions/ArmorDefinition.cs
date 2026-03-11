@@ -23,7 +23,7 @@ public class ArmorDefinition : ItemDefinition
 
     public IReadOnlyList<string> CoveredPartIds => coveredPartIds;
     public int ArmorClass => Mathf.Max(1, armorClass);
-    public float MaxDurability => Mathf.Max(1f, maxDurability);
+    public float MaxDurability => GetScaledValue(Mathf.Max(1f, maxDurability));
     public float BluntDamageMultiplier => Mathf.Clamp01(bluntDamageMultiplier);
     public float BlockedDurabilityLossMultiplier => Mathf.Max(0f, blockedDurabilityLossMultiplier);
     public float PenetratedDurabilityLossMultiplier => Mathf.Max(0f, penetratedDurabilityLossMultiplier);

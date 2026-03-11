@@ -71,7 +71,7 @@ public sealed class MetaMerchantPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label(offer.definition.DisplayName, host.BodyStyle);
+                GUILayout.Label(offer.definition.DisplayNameWithLevel, host.BodyStyle);
                 GUILayout.Label($"{(offer.definition.IsMeleeWeapon ? "Melee" : "Firearm")}  Price {offer.price}", host.BodyStyle);
                 if (GUILayout.Button("Buy", host.ButtonStyle, GUILayout.Width(96f)))
                 {
@@ -97,7 +97,7 @@ public sealed class MetaMerchantPresenter
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label($"{offer.definition.DisplayName} x{offer.quantity}", host.BodyStyle);
+                GUILayout.Label($"{offer.definition.DisplayNameWithLevel} x{offer.quantity}", host.BodyStyle);
                 GUILayout.Label($"Price {offer.price}", host.BodyStyle);
                 if (GUILayout.Button("Buy", host.ButtonStyle, GUILayout.Width(96f)))
                 {
@@ -132,7 +132,7 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        host.SetFeedback($"Bought {offer.definition.DisplayName} x{offer.quantity}.");
+        host.SetFeedback($"Bought {offer.definition.DisplayNameWithLevel} x{offer.quantity}.");
         host.AutoSaveIfNeeded();
     }
 

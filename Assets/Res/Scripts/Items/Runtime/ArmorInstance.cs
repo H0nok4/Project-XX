@@ -13,7 +13,7 @@ public class ArmorInstance
     public ArmorDefinition Definition => definition;
     public float CurrentDurability => currentDurability;
     public float MaxDurability => definition != null ? definition.MaxDurability : Mathf.Max(1f, currentDurability);
-    public string DisplayName => definition != null ? definition.DisplayName : "Unknown Armor";
+    public string DisplayName => definition != null ? definition.DisplayNameWithLevel : "Unknown Armor";
 
     public static ArmorInstance Create(ArmorDefinition armorDefinition, float durability, string instanceIdOverride = null)
     {

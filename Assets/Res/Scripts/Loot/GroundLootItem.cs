@@ -27,7 +27,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
 
     public string GetInteractionLabel(PlayerInteractor interactor)
     {
-        string itemName = itemDefinition != null ? itemDefinition.DisplayName : "Unknown Item";
+        string itemName = itemDefinition != null ? itemDefinition.DisplayNameWithLevel : "Unknown Item";
         return $"{interactionVerb} {itemName} x{quantity}";
     }
 

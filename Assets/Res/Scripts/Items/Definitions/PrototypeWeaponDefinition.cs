@@ -7,6 +7,10 @@ public class PrototypeWeaponDefinition : ScriptableObject
     [SerializeField] private string displayName = "Weapon";
     [TextArea]
     [SerializeField] private string description = string.Empty;
+    [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
+    [SerializeField] private int itemLevel = ItemDefinition.MinItemLevel;
+    [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
+    [SerializeField] private int requiredLevel = ItemDefinition.MinItemLevel;
     [SerializeField] private GameObject firstPersonViewPrefab;
     [SerializeField] private GameObject equippedWorldPrefab;
     [SerializeField] private bool meleeWeapon;
@@ -45,7 +49,10 @@ public class PrototypeWeaponDefinition : ScriptableObject
 
     public string WeaponId => string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
+    public string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
     public string Description => description ?? string.Empty;
+    public int ItemLevel => Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+    public int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
     public GameObject EquippedWorldPrefab => equippedWorldPrefab != null ? equippedWorldPrefab : firstPersonViewPrefab;
     public bool IsMeleeWeapon => meleeWeapon;
@@ -61,8 +68,8 @@ public class PrototypeWeaponDefinition : ScriptableObject
     public float LightBleedChance => Mathf.Clamp01(lightBleedChance);
     public float HeavyBleedChance => Mathf.Clamp01(heavyBleedChance);
     public float FractureChance => Mathf.Clamp01(fractureChance);
-    public float PenetrationPower => Mathf.Max(0f, penetrationPower);
-    public float MeleeDamage => Mathf.Max(1f, meleeDamage);
+    public float PenetrationPower => ItemDefinition.GetScaledValue(Mathf.Max(0f, penetrationPower), ItemLevel);
+    public float MeleeDamage => ItemDefinition.GetScaledValue(Mathf.Max(1f, meleeDamage), ItemLevel);
     public float MeleeRange => Mathf.Max(0.5f, meleeRange);
     public float MeleeRadius => Mathf.Max(0f, meleeRadius);
     public float MeleeCooldown => Mathf.Max(0.05f, meleeCooldown);
@@ -180,6 +187,8 @@ public class PrototypeWeaponDefinition : ScriptableObject
         meleeRange = Mathf.Max(0.5f, meleeRange);
         meleeRadius = Mathf.Max(0f, meleeRadius);
         meleeCooldown = Mathf.Max(0.05f, meleeCooldown);
+        itemLevel = Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        requiredLevel = Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
         SetFireModes(fireModes);
     }
 }

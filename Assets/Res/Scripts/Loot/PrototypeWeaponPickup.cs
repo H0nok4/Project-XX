@@ -56,10 +56,10 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
 
         if (weaponDefinition.IsMeleeWeapon)
         {
-            return $"{actionVerb} {slotLabel}: {weaponDefinition.DisplayName}";
+            return $"{actionVerb} {slotLabel}: {weaponDefinition.DisplayNameWithLevel}";
         }
 
-        return $"{actionVerb} {slotLabel}: {weaponDefinition.DisplayName} [{MagazineAmmo}/{weaponDefinition.MagazineSize}]";
+        return $"{actionVerb} {slotLabel}: {weaponDefinition.DisplayNameWithLevel} [{MagazineAmmo}/{weaponDefinition.MagazineSize}]";
     }
 
     public bool CanInteract(PlayerInteractor interactor)

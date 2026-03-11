@@ -150,8 +150,8 @@ public class LootContainerWindowController : MonoBehaviour
                         ? "Swap"
                         : "Take";
                     string weaponText = entry.WeaponDefinition.IsMeleeWeapon
-                        ? entry.WeaponDefinition.DisplayName
-                        : $"{entry.WeaponDefinition.DisplayName} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
+                        ? entry.WeaponDefinition.DisplayNameWithLevel
+                        : $"{entry.WeaponDefinition.DisplayNameWithLevel} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label(weaponText, windowStyle, GUILayout.Width(320f));

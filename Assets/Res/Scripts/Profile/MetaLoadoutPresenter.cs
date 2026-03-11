@@ -25,6 +25,8 @@ public sealed class MetaLoadoutPresenter
         GUILayout.Space(18f);
         GUILayout.Label($"可用资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
         GUILayout.Space(8f);
+        GUILayout.Label($"Level: {host.PlayerLevel}", host.BodyStyle);
+        GUILayout.Space(8f);
         GUILayout.Label(BuildSummaryText(), host.BodyStyle);
 
         GUILayout.Space(20f);
@@ -73,6 +75,9 @@ public sealed class MetaLoadoutPresenter
 
         GUILayout.Space(18f);
         GUILayout.Label($"Funds: {host.GetAvailableFunds()} {host.GetCurrencyLabel()}", host.BodyStyle);
+        GUILayout.Space(8f);
+
+        GUILayout.Label($"Level: {host.PlayerLevel}", host.BodyStyle);
         GUILayout.Space(8f);
 
         float summaryHeight = Mathf.Clamp(panelRect.height - 236f, 120f, 340f);

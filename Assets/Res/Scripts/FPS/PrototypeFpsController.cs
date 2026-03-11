@@ -354,7 +354,7 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
-        string weaponLine = hudState.Definition.DisplayName;
+        string weaponLine = hudState.Definition.DisplayNameWithLevel;
         string stateLine;
         if (hudState.Definition.IsMeleeWeapon)
         {

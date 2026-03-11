@@ -752,6 +752,7 @@ public static class PrototypeProfileService
         profile.progression.progressionDataVersion = Mathf.Max(
             profile.progression.progressionDataVersion,
             ProfileSchemaVersion.CurrentProgressionDataVersion);
+        profile.progression.playerLevel = Mathf.Max(1, profile.progression.playerLevel);
         profile.worldState.unlockedRaidMerchantIds ??= new List<string>();
         profile.worldState.unlockedRaidNpcIds ??= new List<string>();
         profile.worldState.questChainStages ??= new List<WorldStateData.QuestChainStageRecord>();

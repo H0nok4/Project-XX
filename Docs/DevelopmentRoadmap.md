@@ -68,10 +68,10 @@ AI在开发时应该：
 - 实例属性（耐久、弹药、词条等）持久化
 
 **验收标准**
-- [ ] 武器实例可以保存弹药数量和耐久
-- [ ] 护甲实例可以保存耐久
-- [ ] 撤离后装备状态正确保存
-- [ ] 旧存档可以正常加载并迁移
+- [x] 武器实例可以保存弹药数量和耐久
+- [x] 护甲实例可以保存耐久
+- [x] 撤离后装备状态正确保存
+- [x] 旧存档可以正常加载并迁移
 
 **相关文件**
 - `Assets/Res/Scripts/Items/Runtime/ItemInstance.cs`
@@ -95,9 +95,9 @@ AI在开发时应该：
 - 事件驱动的模块通信
 
 **验收标准**
-- [ ] 主菜单控制器代码行数<500行
-- [ ] 各Presenter职责单一
-- [ ] 功能正常，无回归问题
+- [x] 主菜单控制器代码行数<500行
+- [x] 各Presenter职责单一
+- [x] 功能正常，无回归问题
 
 **相关文件**
 - `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
@@ -119,9 +119,9 @@ AI在开发时应该：
 - 避免循环依赖
 
 **验收标准**
-- [ ] FpsController代码行数<800行
-- [ ] 武器和医疗逻辑独立
-- [ ] 功能正常，手感不变
+- [x] FpsController代码行数<800行
+- [x] 武器和医疗逻辑独立
+- [x] 功能正常，手感不变
 
 **相关文件**
 - `Assets/Res/Scripts/FPS/PrototypeFpsController.cs`
@@ -144,10 +144,10 @@ AI在开发时应该：
 - 具体约束以 [StateOwnershipAndPersistenceRules.md](./StateOwnershipAndPersistenceRules.md) 为准
 
 **验收标准**
-- [ ] 旧档可迁移到新 Profile 结构
-- [ ] 新增成长 / 世界状态字段不会导致旧档报错
-- [ ] 迁移失败时可保留原始备份
-- [ ] 有可追踪的迁移日志输出
+- [x] 旧档可迁移到新 Profile 结构
+- [x] 新增成长 / 世界状态字段不会导致旧档报错
+- [x] 迁移失败时可保留原始备份
+- [x] 有可追踪的迁移日志输出
 
 **相关文件**
 - `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
@@ -170,9 +170,9 @@ AI在开发时应该：
 - 将业务逻辑从单一页面控制器迁移到可被 `BaseScene` 复用的 Presenter / Service
 
 **验收标准**
-- [ ] 已定义 `MainMenu` 与 `BaseScene` 的最终职责
-- [ ] 局外核心功能不需要在两个场景各写一套
-- [ ] 保留开发调试入口且不影响正式流程
+- [x] 已定义 `MainMenu` 与 `BaseScene` 的最终职责
+- [x] 局外核心功能不需要在两个场景各写一套
+- [x] 保留开发调试入口且不影响正式流程
 
 **相关文件**
 - `Assets/Scenes/MainMenu.unity`
@@ -593,3 +593,4 @@ public enum MerchantType
 - 新增：`MerchantNPC.cs`, `MerchantUIManager.cs`
 - `Assets/Res/Scripts/Interaction/IInteractable.cs`
 - `Assets/Res/Scripts/Interaction/PlayerInteractor.cs`
+

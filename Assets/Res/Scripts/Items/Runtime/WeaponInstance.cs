@@ -15,7 +15,7 @@ public class WeaponInstance
     public PrototypeWeaponDefinition Definition => definition;
     public int MagazineAmmo => magazineAmmo;
     public float Durability => durability;
-    public string DisplayName => definition != null ? definition.DisplayName : "Unknown Weapon";
+    public string DisplayName => definition != null ? definition.DisplayNameWithLevel : "Unknown Weapon";
 
     public static WeaponInstance Create(
         PrototypeWeaponDefinition weaponDefinition,
