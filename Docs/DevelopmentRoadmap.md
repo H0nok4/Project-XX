@@ -220,10 +220,10 @@ public float GetScaledValue(float baseValue, int itemLevel)
 ```
 
 **验收标准**
-- [ ] 装备有等级显示
-- [ ] 等级影响属性计算
-- [ ] 等级不足无法装备
-- [ ] 战利品掉落等级合理
+- [x] 装备有等级显示
+- [x] 等级影响属性计算
+- [x] 等级不足无法装备
+- [x] 战利品掉落等级合理
 
 **相关文件**
 - `Assets/Res/Scripts/Items/Definitions/ItemDefinition.cs`
