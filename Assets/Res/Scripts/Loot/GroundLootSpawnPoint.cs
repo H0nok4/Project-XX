@@ -58,7 +58,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
         for (int index = 0; index < rolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = rolls[index];
-            if (roll.Definition == null || roll.Quantity <= 0)
+            if (roll.Instance == null || !roll.Instance.IsDefined() || roll.Instance.Quantity <= 0)
             {
                 continue;
             }
@@ -66,7 +66,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
             Vector3 spawnPosition = ResolveSpawnPosition(index);
             GroundLootItem pickup = GroundLootItem.SpawnScenePickup(
                 spawnPosition,
-                ItemInstance.Create(roll.Definition, roll.Quantity, null, roll.Rarity),
+                roll.Instance,
                 pickupVerb,
                 pickupParent);
 

@@ -160,14 +160,14 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             ?? PrototypeProfileService.CreateDefaultProfile(itemCatalog);
         InventoryContainer secureContainer = playerInteractor != null ? playerInteractor.SecureInventory : null;
         InventoryContainer specialEquipment = playerInteractor != null ? playerInteractor.SpecialInventory : null;
-        WeaponInstance currentPrimaryWeapon = fpsController != null
-            ? fpsController.GetPrimaryWeaponInstance()
+        ItemInstance currentPrimaryWeapon = fpsController != null
+            ? fpsController.GetPrimaryItemInstance()
             : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedPrimaryWeaponInstance, itemCatalog);
-        WeaponInstance currentSecondaryWeapon = fpsController != null
-            ? fpsController.GetSecondaryWeaponInstance()
+        ItemInstance currentSecondaryWeapon = fpsController != null
+            ? fpsController.GetSecondaryItemInstance()
             : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedSecondaryWeaponInstance, itemCatalog);
-        WeaponInstance currentMeleeWeapon = fpsController != null
-            ? fpsController.GetMeleeWeaponInstance()
+        ItemInstance currentMeleeWeapon = fpsController != null
+            ? fpsController.GetMeleeItemInstance()
             : PrototypeProfileService.ResolveWeaponInstance(latestProfile.equippedMeleeWeaponInstance, itemCatalog);
 
         latestProfile.secureContainerItemInstances = PrototypeProfileService.CaptureInventoryInstances(secureContainer);
@@ -176,8 +176,8 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
         latestProfile.secureContainerItems = PrototypeProfileService.CaptureInventory(secureContainer);
         latestProfile.specialEquipmentItems = PrototypeProfileService.CaptureInventory(specialEquipment);
-        latestProfile.equippedMeleeWeaponId = currentMeleeWeapon != null && currentMeleeWeapon.Definition != null
-            ? currentMeleeWeapon.Definition.WeaponId
+        latestProfile.equippedMeleeWeaponId = currentMeleeWeapon != null && currentMeleeWeapon.WeaponDefinition != null
+            ? currentMeleeWeapon.WeaponDefinition.WeaponId
             : string.Empty;
 
         if (raidGameMode.CurrentState == RaidGameMode.RaidState.Extracted)
@@ -192,16 +192,17 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             latestProfile.raidBackpackItems = PrototypeProfileService.CaptureInventory(inventory);
             latestProfile.equippedArmorItems = PrototypeProfileService.CaptureArmorDefinitions(
                 playerVitals != null ? playerVitals.EquippedArmor : null);
-            latestProfile.equippedPrimaryWeaponId = currentPrimaryWeapon != null && currentPrimaryWeapon.Definition != null
-                ? currentPrimaryWeapon.Definition.WeaponId
+            latestProfile.equippedPrimaryWeaponId = currentPrimaryWeapon != null && currentPrimaryWeapon.WeaponDefinition != null
+                ? currentPrimaryWeapon.WeaponDefinition.WeaponId
                 : string.Empty;
-            latestProfile.equippedSecondaryWeaponId = currentSecondaryWeapon != null && currentSecondaryWeapon.Definition != null
-                ? currentSecondaryWeapon.Definition.WeaponId
+            latestProfile.equippedSecondaryWeaponId = currentSecondaryWeapon != null && currentSecondaryWeapon.WeaponDefinition != null
+                ? currentSecondaryWeapon.WeaponDefinition.WeaponId
                 : string.Empty;
         }
         else
         {
             latestProfile.raidBackpackItemInstances.Clear();
+
             latestProfile.raidBackpackWeaponInstances.Clear();
             latestProfile.equippedArmorInstances.Clear();
             latestProfile.equippedPrimaryWeaponInstance = null;

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Prototype/Raid/Weapon Definition", fileName = "WeaponDefinition")]
-public class PrototypeWeaponDefinition : ScriptableObject
+public class PrototypeWeaponDefinition : ItemDefinitionBase
 {
     [SerializeField] private string weaponId = "weapon";
     [SerializeField] private string displayName = "Weapon";
@@ -49,13 +49,16 @@ public class PrototypeWeaponDefinition : ScriptableObject
     [Min(0.05f)]
     [SerializeField] private float meleeCooldown = 0.55f;
 
+    public override string ItemId => WeaponId;
     public string WeaponId => string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
-    public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
-    public string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
-    public string Description => description ?? string.Empty;
-    public float UnitWeight => Mathf.Max(0f, unitWeight);
-    public int ItemLevel => Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
-    public int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+    public override string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
+    public override string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
+    public override string Description => description ?? string.Empty;
+    public override float UnitWeight => Mathf.Max(0f, unitWeight);
+    public override int ItemLevel => Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+    public override Sprite Icon => null;
+    public override int MaxStackSize => 1;
+    public override int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
     public GameObject EquippedWorldPrefab => equippedWorldPrefab != null ? equippedWorldPrefab : firstPersonViewPrefab;
     public bool IsMeleeWeapon => meleeWeapon;

@@ -42,6 +42,49 @@ public class PrototypeItemCatalog : ScriptableObject
     public PrototypeWeaponDefinition DefaultSecondaryWeapon => defaultSecondaryWeapon;
     public PrototypeWeaponDefinition DefaultMeleeWeapon => defaultMeleeWeapon;
 
+    public IEnumerable<ItemDefinitionBase> EnumerateDefinitions()
+    {
+        if (items != null)
+        {
+            for (int index = 0; index < items.Count; index++)
+            {
+                ItemDefinition definition = items[index];
+                if (definition != null)
+                {
+                    yield return definition;
+                }
+            }
+        }
+
+        if (weapons != null)
+        {
+            for (int index = 0; index < weapons.Count; index++)
+            {
+                PrototypeWeaponDefinition definition = weapons[index];
+                if (definition != null)
+                {
+                    yield return definition;
+                }
+            }
+        }
+    }
+
+    public ItemDefinitionBase FindDefinitionById(string definitionId)
+    {
+        if (string.IsNullOrWhiteSpace(definitionId))
+        {
+            return null;
+        }
+
+        ItemDefinition itemDefinition = FindByItemId(definitionId);
+        if (itemDefinition != null)
+        {
+            return itemDefinition;
+        }
+
+        return FindWeaponById(definitionId);
+    }
+
     public ItemDefinition FindByItemId(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId))

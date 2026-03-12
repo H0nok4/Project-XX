@@ -98,9 +98,9 @@ public class LootContainer : MonoBehaviour, IInteractable
         for (int index = 0; index < rolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = rolls[index];
-            if (roll.Definition != null && roll.Quantity > 0)
+            if (roll.Instance != null && roll.Instance.IsDefined() && roll.Instance.Quantity > 0)
             {
-                inventory.TryAddItem(roll.Definition, roll.Quantity, roll.Rarity, out _);
+                inventory.TryAddItemInstance(roll.Instance.Clone());
             }
         }
 

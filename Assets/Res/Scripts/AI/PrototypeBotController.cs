@@ -1347,9 +1347,9 @@ public class PrototypeBotController : MonoBehaviour
         for (int index = 0; index < lootRolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = lootRolls[index];
-            if (roll.Definition != null && roll.Quantity > 0)
+            if (roll.Instance != null && roll.Instance.IsDefined() && roll.Instance.Quantity > 0)
             {
-                corpseInventory.TryAddItem(roll.Definition, roll.Quantity, roll.Rarity, out _);
+                corpseInventory.TryAddItemInstance(roll.Instance.Clone());
             }
         }
     }

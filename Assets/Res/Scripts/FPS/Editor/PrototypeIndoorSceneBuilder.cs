@@ -761,6 +761,7 @@ public static class PrototypeIndoorSceneBuilder
     {
         return new LootTableDefinition.LootEntry
         {
+            definition = itemDefinition,
             itemDefinition = itemDefinition,
             minQuantity = Mathf.Max(1, minQuantity),
             maxQuantity = Mathf.Max(Mathf.Max(1, minQuantity), maxQuantity),

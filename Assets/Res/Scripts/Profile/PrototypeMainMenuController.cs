@@ -75,11 +75,11 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal InventoryContainer specialEquipmentInventory;
     internal PrototypeProfileService.ProfileData profile;
     internal ItemDefinition cashDefinition;
-    internal readonly System.Collections.Generic.List<WeaponInstance> weaponLocker = new System.Collections.Generic.List<WeaponInstance>();
+    internal readonly System.Collections.Generic.List<ItemInstance> weaponLocker = new System.Collections.Generic.List<ItemInstance>();
     internal readonly System.Collections.Generic.List<ArmorInstance> equippedArmor = new System.Collections.Generic.List<ArmorInstance>();
-    internal WeaponInstance equippedPrimaryWeapon;
-    internal WeaponInstance equippedSecondaryWeapon;
-    internal WeaponInstance equippedMeleeWeapon;
+    internal ItemInstance equippedPrimaryWeapon;
+    internal ItemInstance equippedSecondaryWeapon;
+    internal ItemInstance equippedMeleeWeapon;
     internal MenuPage currentPage;
     internal string feedbackMessage = string.Empty;
     internal float feedbackUntilTime;
@@ -110,21 +110,21 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal PrototypeItemCatalog ItemCatalog => itemCatalog;
     internal PrototypeMerchantCatalog MerchantCatalog => merchantCatalog;
     internal ItemDefinition CashDefinition => cashDefinition;
-    internal System.Collections.Generic.List<WeaponInstance> WeaponLocker => weaponLocker;
+    internal System.Collections.Generic.List<ItemInstance> WeaponLocker => weaponLocker;
     internal System.Collections.Generic.List<ArmorInstance> EquippedArmor => equippedArmor;
-    internal WeaponInstance EquippedPrimaryWeapon
+    internal ItemInstance EquippedPrimaryWeapon
     {
         get => equippedPrimaryWeapon;
         set => equippedPrimaryWeapon = value;
     }
 
-    internal WeaponInstance EquippedSecondaryWeapon
+    internal ItemInstance EquippedSecondaryWeapon
     {
         get => equippedSecondaryWeapon;
         set => equippedSecondaryWeapon = value;
     }
 
-    internal WeaponInstance EquippedMeleeWeapon
+    internal ItemInstance EquippedMeleeWeapon
     {
         get => equippedMeleeWeapon;
         set => equippedMeleeWeapon = value;
@@ -475,9 +475,9 @@ public class PrototypeMainMenuController : MonoBehaviour
         profile.specialEquipmentItems = PrototypeProfileService.CaptureInventory(specialEquipmentInventory);
         profile.equippedArmorItems = PrototypeProfileService.CaptureArmorDefinitions(equippedArmor);
         profile.stashWeaponIds = PrototypeProfileService.CaptureWeaponIds(weaponLocker);
-        profile.equippedPrimaryWeaponId = equippedPrimaryWeapon != null && equippedPrimaryWeapon.Definition != null ? equippedPrimaryWeapon.Definition.WeaponId : string.Empty;
-        profile.equippedSecondaryWeaponId = equippedSecondaryWeapon != null && equippedSecondaryWeapon.Definition != null ? equippedSecondaryWeapon.Definition.WeaponId : string.Empty;
-        profile.equippedMeleeWeaponId = equippedMeleeWeapon != null && equippedMeleeWeapon.Definition != null ? equippedMeleeWeapon.Definition.WeaponId : string.Empty;
+        profile.equippedPrimaryWeaponId = equippedPrimaryWeapon != null && equippedPrimaryWeapon.WeaponDefinition != null ? equippedPrimaryWeapon.WeaponDefinition.WeaponId : string.Empty;
+        profile.equippedSecondaryWeaponId = equippedSecondaryWeapon != null && equippedSecondaryWeapon.WeaponDefinition != null ? equippedSecondaryWeapon.WeaponDefinition.WeaponId : string.Empty;
+        profile.equippedMeleeWeaponId = equippedMeleeWeapon != null && equippedMeleeWeapon.WeaponDefinition != null ? equippedMeleeWeapon.WeaponDefinition.WeaponId : string.Empty;
         profile.loadoutItems.Clear();
         profile.extractedItems.Clear();
         PrototypeProfileService.SaveProfile(profile, itemCatalog);

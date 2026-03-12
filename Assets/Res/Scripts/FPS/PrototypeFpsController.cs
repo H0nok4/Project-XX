@@ -131,6 +131,18 @@ public class PrototypeFpsController : MonoBehaviour
         weaponController?.ConfigureWeaponLoadout(primaryInstance, secondaryInstance, meleeInstance);
     }
 
+    public void ConfigureWeaponLoadout(
+        ItemInstance primaryInstance,
+        ItemInstance secondaryInstance,
+        ItemInstance meleeInstance)
+    {
+        WeaponInstance primaryWeaponInstance = primaryInstance != null ? primaryInstance.ToWeaponInstance() : null;
+        WeaponInstance secondaryWeaponInstance = secondaryInstance != null ? secondaryInstance.ToWeaponInstance() : null;
+        WeaponInstance meleeWeaponInstance = meleeInstance != null ? meleeInstance.ToWeaponInstance() : null;
+
+        ConfigureWeaponLoadout(primaryWeaponInstance, secondaryWeaponInstance, meleeWeaponInstance);
+    }
+
     public WeaponInstance GetPrimaryWeaponInstance()
     {
         return weaponController != null ? weaponController.GetPrimaryWeaponInstance() : null;
@@ -144,6 +156,21 @@ public class PrototypeFpsController : MonoBehaviour
     public WeaponInstance GetMeleeWeaponInstance()
     {
         return weaponController != null ? weaponController.GetMeleeWeaponInstance() : null;
+    }
+
+    public ItemInstance GetPrimaryItemInstance()
+    {
+        return ItemInstance.Create(GetPrimaryWeaponInstance());
+    }
+
+    public ItemInstance GetSecondaryItemInstance()
+    {
+        return ItemInstance.Create(GetSecondaryWeaponInstance());
+    }
+
+    public ItemInstance GetMeleeItemInstance()
+    {
+        return ItemInstance.Create(GetMeleeWeaponInstance());
     }
 
     private void Update()
@@ -228,7 +255,9 @@ public class PrototypeFpsController : MonoBehaviour
         {
             viewCamera.transform.localEulerAngles = Vector3.zero;
         }
-    }    public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
+    }
+
+    public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
     {
         if (weaponController != null)
         {
@@ -275,7 +304,7 @@ public class PrototypeFpsController : MonoBehaviour
         return result;
     }
 
-    public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    public bool TryEquipLootedWeapon(ItemInstance weaponInstance, out ItemInstance droppedWeapon)
     {
         droppedWeapon = null;
         if (weaponController == null)
@@ -292,7 +321,14 @@ public class PrototypeFpsController : MonoBehaviour
         return result;
     }
 
-    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out WeaponInstance droppedWeapon)
+    public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    {
+        bool result = TryEquipLootedWeapon(ItemInstance.Create(weaponInstance), out ItemInstance droppedItem);
+        droppedWeapon = droppedItem != null ? droppedItem.ToWeaponInstance() : null;
+        return result;
+    }
+
+    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out ItemInstance droppedWeapon)
     {
         droppedWeapon = null;
         if (weaponController == null)
@@ -306,6 +342,13 @@ public class PrototypeFpsController : MonoBehaviour
             SyncWeaponDefinitionsFromController();
         }
 
+        return result;
+    }
+
+    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out WeaponInstance droppedWeapon)
+    {
+        bool result = TryEquipInventoryWeapon(itemInstance, out ItemInstance droppedItem);
+        droppedWeapon = droppedItem != null ? droppedItem.ToWeaponInstance() : null;
         return result;
     }
 

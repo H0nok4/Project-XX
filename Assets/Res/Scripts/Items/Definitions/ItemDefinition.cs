@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Prototype/Raid/Item Definition", fileName = "ItemDefinition")]
-public class ItemDefinition : ScriptableObject
+public class ItemDefinition : ItemDefinitionBase
 {
     public const int MinItemLevel = 1;
     public const int MaxItemLevel = 50;
@@ -21,15 +21,15 @@ public class ItemDefinition : ScriptableObject
     [Range(MinItemLevel, MaxItemLevel)]
     [SerializeField] private int requiredLevel = MinItemLevel;
 
-    public string ItemId => string.IsNullOrWhiteSpace(itemId) ? name : itemId.Trim();
-    public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? ItemId : displayName.Trim();
-    public string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
-    public string Description => description;
-    public int MaxStackSize => Mathf.Max(1, maxStackSize);
-    public float UnitWeight => Mathf.Max(0f, unitWeight);
-    public Sprite Icon => icon;
-    public int ItemLevel => Mathf.Clamp(itemLevel, MinItemLevel, MaxItemLevel);
-    public int RequiredLevel => Mathf.Clamp(requiredLevel, MinItemLevel, MaxItemLevel);
+    public override string ItemId => string.IsNullOrWhiteSpace(itemId) ? name : itemId.Trim();
+    public override string DisplayName => string.IsNullOrWhiteSpace(displayName) ? ItemId : displayName.Trim();
+    public override string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
+    public override string Description => description ?? string.Empty;
+    public override int MaxStackSize => Mathf.Max(1, maxStackSize);
+    public override float UnitWeight => Mathf.Max(0f, unitWeight);
+    public override Sprite Icon => icon;
+    public override int ItemLevel => Mathf.Clamp(itemLevel, MinItemLevel, MaxItemLevel);
+    public override int RequiredLevel => Mathf.Clamp(requiredLevel, MinItemLevel, MaxItemLevel);
 
     public void Configure(
         string id,

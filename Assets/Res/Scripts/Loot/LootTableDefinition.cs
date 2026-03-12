@@ -8,7 +8,9 @@ public class LootTableDefinition : ScriptableObject
     [Serializable]
     public sealed class LootEntry
     {
+        public ItemDefinitionBase definition;
         public ItemDefinition itemDefinition;
+        public PrototypeWeaponDefinition weaponDefinition;
         [Min(1)]
         public int minQuantity = 1;
         [Min(1)]
@@ -16,20 +18,70 @@ public class LootTableDefinition : ScriptableObject
         public bool rollRarity;
         [Min(0f)]
         public float weight = 1f;
+
+        public ItemDefinitionBase DefinitionBase => ResolveDefinition();
+        public bool IsWeapon => ResolveDefinition() is PrototypeWeaponDefinition;
+        public bool IsValid => ResolveDefinition() != null;
+
+        public void Sanitize()
+        {
+            minQuantity = Mathf.Max(1, minQuantity);
+            maxQuantity = Mathf.Max(minQuantity, maxQuantity);
+            weight = Mathf.Max(0f, weight);
+
+            definition ??= ResolveDefinition();
+            if (definition is PrototypeWeaponDefinition)
+            {
+                minQuantity = 1;
+                maxQuantity = 1;
+            }
+        }
+
+        public ItemInstance CreateInstance(ItemRarity rarity)
+        {
+            ItemDefinitionBase resolvedDefinition = ResolveDefinition();
+            if (resolvedDefinition == null)
+            {
+                return null;
+            }
+
+            int quantity = resolvedDefinition is PrototypeWeaponDefinition
+                ? 1
+                : UnityEngine.Random.Range(Mathf.Max(1, minQuantity), Mathf.Max(Mathf.Max(1, minQuantity), maxQuantity) + 1);
+            return ItemInstance.Create(resolvedDefinition, quantity, rarity);
+        }
+
+        private ItemDefinitionBase ResolveDefinition()
+        {
+            if (definition != null)
+            {
+                return definition;
+            }
+
+            if (weaponDefinition != null)
+            {
+                return weaponDefinition;
+            }
+
+            return itemDefinition;
+        }
     }
 
     public readonly struct LootRoll
     {
-        public LootRoll(ItemDefinition definition, int quantity, ItemRarity rarity)
+        public LootRoll(ItemInstance instance)
         {
-            Definition = definition;
-            Quantity = Mathf.Max(1, quantity);
-            Rarity = ItemRarityUtility.Sanitize(rarity);
+            Instance = instance;
         }
 
-        public ItemDefinition Definition { get; }
-        public int Quantity { get; }
-        public ItemRarity Rarity { get; }
+        public ItemInstance Instance { get; }
+        public ItemDefinitionBase DefinitionBase => Instance != null ? Instance.DefinitionBase : null;
+        public ItemDefinition Definition => Instance != null ? Instance.Definition : null;
+        public PrototypeWeaponDefinition WeaponDefinition => Instance != null ? Instance.WeaponDefinition : null;
+        public int Quantity => Instance != null ? Instance.Quantity : 0;
+        public ItemRarity Rarity => Instance != null ? Instance.Rarity : ItemRarity.Common;
+        public bool IsWeapon => Instance != null && Instance.IsWeapon;
+        public bool IsValid => Instance != null && Instance.IsDefined() && Quantity > 0;
     }
 
     [SerializeField] private string tableId = "loot_table";
@@ -85,13 +137,17 @@ public class LootTableDefinition : ScriptableObject
         for (int index = 0; index < entries.Count; index++)
         {
             LootEntry entry = entries[index];
-            if (entry == null || entry.itemDefinition == null || entry.weight <= 0f)
+            if (entry == null)
             {
                 continue;
             }
 
-            entry.minQuantity = Mathf.Max(1, entry.minQuantity);
-            entry.maxQuantity = Mathf.Max(entry.minQuantity, entry.maxQuantity);
+            entry.Sanitize();
+            if (!entry.IsValid || entry.weight <= 0f)
+            {
+                continue;
+            }
+
             candidateEntries.Add(entry);
             totalWeight += entry.weight;
         }
@@ -106,11 +162,14 @@ public class LootTableDefinition : ScriptableObject
         {
             int selectedIndex = SelectWeightedEntryIndex(candidateEntries, totalWeight);
             LootEntry selectedEntry = candidateEntries[selectedIndex];
-            int quantity = UnityEngine.Random.Range(selectedEntry.minQuantity, selectedEntry.maxQuantity + 1);
             ItemRarity rarity = selectedEntry.rollRarity
                 ? ItemRarityUtility.RollWeighted(commonWeight, uncommonWeight, rareWeight, epicWeight, legendaryWeight)
                 : ItemRarity.Common;
-            results.Add(new LootRoll(selectedEntry.itemDefinition, quantity, rarity));
+            ItemInstance instance = selectedEntry.CreateInstance(rarity);
+            if (instance != null && instance.IsDefined() && instance.Quantity > 0)
+            {
+                results.Add(new LootRoll(instance));
+            }
 
             if (!allowDuplicateRolls)
             {
@@ -141,19 +200,27 @@ public class LootTableDefinition : ScriptableObject
         for (int index = 0; index < lootEntries.Length; index++)
         {
             LootEntry source = lootEntries[index];
-            if (source == null || source.itemDefinition == null)
+            if (source == null || !source.IsValid)
             {
                 continue;
             }
 
-            entries.Add(new LootEntry
+            ItemDefinitionBase resolvedDefinition = source.DefinitionBase;
+            var entry = new LootEntry
             {
-                itemDefinition = source.itemDefinition,
+                definition = resolvedDefinition,
+                itemDefinition = resolvedDefinition as ItemDefinition,
+                weaponDefinition = resolvedDefinition as PrototypeWeaponDefinition,
                 minQuantity = Mathf.Max(1, source.minQuantity),
                 maxQuantity = Mathf.Max(Mathf.Max(1, source.minQuantity), source.maxQuantity),
                 rollRarity = source.rollRarity,
                 weight = Mathf.Max(0f, source.weight)
-            });
+            };
+            entry.Sanitize();
+            if (entry.IsValid)
+            {
+                entries.Add(entry);
+            }
         }
     }
 
@@ -178,15 +245,17 @@ public class LootTableDefinition : ScriptableObject
         for (int index = entries.Count - 1; index >= 0; index--)
         {
             LootEntry entry = entries[index];
-            if (entry == null || entry.itemDefinition == null)
+            if (entry == null)
             {
                 entries.RemoveAt(index);
                 continue;
             }
 
-            entry.minQuantity = Mathf.Max(1, entry.minQuantity);
-            entry.maxQuantity = Mathf.Max(entry.minQuantity, entry.maxQuantity);
-            entry.weight = Mathf.Max(0f, entry.weight);
+            entry.Sanitize();
+            if (!entry.IsValid)
+            {
+                entries.RemoveAt(index);
+            }
         }
     }
 
