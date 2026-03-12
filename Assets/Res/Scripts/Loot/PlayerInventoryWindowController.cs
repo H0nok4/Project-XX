@@ -223,12 +223,6 @@ public class PlayerInventoryWindowController : MonoBehaviour
         }
 
         Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
-        if (extractedItem.IsWeapon)
-        {
-            PrototypeWeaponPickup.SpawnDroppedWeapon(dropOrigin, extractedItem.ToWeaponInstance());
-            return;
-        }
-
         GroundLootItem.SpawnDroppedItem(dropOrigin, extractedItem);
     }
 
@@ -250,7 +244,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
             return;
         }
 
-        if (!controller.TryEquipInventoryWeapon(extractedItem, out WeaponInstance overflowWeapon))
+        if (!controller.TryEquipInventoryWeapon(extractedItem, out ItemInstance overflowWeapon))
         {
             interactor.PrimaryInventory.TryAddItemInstance(extractedItem);
             return;
@@ -262,7 +256,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
         }
 
         Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
-        PrototypeWeaponPickup.SpawnDroppedWeapon(dropOrigin, overflowWeapon);
+        GroundLootItem.SpawnDroppedItem(dropOrigin, overflowWeapon);
     }
 
     private void DrawProtectedSection(string title, InventoryContainer inventory)
@@ -303,19 +297,29 @@ public class PlayerInventoryWindowController : MonoBehaviour
             return string.Empty;
         }
 
+        string detail;
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
-            return item.WeaponDefinition.IsMeleeWeapon
+            detail = item.WeaponDefinition.IsMeleeWeapon
                 ? $"Melee  Weight {item.TotalWeight:0.00}"
                 : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
         }
-
-        if (item.IsArmor)
+        else if (item.IsArmor)
         {
-            return $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
+            detail = $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
+        }
+        else
+        {
+            detail = $"Weight {item.TotalWeight:0.00}";
         }
 
-        return $"Weight {item.TotalWeight:0.00}";
+        string affixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
+        if (!string.IsNullOrWhiteSpace(affixSummary))
+        {
+            detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
+        }
+
+        return detail;
     }
 
     private static int GetStackCount(InventoryContainer inventory)

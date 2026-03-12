@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
@@ -9,13 +10,19 @@ public class ArmorInstance
     [SerializeField] private ItemRarity rarity = ItemRarity.Common;
     [Min(0f)]
     [SerializeField] private float currentDurability = 1f;
+    [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+
+    private ItemAffixSummary affixSummary = ItemAffixSummary.CreateDefault();
 
     public string InstanceId => instanceId;
     public ArmorDefinition Definition => definition;
     public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
     public float CurrentDurability => currentDurability;
+    public IReadOnlyList<ItemAffix> Affixes => affixes;
+    public bool HasAffixes => affixes != null && affixes.Count > 0;
+    public ItemAffixSummary AffixSummary => affixSummary;
     public float MaxDurability => definition != null
-        ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity))
+        ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity) * affixSummary.DurabilityMultiplier)
         : Mathf.Max(1f, currentDurability);
     public string DisplayName => definition != null
         ? $"{definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
@@ -27,10 +34,12 @@ public class ArmorInstance
         ArmorDefinition armorDefinition,
         float durability,
         string instanceIdOverride = null,
-        ItemRarity itemRarity = ItemRarity.Common)
+        ItemRarity itemRarity = ItemRarity.Common,
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+        bool generateAffixesIfMissing = true)
     {
         var instance = new ArmorInstance();
-        instance.ApplyDefinition(armorDefinition, durability, instanceIdOverride, itemRarity);
+        instance.ApplyDefinition(armorDefinition, durability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
         return instance;
     }
 
@@ -38,17 +47,58 @@ public class ArmorInstance
         ArmorDefinition armorDefinition,
         float durability,
         string instanceIdOverride = null,
-        ItemRarity itemRarity = ItemRarity.Common)
+        ItemRarity itemRarity = ItemRarity.Common,
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+        bool generateAffixesIfMissing = true)
     {
         definition = armorDefinition;
         rarity = ItemRarityUtility.Sanitize(itemRarity);
+        SetAffixes(affixesOverride, generateAffixesIfMissing);
         float maxDurability = MaxDurability;
         currentDurability = Mathf.Clamp(durability, 0f, maxDurability);
         SetInstanceId(instanceIdOverride);
     }
 
+    public void SetAffixes(IReadOnlyList<ItemAffix> newAffixes, bool generateIfMissing = true)
+    {
+        if (newAffixes != null)
+        {
+            affixes = ItemAffixUtility.CloneList(newAffixes);
+        }
+        else if (generateIfMissing)
+        {
+            affixes = GenerateAffixes();
+        }
+        else
+        {
+            affixes = new List<ItemAffix>();
+        }
+
+        ItemAffixUtility.SanitizeAffixes(affixes);
+        affixSummary = ItemAffixUtility.BuildSummary(affixes);
+    }
+
+    private List<ItemAffix> GenerateAffixes()
+    {
+        if (definition == null)
+        {
+            return new List<ItemAffix>();
+        }
+
+        return ItemAffixUtility.DefaultPool != null
+            ? ItemAffixUtility.DefaultPool.GenerateAffixes(Rarity, definition.ItemLevel, AffixItemTarget.Armor)
+            : new List<ItemAffix>();
+    }
+
     public void Sanitize()
     {
+        if (affixes == null)
+        {
+            affixes = new List<ItemAffix>();
+        }
+
+        ItemAffixUtility.SanitizeAffixes(affixes);
+        affixSummary = ItemAffixUtility.BuildSummary(affixes);
         rarity = ItemRarityUtility.Sanitize(rarity);
         float maxDurability = MaxDurability;
         currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);

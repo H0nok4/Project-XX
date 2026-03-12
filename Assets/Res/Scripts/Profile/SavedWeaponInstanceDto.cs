@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 [Serializable]
 public sealed class SavedWeaponInstanceDto
@@ -8,4 +9,5 @@ public sealed class SavedWeaponInstanceDto
     public ItemRarity rarity = ItemRarity.Common;
     public int magazineAmmo;
     public float durability = 1f;
+    public List<ItemAffix> affixes;
 }

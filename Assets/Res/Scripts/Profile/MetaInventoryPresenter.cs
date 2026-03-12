@@ -53,7 +53,7 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
-                GUILayout.Label($"重量 {item.TotalWeight:0.00}", host.BodyStyle);
+                GUILayout.Label(GetInventoryEntryDetail(item), host.BodyStyle);
                 GUILayout.BeginHorizontal();
                 if (item.Definition is ArmorDefinition)
                 {
@@ -213,16 +213,21 @@ public sealed class MetaInventoryPresenter
             lockerScroll = GUILayout.BeginScrollView(lockerScroll, GUILayout.Height(rect.height - 130f));
             for (int index = 0; index < host.WeaponLocker.Count; index++)
             {
-                WeaponInstance weapon = host.WeaponLocker[index];
-                if (weapon == null || weapon.Definition == null)
+                ItemInstance weapon = host.WeaponLocker[index];
+                if (weapon == null || weapon.WeaponDefinition == null)
                 {
                     continue;
                 }
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(weapon.RichDisplayName, host.BodyStyle);
-                GUILayout.Label(weapon.Definition.IsMeleeWeapon ? "近战" : "枪械", host.BodyStyle);
-                if (weapon.Definition.IsMeleeWeapon)
+                GUILayout.Label(weapon.WeaponDefinition.IsMeleeWeapon ? "近战" : "枪械", host.BodyStyle);
+                string lockerAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(weapon.Affixes);
+                if (!string.IsNullOrWhiteSpace(lockerAffixSummary))
+                {
+                    GUILayout.Label(lockerAffixSummary, host.BodyStyle);
+                }
+                if (weapon.WeaponDefinition.IsMeleeWeapon)
                 {
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("装备近战", host.ButtonStyle, GUILayout.Width(108f)))
@@ -304,6 +309,11 @@ public sealed class MetaInventoryPresenter
                 GUILayout.Label(armorInstance.RichDisplayName, host.BodyStyle);
                 GUILayout.Label($"耐久 {armorInstance.CurrentDurability:0}/{armorInstance.MaxDurability:0}", host.BodyStyle);
                 GUILayout.Label($"覆盖部位 {string.Join(", ", armorDefinition.CoveredPartIds)}", host.BodyStyle);
+                string armorAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(armorInstance.Affixes);
+                if (!string.IsNullOrWhiteSpace(armorAffixSummary))
+                {
+                    GUILayout.Label(armorAffixSummary, host.BodyStyle);
+                }
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
                 {
@@ -355,7 +365,7 @@ public sealed class MetaInventoryPresenter
 
             GUILayout.BeginVertical(host.ListStyle);
             GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", host.BodyStyle);
-            GUILayout.Label($"重量 {item.TotalWeight:0.00}", host.BodyStyle);
+            GUILayout.Label(GetInventoryEntryDetail(item), host.BodyStyle);
             if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
             {
                 MoveItemBetweenInventories(inventory, host.StashInventory, index, item.Quantity, "已存入仓库", "仓库空间不足，无法接收该堆叠。");
@@ -366,10 +376,18 @@ public sealed class MetaInventoryPresenter
         }
     }
 
-    private void DrawWeaponSlotEntry(string label, WeaponInstance weaponInstance, PrototypeMainMenuController.WeaponSlotType slotType, bool protectedOnDeath)
+    private void DrawWeaponSlotEntry(string label, ItemInstance weaponInstance, PrototypeMainMenuController.WeaponSlotType slotType, bool protectedOnDeath)
     {
         GUILayout.BeginVertical(host.ListStyle);
         GUILayout.Label($"{label}：{(weaponInstance != null ? weaponInstance.RichDisplayName : "空")}", host.BodyStyle);
+        if (weaponInstance != null)
+        {
+            string slotAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(weaponInstance.Affixes);
+            if (!string.IsNullOrWhiteSpace(slotAffixSummary))
+            {
+                GUILayout.Label(slotAffixSummary, host.BodyStyle);
+            }
+        }
         if (protectedOnDeath)
         {
             GUILayout.Label("该栏位在战斗死亡后会保留。", host.BodyStyle);
@@ -534,7 +552,7 @@ public sealed class MetaInventoryPresenter
                     continue;
                 }
 
-                WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
+                ItemInstance weaponInstance = extractedItem;
                 if (weaponInstance == null)
                 {
                     host.RaidBackpackInventory.TryAddItemInstance(extractedItem);
@@ -573,7 +591,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
+        ItemInstance weaponInstance = extractedItem;
         if (weaponInstance == null)
         {
             source.TryAddItemInstance(extractedItem);
@@ -597,15 +615,15 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        WeaponInstance weaponInstance = extractedItem.ToWeaponInstance();
-        if (weaponInstance == null || weaponInstance.Definition == null)
+        ItemInstance weaponInstance = extractedItem;
+        if (weaponInstance == null || weaponInstance.WeaponDefinition == null)
         {
             source.TryAddItemInstance(extractedItem);
             return;
         }
 
         bool expectsMelee = slotType == PrototypeMainMenuController.WeaponSlotType.Melee;
-        if (weaponInstance.Definition.IsMeleeWeapon != expectsMelee)
+        if (weaponInstance.WeaponDefinition.IsMeleeWeapon != expectsMelee)
         {
             source.TryAddItemInstance(extractedItem);
             host.SetFeedback(expectsMelee
@@ -614,15 +632,15 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
+        if (host.PlayerLevel < weaponInstance.WeaponDefinition.RequiredLevel)
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback($"需要等级 {weaponInstance.Definition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
+            host.SetFeedback($"需要等级 {weaponInstance.WeaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
             return;
         }
 
-        WeaponInstance replacedWeapon = GetEquippedWeapon(slotType);
-        if (replacedWeapon != null && !source.TryAddItemInstance(ItemInstance.Create(replacedWeapon)))
+        ItemInstance replacedWeapon = GetEquippedWeapon(slotType);
+        if (replacedWeapon != null && !source.TryAddItemInstance(replacedWeapon.Clone()))
         {
             source.TryAddItemInstance(extractedItem);
             host.SetFeedback("战局背包空间不足，无法放入被替换的武器。");
@@ -641,8 +659,8 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        WeaponInstance weaponInstance = host.WeaponLocker[lockerIndex];
-        if (weaponInstance == null || weaponInstance.Definition == null)
+        ItemInstance weaponInstance = host.WeaponLocker[lockerIndex];
+        if (weaponInstance == null || weaponInstance.WeaponDefinition == null)
         {
             host.WeaponLocker.RemoveAt(lockerIndex);
             host.AutoSaveIfNeeded();
@@ -650,7 +668,7 @@ public sealed class MetaInventoryPresenter
         }
 
         bool expectsMelee = slotType == PrototypeMainMenuController.WeaponSlotType.Melee;
-        if (weaponInstance.Definition.IsMeleeWeapon != expectsMelee)
+        if (weaponInstance.WeaponDefinition.IsMeleeWeapon != expectsMelee)
         {
             host.SetFeedback(expectsMelee
                 ? "只有近战武器可以装备到近战槽。"
@@ -658,14 +676,14 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (host.PlayerLevel < weaponInstance.Definition.RequiredLevel)
+        if (host.PlayerLevel < weaponInstance.WeaponDefinition.RequiredLevel)
         {
-            host.SetFeedback($"需要等级 {weaponInstance.Definition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
+            host.SetFeedback($"需要等级 {weaponInstance.WeaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
             return;
         }
 
         host.WeaponLocker.RemoveAt(lockerIndex);
-        WeaponInstance replacedWeapon = GetEquippedWeapon(slotType);
+        ItemInstance replacedWeapon = GetEquippedWeapon(slotType);
         if (replacedWeapon != null)
         {
             host.WeaponLocker.Add(replacedWeapon);
@@ -678,7 +696,7 @@ public sealed class MetaInventoryPresenter
 
     private void StoreEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
     {
-        WeaponInstance weaponInstance = GetEquippedWeapon(slotType);
+        ItemInstance weaponInstance = GetEquippedWeapon(slotType);
         if (weaponInstance == null)
         {
             return;
@@ -690,7 +708,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private WeaponInstance GetEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
+    private ItemInstance GetEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
     {
         switch (slotType)
         {
@@ -705,7 +723,7 @@ public sealed class MetaInventoryPresenter
         }
     }
 
-    private void SetEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType, WeaponInstance weaponInstance)
+    private void SetEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType, ItemInstance weaponInstance)
     {
         switch (slotType)
         {
@@ -730,19 +748,29 @@ public sealed class MetaInventoryPresenter
             return string.Empty;
         }
 
+        string detail;
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
-            return item.WeaponDefinition.IsMeleeWeapon
+            detail = item.WeaponDefinition.IsMeleeWeapon
                 ? $"近战  重量 {item.TotalWeight:0.00}"
                 : $"弹药 {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  重量 {item.TotalWeight:0.00}";
         }
-
-        if (item.IsArmor)
+        else if (item.IsArmor)
         {
-            return $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
+            detail = $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
+        }
+        else
+        {
+            detail = $"重量 {item.TotalWeight:0.00}";
         }
 
-        return $"重量 {item.TotalWeight:0.00}";
+        string affixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
+        if (!string.IsNullOrWhiteSpace(affixSummary))
+        {
+            detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
+        }
+
+        return detail;
     }
 
     private void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
@@ -789,8 +817,8 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        WeaponInstance weaponInstance = host.WeaponLocker[lockerIndex];
-        PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.Definition : null;
+        ItemInstance weaponInstance = host.WeaponLocker[lockerIndex];
+        PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
         int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
@@ -818,8 +846,8 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        WeaponInstance weaponInstance = GetEquippedWeapon(slotType);
-        PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.Definition : null;
+        ItemInstance weaponInstance = GetEquippedWeapon(slotType);
+        PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
         int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {

@@ -151,12 +151,13 @@ public class LootContainerWindowController : MonoBehaviour
                         : controller != null && controller.PickupWouldReplaceEquippedWeapon(entry.WeaponDefinition)
                             ? "Swap"
                             : "Take";
-                    WeaponInstance previewInstance = entry.CreateInstance();
+                    ItemInstance previewInstance = entry.CreateInstance();
                     string weaponLabel = previewInstance != null ? previewInstance.RichDisplayName : entry.WeaponDefinition.DisplayNameWithLevel;
                     string weaponText = entry.WeaponDefinition.IsMeleeWeapon
                         ? weaponLabel
                         : $"{weaponLabel} [{entry.MagazineAmmo}/{entry.WeaponDefinition.MagazineSize}]";
 
+                    GUILayout.BeginVertical();
                     GUILayout.BeginHorizontal();
                     GUILayout.Label(weaponText, windowStyle, GUILayout.Width(320f));
                     if (GUILayout.Button(buttonLabel, buttonStyle, GUILayout.Width(90f)))
@@ -166,6 +167,16 @@ public class LootContainerWindowController : MonoBehaviour
                     }
 
                     GUILayout.EndHorizontal();
+
+                    string weaponAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(entry.Affixes);
+                    if (!string.IsNullOrWhiteSpace(weaponAffixSummary))
+                    {
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Space(16f);
+                        GUILayout.Label(weaponAffixSummary, windowStyle);
+                        GUILayout.EndHorizontal();
+                    }
+                    GUILayout.EndVertical();
                 }
 
                 GUILayout.Space(8f);
@@ -180,6 +191,7 @@ public class LootContainerWindowController : MonoBehaviour
                     continue;
                 }
 
+                GUILayout.BeginVertical();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", windowStyle, GUILayout.Width(320f));
 
@@ -190,6 +202,17 @@ public class LootContainerWindowController : MonoBehaviour
                 }
 
                 GUILayout.EndHorizontal();
+
+                string itemAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
+                if (!string.IsNullOrWhiteSpace(itemAffixSummary))
+                {
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(16f);
+                    GUILayout.Label(itemAffixSummary, windowStyle);
+                    GUILayout.EndHorizontal();
+                }
+
+                GUILayout.EndVertical();
             }
 
             GUILayout.EndScrollView();

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -9,12 +10,14 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     [SerializeField] private int magazineAmmo;
     [Min(0f)]
     [SerializeField] private float durability = 1f;
+    [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
     [SerializeField] private string interactionVerb = "Take";
     [SerializeField] private bool destroyWhenCollected = true;
 
     public PrototypeWeaponDefinition WeaponDefinition => weaponDefinition;
     public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
     public float Durability => Mathf.Max(0f, durability);
+    public IReadOnlyList<ItemAffix> Affixes => affixes;
     public int MagazineAmmo => weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
         ? Mathf.Clamp(magazineAmmo, 0, weaponDefinition.MagazineSize)
         : 0;
@@ -33,6 +36,12 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
 
         rarity = ItemRarityUtility.Sanitize(rarity);
         durability = Mathf.Max(0f, durability);
+        if (affixes == null)
+        {
+            affixes = new List<ItemAffix>();
+        }
+
+        ItemAffixUtility.SanitizeAffixes(affixes);
         RefreshVisuals();
     }
 
@@ -41,14 +50,16 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         int startingAmmo = definition != null && !definition.IsMeleeWeapon
             ? (loadedAmmo >= 0 ? loadedAmmo : definition.MagazineSize)
             : 0;
-        Configure(WeaponInstance.Create(definition, startingAmmo, 1f), verb);
+        Configure(ItemInstance.Create(definition, startingAmmo, 1f, null, ItemRarity.Common), verb);
     }
 
-    public void Configure(WeaponInstance instance, string verb = "Take")
+    public void Configure(ItemInstance instance, string verb = "Take")
     {
-        weaponDefinition = instance != null ? instance.Definition : null;
+        weaponDefinition = instance != null ? instance.WeaponDefinition : null;
         rarity = instance != null ? instance.Rarity : ItemRarity.Common;
-        durability = instance != null ? instance.Durability : 1f;
+        durability = instance != null ? instance.CurrentDurability : 1f;
+        affixes = ItemAffixUtility.CloneList(instance != null ? instance.Affixes : null);
+        ItemAffixUtility.SanitizeAffixes(affixes);
         interactionVerb = string.IsNullOrWhiteSpace(verb) ? "Take" : verb.Trim();
 
         if (weaponDefinition != null && !weaponDefinition.IsMeleeWeapon)
@@ -63,6 +74,11 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         }
 
         RefreshVisuals();
+    }
+
+    public void Configure(WeaponInstance instance, string verb = "Take")
+    {
+        Configure(ItemInstance.Create(instance), verb);
     }
 
     public string GetInteractionLabel(PlayerInteractor interactor)
@@ -105,10 +121,10 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         }
 
         PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
-        WeaponInstance weaponInstance = CreateWeaponInstance();
+        ItemInstance weaponInstance = CreateWeaponInstance();
         if (controller == null
             || weaponInstance == null
-            || !controller.TryEquipLootedWeapon(weaponInstance, out WeaponInstance droppedWeapon))
+            || !controller.TryEquipLootedWeapon(weaponInstance, out ItemInstance droppedWeapon))
         {
             return;
         }
@@ -136,32 +152,32 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         int loadedAmmo = -1,
         string verb = "Take")
     {
-        WeaponInstance instance = definition != null
-            ? WeaponInstance.Create(definition, loadedAmmo >= 0 ? loadedAmmo : (definition.IsMeleeWeapon ? 0 : definition.MagazineSize))
+        ItemInstance instance = definition != null
+            ? ItemInstance.Create(definition, loadedAmmo >= 0 ? loadedAmmo : (definition.IsMeleeWeapon ? 0 : definition.MagazineSize), 1f, null, ItemRarity.Common)
             : null;
         return SpawnDroppedWeapon(dropOrigin, instance, verb);
     }
 
     public static PrototypeWeaponPickup SpawnDroppedWeapon(
         Transform dropOrigin,
-        WeaponInstance instance,
+        ItemInstance instance,
         string verb = "Take")
     {
-        if (dropOrigin == null || instance == null || instance.Definition == null)
+        if (dropOrigin == null || instance == null || !instance.IsWeapon || instance.WeaponDefinition == null)
         {
             return null;
         }
 
         GameObject pickupObject = CreatePickupObject(
-            $"DroppedWeapon_{instance.Definition.WeaponId}",
+            $"DroppedWeapon_{instance.WeaponDefinition.WeaponId}",
             ResolveDropPosition(dropOrigin),
             Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
-            GetDropScale(instance.Definition),
+            GetDropScale(instance.WeaponDefinition),
             instance,
             verb);
 
         Rigidbody body = pickupObject.AddComponent<Rigidbody>();
-        body.mass = instance.Definition.IsMeleeWeapon ? 0.7f : 1.5f;
+        body.mass = instance.WeaponDefinition.IsMeleeWeapon ? 0.7f : 1.5f;
         body.interpolation = RigidbodyInterpolation.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         body.AddForce((dropOrigin.forward.normalized + Vector3.up * 0.24f) * 2.1f, ForceMode.VelocityChange);
@@ -176,10 +192,18 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         string verb = "Take",
         Transform parent = null)
     {
-        WeaponInstance instance = definition != null
-            ? WeaponInstance.Create(definition, loadedAmmo >= 0 ? loadedAmmo : (definition.IsMeleeWeapon ? 0 : definition.MagazineSize))
+        ItemInstance instance = definition != null
+            ? ItemInstance.Create(definition, loadedAmmo >= 0 ? loadedAmmo : (definition.IsMeleeWeapon ? 0 : definition.MagazineSize), 1f, null, ItemRarity.Common)
             : null;
         return SpawnScenePickup(worldPosition, instance, verb, parent);
+    }
+
+    public static PrototypeWeaponPickup SpawnDroppedWeapon(
+        Transform dropOrigin,
+        WeaponInstance instance,
+        string verb = "Take")
+    {
+        return SpawnDroppedWeapon(dropOrigin, ItemInstance.Create(instance), verb);
     }
 
     public static PrototypeWeaponPickup SpawnScenePickup(
@@ -188,16 +212,25 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         string verb = "Take",
         Transform parent = null)
     {
-        if (instance == null || instance.Definition == null)
+        return SpawnScenePickup(worldPosition, ItemInstance.Create(instance), verb, parent);
+    }
+
+    public static PrototypeWeaponPickup SpawnScenePickup(
+        Vector3 worldPosition,
+        ItemInstance instance,
+        string verb = "Take",
+        Transform parent = null)
+    {
+        if (instance == null || !instance.IsWeapon || instance.WeaponDefinition == null)
         {
             return null;
         }
 
         GameObject pickupObject = CreatePickupObject(
-            $"SpawnedWeapon_{instance.Definition.WeaponId}",
+            $"SpawnedWeapon_{instance.WeaponDefinition.WeaponId}",
             worldPosition,
             Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
-            GetDropScale(instance.Definition),
+            GetDropScale(instance.WeaponDefinition),
             instance,
             verb);
 
@@ -238,10 +271,10 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         Vector3 worldPosition,
         Quaternion worldRotation,
         Vector3 localScale,
-        WeaponInstance instance,
+        ItemInstance instance,
         string verb)
     {
-        PrototypeWeaponDefinition definition = instance != null ? instance.Definition : null;
+        PrototypeWeaponDefinition definition = instance != null ? instance.WeaponDefinition : null;
         PrimitiveType primitiveType = definition != null && definition.IsMeleeWeapon ? PrimitiveType.Capsule : PrimitiveType.Cube;
         GameObject pickupObject = GameObject.CreatePrimitive(primitiveType);
         pickupObject.name = objectName;
@@ -262,14 +295,14 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         return pickupObject;
     }
 
-    private WeaponInstance CreateWeaponInstance()
+    private ItemInstance CreateWeaponInstance()
     {
         if (weaponDefinition == null)
         {
             return null;
         }
 
-        return WeaponInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity);
+        return ItemInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity, affixes, false);
     }
 
     private void RefreshVisuals()

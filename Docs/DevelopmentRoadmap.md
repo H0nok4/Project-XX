@@ -276,15 +276,30 @@ public class ItemInstance
 **优先级**：高
 **预计时间**：5-7天
 
+**目标**
+- 基于装备品质/等级生成随机词条并持久化
+- 词条规则可配置、可扩展，且与装备类型匹配
+- 词条效果在战斗与UI中可见、可验证
+
 **任务描述**
-- 创建词条数据结构
-- 实现词条池和随机生成
-- 实现词条效果应用
-- 更新UI显示词条
-- 实现词条数值范围
+- 定义词条分类、可用装备类型、互斥与重复规则
+- 建立词条配置（ScriptableObject）：类型、数值区间、权重、Tier、允许装备类型
+- 实现词条池与随机生成（按品质决定数量、按权重抽取、按等级/品质缩放）
+- 实现词条效果应用（数值型优先），并接入战斗/属性计算
+- 更新UI显示词条（排序、颜色、数值格式）
+- 完成词条存档/读档与回放一致性
 
 **技术要点**
 ```csharp
+public enum AffixCategory
+{
+    Offensive,
+    Defensive,
+    Mobility,
+    Survival,
+    Special
+}
+
 public enum AffixType
 {
     // 攻击类
@@ -292,23 +307,39 @@ public enum AffixType
     CritChance,
     CritDamage,
     ArmorPenetration,
+    FireRate,
+    Accuracy,
+    EffectiveRange,
 
     // 防御类
     ArmorBonus,
+    ArmorLevel,
+    DurabilityBonus,
     DamageReduction,
+    BodyPartProtection,
 
     // 机动类
     MoveSpeed,
     ReloadSpeed,
+    SwapSpeed,
+    AimSpeed,
+    WeightReduction,
 
     // 生存类
     HealthBonus,
     StaminaBonus,
-    HealingBonus
+    StaminaRegen,
+    HealingBonus,
+    StatusResistance,
+
+    // 特殊类（数值型优先，触发型可后续扩展）
+    ExperienceBonus,
+    LootFind
 }
 
 public class ItemAffix
 {
+    public AffixCategory category;
     public AffixType type;
     public float value;
     public int tier; // 词条品质（影响数值范围）
@@ -318,23 +349,29 @@ public class AffixPool : ScriptableObject
 {
     public List<AffixDefinition> availableAffixes;
 
-    public List<ItemAffix> GenerateAffixes(ItemRarity rarity, int itemLevel)
+    public List<ItemAffix> GenerateAffixes(ItemRarity rarity, int itemLevel, ItemType itemType)
     {
         int affixCount = GetAffixCount(rarity);
+        // 1) 过滤装备类型匹配的词条
+        // 2) 按权重抽取，避免重复
+        // 3) 按等级/品质/Tier缩放数值
         // 随机生成词条
     }
 }
 ```
 
+- 词条数值区间与分类参考 `Docs/GameDesignDocument_Part2.md` 3.4（可按数值平衡再微调）
+
 **验收标准**
-- [ ] 装备可以有随机词条
-- [ ] 词条数量根据品质决定
-- [ ] 词条效果正确应用到战斗
-- [ ] UI正确显示所有词条
-- [ ] 词条数值在合理范围内
+- [ ] 装备可以生成随机词条（普通/优秀/稀有/史诗/传说分别为0/1/2/3/4条，可配置）
+- [ ] 同一装备词条不重复，且与装备类型匹配
+- [ ] 词条数值落在配置区间，并受Tier/等级缩放
+- [ ] 词条效果正确应用到战斗（至少覆盖伤害、暴击、护甲、移速等核心数值）
+- [ ] UI正确显示词条名称、数值、类型/品质色与排序
+- [ ] 存档/读档后词条保持一致
 
 **相关文件**
-- 新增：`ItemAffix.cs`, `AffixType.cs`, `AffixPool.cs`, `AffixDefinition.cs`
+- 新增：`ItemAffix.cs`, `AffixType.cs`, `AffixCategory.cs`, `AffixPool.cs`, `AffixDefinition.cs`
 - `Assets/Res/Scripts/Items/Runtime/ItemInstance.cs`
 
 #### 1.4 装备技能系统（被动）

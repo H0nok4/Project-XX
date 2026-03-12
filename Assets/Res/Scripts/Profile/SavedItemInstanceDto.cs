@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 [Serializable]
 public sealed class SavedItemInstanceDto
@@ -10,4 +11,5 @@ public sealed class SavedItemInstanceDto
     public int quantity;
     public int magazineAmmo;
     public float durability = -1f;
+    public List<ItemAffix> affixes;
 }

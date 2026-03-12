@@ -112,7 +112,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
     }
 
-    [Serializable]
+        [Serializable]
     public class ArmorState
     {
         public ArmorDefinition definition;
@@ -121,25 +121,42 @@ public class PrototypeUnitVitals : MonoBehaviour
         public ItemRarity rarity = ItemRarity.Common;
         [Min(1f)] public float maxDurability = 1f;
         [Min(0f)] public float currentDurability = 1f;
+        public List<ItemAffix> affixes = new List<ItemAffix>();
+        private ItemAffixSummary affixSummary = ItemAffixSummary.CreateDefault();
 
         public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
         public float StatMultiplier => ItemRarityUtility.GetStatMultiplier(Rarity);
-        public float EffectiveArmorClass => definition != null ? definition.ArmorClass * StatMultiplier : 0f;
-        public float EffectiveBleedProtection => definition != null ? Mathf.Clamp01(definition.BleedProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f)) : 0f;
-        public float EffectiveFractureProtection => definition != null ? Mathf.Clamp01(definition.FractureProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f)) : 0f;
+        public ItemAffixSummary AffixSummary => affixSummary;
+        public float DamageReduction => affixSummary.DamageReduction;
+        public float MoveSpeedMultiplier => affixSummary.MoveSpeedMultiplier;
+        public float EffectiveArmorClass => definition != null
+            ? definition.ArmorClass * StatMultiplier + affixSummary.ArmorClassBonus
+            : 0f;
+        public float EffectiveBleedProtection => definition != null
+            ? Mathf.Clamp01(definition.BleedProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f))
+            : 0f;
+        public float EffectiveFractureProtection => definition != null
+            ? Mathf.Clamp01(definition.FractureProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f))
+            : 0f;
 
         public void ApplyDefinition(
             ArmorDefinition armorDefinition,
             float preservedDurability,
             string desiredInstanceId = null,
-            ItemRarity itemRarity = ItemRarity.Common)
+            ItemRarity itemRarity = ItemRarity.Common,
+            IReadOnlyList<ItemAffix> affixesOverride = null)
         {
             definition = armorDefinition;
             rarity = ItemRarityUtility.Sanitize(itemRarity);
             displayName = armorDefinition != null
                 ? $"{armorDefinition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
                 : string.Empty;
-            maxDurability = armorDefinition != null ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(armorDefinition.MaxDurability, Rarity)) : 1f;
+            affixes = affixesOverride != null ? ItemAffixUtility.CloneList(affixesOverride) : new List<ItemAffix>();
+            ItemAffixUtility.SanitizeAffixes(affixes);
+            affixSummary = ItemAffixUtility.BuildSummary(affixes);
+            maxDurability = armorDefinition != null
+                ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(armorDefinition.MaxDurability, Rarity) * affixSummary.DurabilityMultiplier)
+                : 1f;
             currentDurability = Mathf.Clamp(preservedDurability, 0f, maxDurability);
 
             if (!string.IsNullOrWhiteSpace(desiredInstanceId))
@@ -152,11 +169,20 @@ public class PrototypeUnitVitals : MonoBehaviour
 
         public void Sanitize()
         {
+            if (affixes == null)
+            {
+                affixes = new List<ItemAffix>();
+            }
+
+            ItemAffixUtility.SanitizeAffixes(affixes);
+            affixSummary = ItemAffixUtility.BuildSummary(affixes);
             rarity = ItemRarityUtility.Sanitize(rarity);
             displayName = string.IsNullOrWhiteSpace(displayName) && definition != null
                 ? $"{definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
                 : displayName;
-            maxDurability = definition != null ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity)) : Mathf.Max(1f, maxDurability);
+            maxDurability = definition != null
+                ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity) * affixSummary.DurabilityMultiplier)
+                : Mathf.Max(1f, maxDurability);
             currentDurability = Mathf.Clamp(currentDurability, 0f, maxDurability);
             EnsureInstanceId();
         }
@@ -380,6 +406,7 @@ public class PrototypeUnitVitals : MonoBehaviour
     [SerializeField] private UnityEvent onDied = new UnityEvent();
 
     private readonly Queue<PendingDamage> pendingDamage = new Queue<PendingDamage>();
+    private float equipmentMoveSpeedMultiplier = 1f;
     private bool isApplyingDamage;
     private float staminaRecoveryBlockedTimer;
     [NonSerialized] private PrototypeUnitVitals lastDamageSourceUnit;
@@ -401,7 +428,8 @@ public class PrototypeUnitVitals : MonoBehaviour
     public bool HasFracture => statusEffects != null && statusEffects.HasFracture;
     public bool IsPainkillerActive => statusEffects != null && statusEffects.IsPainkillerActive;
     public float PainkillerRemaining => statusEffects != null ? statusEffects.PainkillerRemaining : 0f;
-    public float MovementPenaltyMultiplier => statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f;
+    public float MovementPenaltyMultiplier => (statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f) * EquipmentMoveSpeedMultiplier;
+    public float EquipmentMoveSpeedMultiplier => equipmentMoveSpeedMultiplier;
     public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
     public DamageSourceSnapshot LastDamageSource => lastDamageSource;
     public PrototypeUnitVitals LastDamageSourceUnit => lastDamageSourceUnit;
@@ -516,7 +544,7 @@ public class PrototypeUnitVitals : MonoBehaviour
 
                 armorLoadout.Add(armorInstance.Definition);
                 var armorState = new ArmorState();
-                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity);
+                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes);
                 equippedArmor.Add(armorState);
             }
         }
@@ -888,6 +916,7 @@ public class PrototypeUnitVitals : MonoBehaviour
             return chunk.amount;
         }
 
+        float damageReduction = Mathf.Clamp01(blockingArmor.DamageReduction);
         float durabilityRatio = blockingArmor.DurabilityNormalized;
         float effectiveArmorStrength = blockingArmor.EffectiveArmorClass * 10f * Mathf.Lerp(0.45f, 1f, durabilityRatio);
         float penetrationRatio = chunk.penetrationPower / Mathf.Max(1f, effectiveArmorStrength);
@@ -906,11 +935,11 @@ public class PrototypeUnitVitals : MonoBehaviour
         if (penetratedArmor)
         {
             float penetrationDamageFactor = Mathf.Lerp(0.45f, 1f, penetrationChance);
-            return chunk.amount * penetrationDamageFactor;
+            return chunk.amount * penetrationDamageFactor * (1f - damageReduction);
         }
 
         float bluntFactor = Mathf.Lerp(0.35f, 1f, Mathf.Clamp01(penetrationRatio));
-        return chunk.amount * blockingArmor.definition.BluntDamageMultiplier * bluntFactor;
+        return chunk.amount * blockingArmor.definition.BluntDamageMultiplier * bluntFactor * (1f - damageReduction);
     }
 
     private void TryApplyAfflictions(string partId, PendingDamage chunk, bool penetratedArmor, ArmorState blockingArmor, float damageAppliedToHealth)
@@ -1260,12 +1289,32 @@ public class PrototypeUnitVitals : MonoBehaviour
                 }
 
                 var armorState = new ArmorState();
-                armorState.ApplyDefinition(armorDefinition, currentDurability, null, ItemRarity.Common);
+                armorState.ApplyDefinition(armorDefinition, currentDurability, null, ItemRarity.Common, null);
                 updatedArmor.Add(armorState);
             }
         }
 
         equippedArmor = updatedArmor;
+    }
+
+    private void RecalculateEquipmentModifiers()
+    {
+        float moveBonus = 0f;
+        if (equippedArmor != null)
+        {
+            for (int index = 0; index < equippedArmor.Count; index++)
+            {
+                ArmorState armorState = equippedArmor[index];
+                if (armorState == null)
+                {
+                    continue;
+                }
+
+                moveBonus += armorState.MoveSpeedMultiplier - 1f;
+            }
+        }
+
+        equipmentMoveSpeedMultiplier = Mathf.Clamp(1f + moveBonus, 0.4f, 1.8f);
     }
 
     private void SanitizeArmorLoadout()
@@ -1395,6 +1444,8 @@ public class PrototypeUnitVitals : MonoBehaviour
                 equippedArmor.RemoveAt(index);
             }
         }
+    
+        RecalculateEquipmentModifiers();
     }
 
     private void SanitizeStamina(bool resetToFull)

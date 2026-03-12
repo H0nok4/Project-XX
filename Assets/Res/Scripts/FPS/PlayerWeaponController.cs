@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -24,9 +25,15 @@ public class PlayerWeaponController : MonoBehaviour
         public string InstanceId;
         public float Durability;
         public bool IsReloading;
+        public List<ItemAffix> Affixes = new List<ItemAffix>();
+        public ItemAffixSummary AffixSummary = ItemAffixSummary.CreateDefault();
 
         public bool IsConfigured => Definition != null;
         public float StatMultiplier => ItemRarityUtility.GetStatMultiplier(Rarity);
+        public float FireRateMultiplier => Mathf.Max(0.1f, AffixSummary.FireRateMultiplier);
+        public float ReloadSpeedMultiplier => Mathf.Max(0.1f, AffixSummary.ReloadSpeedMultiplier);
+        public float SpreadMultiplier => Mathf.Max(0.1f, AffixSummary.SpreadMultiplier);
+        public float RangeMultiplier => Mathf.Max(0.1f, AffixSummary.EffectiveRangeMultiplier);
         public PrototypeWeaponFireMode CurrentFireMode => Definition != null
             ? Definition.GetFireMode(FireModeIndex)
             : PrototypeWeaponFireMode.Semi;
@@ -207,13 +214,13 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     public void ConfigureWeaponLoadout(
-        WeaponInstance primaryInstance,
-        WeaponInstance secondaryInstance,
-        WeaponInstance meleeInstance)
+        ItemInstance primaryInstance,
+        ItemInstance secondaryInstance,
+        ItemInstance meleeInstance)
     {
-        primaryWeapon = primaryInstance != null ? primaryInstance.Definition : null;
-        secondaryWeapon = secondaryInstance != null ? secondaryInstance.Definition : null;
-        meleeWeapon = meleeInstance != null ? meleeInstance.Definition : null;
+        primaryWeapon = primaryInstance != null ? primaryInstance.WeaponDefinition : null;
+        secondaryWeapon = secondaryInstance != null ? secondaryInstance.WeaponDefinition : null;
+        meleeWeapon = meleeInstance != null ? meleeInstance.WeaponDefinition : null;
 
         if (Application.isPlaying)
         {
@@ -221,19 +228,45 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
+    public void ConfigureWeaponLoadout(
+        WeaponInstance primaryInstance,
+        WeaponInstance secondaryInstance,
+        WeaponInstance meleeInstance)
+    {
+        ConfigureWeaponLoadout(
+            ItemInstance.Create(primaryInstance),
+            ItemInstance.Create(secondaryInstance),
+            ItemInstance.Create(meleeInstance));
+    }
+
+    public ItemInstance GetPrimaryItemInstance()
+    {
+        return BuildItemInstance(primaryRuntime);
+    }
+
+    public ItemInstance GetSecondaryItemInstance()
+    {
+        return BuildItemInstance(secondaryRuntime);
+    }
+
+    public ItemInstance GetMeleeItemInstance()
+    {
+        return BuildItemInstance(meleeRuntime);
+    }
+
     public WeaponInstance GetPrimaryWeaponInstance()
     {
-        return BuildWeaponInstance(primaryRuntime);
+        return GetPrimaryItemInstance()?.ToWeaponInstance();
     }
 
     public WeaponInstance GetSecondaryWeaponInstance()
     {
-        return BuildWeaponInstance(secondaryRuntime);
+        return GetSecondaryItemInstance()?.ToWeaponInstance();
     }
 
     public WeaponInstance GetMeleeWeaponInstance()
     {
-        return BuildWeaponInstance(meleeRuntime);
+        return GetMeleeItemInstance()?.ToWeaponInstance();
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -261,24 +294,24 @@ public class PlayerWeaponController : MonoBehaviour
         droppedMagazineAmmo = 0;
 
         bool result = TryEquipLootedWeapon(
-            WeaponInstance.Create(weaponDefinition, startingMagazineAmmo, 1f, null, ItemRarity.Common),
-            out WeaponInstance droppedWeapon);
-        droppedWeaponDefinition = droppedWeapon != null ? droppedWeapon.Definition : null;
-        droppedMagazineAmmo = droppedWeapon != null && droppedWeapon.Definition != null && !droppedWeapon.Definition.IsMeleeWeapon
+            ItemInstance.Create(weaponDefinition, startingMagazineAmmo, 1f, null, ItemRarity.Common),
+            out ItemInstance droppedWeapon);
+        droppedWeaponDefinition = droppedWeapon != null ? droppedWeapon.WeaponDefinition : null;
+        droppedMagazineAmmo = droppedWeapon != null && droppedWeapon.WeaponDefinition != null && !droppedWeapon.WeaponDefinition.IsMeleeWeapon
             ? droppedWeapon.MagazineAmmo
             : 0;
         return result;
     }
 
-    public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    public bool TryEquipLootedWeapon(ItemInstance weaponInstance, out ItemInstance droppedWeapon)
     {
         droppedWeapon = null;
-        if (weaponInstance == null || weaponInstance.Definition == null)
+        if (weaponInstance == null || !weaponInstance.IsWeapon || weaponInstance.WeaponDefinition == null)
         {
             return false;
         }
 
-        WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponInstance.Definition));
+        WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponInstance.WeaponDefinition));
         if (runtime == null)
         {
             return false;
@@ -289,7 +322,7 @@ public class PlayerWeaponController : MonoBehaviour
             return TryForceEquipWeapon(weaponInstance, out droppedWeapon);
         }
 
-        if (inventory != null && inventory.TryAddItemInstance(ItemInstance.Create(weaponInstance)))
+        if (inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone()))
         {
             return true;
         }
@@ -297,26 +330,39 @@ public class PlayerWeaponController : MonoBehaviour
         return TryForceEquipWeapon(weaponInstance, out droppedWeapon);
     }
 
-    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out WeaponInstance droppedWeapon)
+    public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    {
+        bool equipped = TryEquipLootedWeapon(ItemInstance.Create(weaponInstance), out ItemInstance droppedItem);
+        droppedWeapon = droppedItem != null ? droppedItem.ToWeaponInstance() : null;
+        return equipped;
+    }
+
+    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out ItemInstance droppedWeapon)
     {
         droppedWeapon = null;
-        WeaponInstance weaponInstance = itemInstance != null ? itemInstance.ToWeaponInstance() : null;
-        if (weaponInstance == null)
+        if (itemInstance == null || !itemInstance.IsWeapon || itemInstance.WeaponDefinition == null)
         {
             return false;
         }
 
-        if (!TryForceEquipWeapon(weaponInstance, out droppedWeapon))
+        if (!TryForceEquipWeapon(itemInstance, out droppedWeapon))
         {
             return false;
         }
 
-        if (droppedWeapon != null && inventory != null && inventory.TryAddItemInstance(ItemInstance.Create(droppedWeapon)))
+        if (droppedWeapon != null && inventory != null && inventory.TryAddItemInstance(droppedWeapon.Clone()))
         {
             droppedWeapon = null;
         }
 
         return true;
+    }
+
+    public bool TryEquipInventoryWeapon(ItemInstance itemInstance, out WeaponInstance droppedWeapon)
+    {
+        bool equipped = TryEquipInventoryWeapon(itemInstance, out ItemInstance droppedItem);
+        droppedWeapon = droppedItem != null ? droppedItem.ToWeaponInstance() : null;
+        return equipped;
     }
 
     public void HandleWeaponInput(PrototypeFpsInput fpsInput)
@@ -492,14 +538,16 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.MagazineAmmo--;
-        runtime.NextAttackTime = Time.time + runtime.Definition.SecondsPerShot;
+        float secondsPerShot = runtime.Definition.SecondsPerShot / runtime.FireRateMultiplier;
+        runtime.NextAttackTime = Time.time + Mathf.Max(0.01f, secondsPerShot);
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
 
         AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
         float shotDamage = ammo != null ? ammo.DirectDamage : baseDamage;
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
-        float shotRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
-        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle);
+        float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
+        float shotRange = baseRange * runtime.RangeMultiplier;
+        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * runtime.SpreadMultiplier);
         PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
 
         if (TryGetCombatHit(viewCamera.transform.position, direction, shotRange, out RaycastHit hit))
@@ -591,11 +639,27 @@ public class PlayerWeaponController : MonoBehaviour
 
     private PrototypeUnitVitals.DamageInfo BuildFirearmDamageInfo(WeaponRuntime runtime, float defaultDamage, AmmoDefinition ammo)
     {
+        float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
+        float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
+        float damage = Mathf.Max(1f, defaultDamage * rarityMultiplier * affixDamageMultiplier);
+        float armorDamage = (ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, defaultDamage * 0.5f)) * rarityMultiplier * affixDamageMultiplier;
+        float penetrationPower = (ammo != null ? ammo.PenetrationPower : runtime.Definition.PenetrationPower) * rarityMultiplier;
+        float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
+        penetrationPower = Mathf.Max(0f, penetrationPower + armorPenetrationBonus);
+
+        bool isCrit = runtime != null
+            && runtime.AffixSummary.CritChance > 0f
+            && UnityEngine.Random.value < runtime.AffixSummary.CritChance;
+        if (isCrit)
+        {
+            damage *= Mathf.Max(1f, runtime.AffixSummary.CritDamageMultiplier);
+        }
+
         return new PrototypeUnitVitals.DamageInfo
         {
-            damage = Mathf.Max(1f, defaultDamage * runtime.StatMultiplier),
-            penetrationPower = (ammo != null ? ammo.PenetrationPower : runtime.Definition.PenetrationPower) * runtime.StatMultiplier,
-            armorDamage = (ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, defaultDamage * 0.5f)) * runtime.StatMultiplier,
+            damage = damage,
+            penetrationPower = penetrationPower,
+            armorDamage = armorDamage,
             lightBleedChance = ammo != null ? ammo.LightBleedChance : runtime.Definition.LightBleedChance,
             heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : runtime.Definition.HeavyBleedChance,
             fractureChance = ammo != null ? ammo.FractureChance : runtime.Definition.FractureChance,
@@ -603,7 +667,7 @@ public class PlayerWeaponController : MonoBehaviour
             canApplyAfflictions = true,
             sourceUnit = playerVitals,
             sourceDisplayName = gameObject.name,
-            sourceEffectDisplayName = string.Empty
+            sourceEffectDisplayName = isCrit ? "Critical" : string.Empty
         };
     }
 
@@ -611,11 +675,26 @@ public class PlayerWeaponController : MonoBehaviour
     {
         PrototypeWeaponDefinition weaponDefinition = runtime != null ? runtime.Definition : null;
         float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
+        float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
+        float damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier * affixDamageMultiplier;
+        float armorDamage = (weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.28f) : 6f) * rarityMultiplier * affixDamageMultiplier;
+        float penetrationPower = (weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier;
+        float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
+        penetrationPower = Mathf.Max(0f, penetrationPower + armorPenetrationBonus);
+
+        bool isCrit = runtime != null
+            && runtime.AffixSummary.CritChance > 0f
+            && UnityEngine.Random.value < runtime.AffixSummary.CritChance;
+        if (isCrit)
+        {
+            damage *= Mathf.Max(1f, runtime.AffixSummary.CritDamageMultiplier);
+        }
+
         return new PrototypeUnitVitals.DamageInfo
         {
-            damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier,
-            penetrationPower = (weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier,
-            armorDamage = (weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.28f) : 6f) * rarityMultiplier,
+            damage = damage,
+            penetrationPower = penetrationPower,
+            armorDamage = armorDamage,
             lightBleedChance = weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.4f,
             heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.1f,
             fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.12f,
@@ -623,7 +702,7 @@ public class PlayerWeaponController : MonoBehaviour
             canApplyAfflictions = true,
             sourceUnit = playerVitals,
             sourceDisplayName = gameObject.name,
-            sourceEffectDisplayName = string.Empty
+            sourceEffectDisplayName = isCrit ? "Critical" : string.Empty
         };
     }
 
@@ -689,7 +768,8 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.IsReloading = true;
-        runtime.ReloadEndTime = Time.time + runtime.Definition.ReloadDuration;
+        float reloadDuration = runtime.Definition.ReloadDuration / runtime.ReloadSpeedMultiplier;
+        runtime.ReloadEndTime = Time.time + Mathf.Max(0.05f, reloadDuration);
         runtime.PendingBurstShots = 0;
     }
 
@@ -767,45 +847,60 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     private void ConfigureRuntimeWeapons(
-        WeaponInstance primaryInstance,
-        WeaponInstance secondaryInstance,
-        WeaponInstance meleeInstance)
+        ItemInstance primaryInstance,
+        ItemInstance secondaryInstance,
+        ItemInstance meleeInstance)
     {
         SetupWeaponRuntime(
             primaryRuntime,
             primaryWeapon,
             primaryInstance != null ? primaryInstance.MagazineAmmo : -1,
             primaryInstance != null ? primaryInstance.InstanceId : null,
-            primaryInstance != null ? primaryInstance.Durability : -1f,
-            primaryInstance != null ? primaryInstance.Rarity : ItemRarity.Common);
+            primaryInstance != null ? primaryInstance.CurrentDurability : -1f,
+            primaryInstance != null ? primaryInstance.Rarity : ItemRarity.Common,
+            primaryInstance != null ? primaryInstance.Affixes : null);
         SetupWeaponRuntime(
             secondaryRuntime,
             secondaryWeapon,
             secondaryInstance != null ? secondaryInstance.MagazineAmmo : -1,
             secondaryInstance != null ? secondaryInstance.InstanceId : null,
-            secondaryInstance != null ? secondaryInstance.Durability : -1f,
-            secondaryInstance != null ? secondaryInstance.Rarity : ItemRarity.Common);
+            secondaryInstance != null ? secondaryInstance.CurrentDurability : -1f,
+            secondaryInstance != null ? secondaryInstance.Rarity : ItemRarity.Common,
+            secondaryInstance != null ? secondaryInstance.Affixes : null);
         SetupWeaponRuntime(
             meleeRuntime,
             meleeWeapon,
             meleeInstance != null ? meleeInstance.MagazineAmmo : -1,
             meleeInstance != null ? meleeInstance.InstanceId : null,
-            meleeInstance != null ? meleeInstance.Durability : -1f,
-            meleeInstance != null ? meleeInstance.Rarity : ItemRarity.Common);
+            meleeInstance != null ? meleeInstance.CurrentDurability : -1f,
+            meleeInstance != null ? meleeInstance.Rarity : ItemRarity.Common,
+            meleeInstance != null ? meleeInstance.Affixes : null);
         SelectInitialWeapon();
         RefreshWeaponViewModels();
     }
 
     private void SetupWeaponRuntime(
+
         WeaponRuntime runtime,
+
         PrototypeWeaponDefinition definition,
+
         int startingMagazineAmmo = -1,
+
         string instanceId = null,
+
         float durability = -1f,
-        ItemRarity rarity = ItemRarity.Common)
+
+        ItemRarity rarity = ItemRarity.Common,
+
+        IReadOnlyList<ItemAffix> affixes = null)
+
     {
         runtime.Definition = definition;
         runtime.Rarity = ItemRarityUtility.Sanitize(rarity);
+        runtime.Affixes = ItemAffixUtility.CloneList(affixes);
+        ItemAffixUtility.SanitizeAffixes(runtime.Affixes);
+        runtime.AffixSummary = ItemAffixUtility.BuildSummary(runtime.Affixes);
         runtime.PendingBurstShots = 0;
         runtime.IsReloading = false;
         runtime.NextAttackTime = 0f;
@@ -916,7 +1011,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
-    private void SetWeaponForSlot(WeaponSlot slot, WeaponInstance instance)
+    private void SetWeaponForSlot(WeaponSlot slot, ItemInstance instance)
     {
         if (instance == null)
         {
@@ -924,32 +1019,53 @@ public class PlayerWeaponController : MonoBehaviour
             return;
         }
 
-        SetWeaponForSlot(slot, instance.Definition, instance.MagazineAmmo, instance.InstanceId, instance.Durability, instance.Rarity);
+        SetWeaponForSlot(
+            slot,
+            instance.WeaponDefinition,
+            instance.MagazineAmmo,
+            instance.InstanceId,
+            instance.CurrentDurability,
+            instance.Rarity,
+            instance.Affixes);
+    }
+
+    private void SetWeaponForSlot(WeaponSlot slot, WeaponInstance instance)
+    {
+        SetWeaponForSlot(slot, ItemInstance.Create(instance));
     }
 
     private void SetWeaponForSlot(
+
         WeaponSlot slot,
+
         PrototypeWeaponDefinition weaponDefinition,
+
         int startingMagazineAmmo = -1,
+
         string instanceId = null,
+
         float durability = -1f,
-        ItemRarity rarity = ItemRarity.Common)
+
+        ItemRarity rarity = ItemRarity.Common,
+
+        IReadOnlyList<ItemAffix> affixes = null)
+
     {
         switch (slot)
         {
             case WeaponSlot.Primary:
                 primaryWeapon = weaponDefinition;
-                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity);
+                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
                 break;
 
             case WeaponSlot.Secondary:
                 secondaryWeapon = weaponDefinition;
-                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity);
+                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
                 break;
 
             default:
                 meleeWeapon = weaponDefinition;
-                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity);
+                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
                 break;
         }
 
@@ -959,19 +1075,26 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
-    private WeaponInstance BuildWeaponInstance(WeaponRuntime runtime)
+    private ItemInstance BuildItemInstance(WeaponRuntime runtime)
     {
         if (runtime == null || runtime.Definition == null)
         {
             return null;
         }
 
-        return WeaponInstance.Create(
+        return ItemInstance.Create(
             runtime.Definition,
             runtime.MagazineAmmo,
             runtime.Durability,
             runtime.InstanceId,
-            runtime.Rarity);
+            runtime.Rarity,
+            runtime.Affixes,
+            false);
+    }
+
+    private WeaponInstance BuildWeaponInstance(WeaponRuntime runtime)
+    {
+        return BuildItemInstance(runtime)?.ToWeaponInstance();
     }
 
     private int GetReserveAmmoCount(WeaponRuntime runtime)
@@ -1249,24 +1372,31 @@ public class PlayerWeaponController : MonoBehaviour
                 ItemRarity.Common));
     }
 
-    private bool TryForceEquipWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    private bool TryForceEquipWeapon(ItemInstance weaponInstance, out ItemInstance droppedWeapon)
     {
         droppedWeapon = null;
-        if (weaponInstance == null || weaponInstance.Definition == null)
+        if (weaponInstance == null || !weaponInstance.IsWeapon || weaponInstance.WeaponDefinition == null)
         {
             return false;
         }
 
-        WeaponSlot slot = ChoosePickupSlot(weaponInstance.Definition);
+        WeaponSlot slot = ChoosePickupSlot(weaponInstance.WeaponDefinition);
         WeaponRuntime runtime = GetWeaponRuntime(slot);
         if (runtime == null)
         {
             return false;
         }
 
-        droppedWeapon = BuildWeaponInstance(runtime);
+        droppedWeapon = BuildItemInstance(runtime);
         SetWeaponForSlot(slot, weaponInstance);
         EquipWeapon(slot);
         return true;
+    }
+
+    private bool TryForceEquipWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
+    {
+        bool equipped = TryForceEquipWeapon(ItemInstance.Create(weaponInstance), out ItemInstance droppedItem);
+        droppedWeapon = droppedItem != null ? droppedItem.ToWeaponInstance() : null;
+        return equipped;
     }
 }

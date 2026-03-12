@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
@@ -13,19 +14,26 @@ public class ItemInstance
     [Min(0)]
     [SerializeField] private int magazineAmmo;
     [SerializeField] private float currentDurability = -1f;
+    [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+
 
     public string InstanceId => instanceId;
     public ItemDefinition Definition => definition;
     public PrototypeWeaponDefinition WeaponDefinition => weaponDefinition;
+    public ItemDefinitionBase DefinitionBase => weaponDefinition != null ? weaponDefinition : definition;
     public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
     public int Quantity => quantity;
     public int MagazineAmmo => weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
         ? Mathf.Clamp(magazineAmmo, 0, weaponDefinition.MagazineSize)
         : 0;
     public float CurrentDurability => currentDurability;
+    public IReadOnlyList<ItemAffix> Affixes => affixes;
+
+    public bool HasAffixes => affixes != null && affixes.Count > 0;
+
     public bool IsWeapon => weaponDefinition != null;
     public bool IsArmor => definition is ArmorDefinition;
-    public bool HasInstanceState => IsWeapon || IsArmor;
+    public bool HasInstanceState => IsWeapon || IsArmor || HasAffixes;
     public string DisplayName => IsWeapon
         ? $"{weaponDefinition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
         : definition != null
@@ -36,62 +44,193 @@ public class ItemInstance
     public int MaxStackSize => IsWeapon ? 1 : definition != null ? definition.MaxStackSize : 1;
 
     public static ItemInstance Create(
-        ItemDefinition itemDefinition,
+
+        ItemDefinitionBase definition,
+
         int amount,
+
+        ItemRarity itemRarity = ItemRarity.Common,
+
         string instanceIdOverride = null,
-        ItemRarity itemRarity = ItemRarity.Common)
+
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+
+        bool generateAffixesIfMissing = true)
+
     {
+
+        if (definition == null)
+
+        {
+
+            return null;
+
+        }
+
+
+
+        if (definition is PrototypeWeaponDefinition weaponDefinition)
+
+        {
+
+            int startingAmmo = weaponDefinition.IsMeleeWeapon ? 0 : weaponDefinition.MagazineSize;
+
+            return Create(weaponDefinition, startingAmmo, 1f, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+
+        }
+
+
+
+        if (definition is ArmorDefinition armorDefinition)
+
+        {
+
+            float maxDurability = GetArmorMaxDurability(armorDefinition, itemRarity);
+
+            return Create(armorDefinition, maxDurability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+
+        }
+
+
+
+        if (definition is ItemDefinition itemDefinition)
+
+        {
+
+            return Create(itemDefinition, amount, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+
+        }
+
+
+
+        return null;
+
+    }
+
+
+    public static ItemInstance Create(
+
+        ItemDefinition itemDefinition,
+
+        int amount,
+
+        string instanceIdOverride = null,
+
+        ItemRarity itemRarity = ItemRarity.Common,
+
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+
+        bool generateAffixesIfMissing = true)
+
+    {
+
         var instance = new ItemInstance();
+
         instance.SetDefinition(itemDefinition);
+
         instance.SetRarity(itemRarity);
+
         instance.SetQuantity(amount);
+
         instance.SetInstanceId(instanceIdOverride);
+
+        instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
+
         return instance;
+
     }
 
+
     public static ItemInstance Create(
+
         ArmorDefinition armorDefinition,
+
         float durability,
+
         string instanceIdOverride = null,
-        ItemRarity itemRarity = ItemRarity.Common)
+
+        ItemRarity itemRarity = ItemRarity.Common,
+
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+
+        bool generateAffixesIfMissing = true)
+
     {
+
         var instance = new ItemInstance();
+
         instance.SetDefinition(armorDefinition);
+
         instance.SetRarity(itemRarity);
+
         instance.SetCurrentDurability(durability);
+
         instance.SetQuantity(1);
+
         instance.SetInstanceId(instanceIdOverride);
+
+        instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
+
         return instance;
+
     }
 
+
     public static ItemInstance Create(
+
         PrototypeWeaponDefinition definition,
+
         int loadedAmmo,
+
         float durability = 1f,
+
         string instanceIdOverride = null,
-        ItemRarity itemRarity = ItemRarity.Common)
+
+        ItemRarity itemRarity = ItemRarity.Common,
+
+        IReadOnlyList<ItemAffix> affixesOverride = null,
+
+        bool generateAffixesIfMissing = true)
+
     {
+
         var instance = new ItemInstance();
+
         instance.SetWeaponDefinition(definition);
+
         instance.SetRarity(itemRarity);
+
         instance.SetMagazineAmmo(loadedAmmo);
+
         instance.SetCurrentDurability(durability);
+
         instance.SetInstanceId(instanceIdOverride);
+
+        instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
+
         return instance;
+
     }
+
 
     public static ItemInstance Create(ArmorInstance armorInstance)
     {
         return armorInstance != null && armorInstance.Definition != null
-            ? Create(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity)
+
+            ? Create(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes, false)
+
             : null;
+
     }
 
     public static ItemInstance Create(WeaponInstance weaponInstance)
     {
         return weaponInstance != null && weaponInstance.Definition != null
-            ? Create(weaponInstance.Definition, weaponInstance.MagazineAmmo, weaponInstance.Durability, weaponInstance.InstanceId, weaponInstance.Rarity)
+
+            ? Create(weaponInstance.Definition, weaponInstance.MagazineAmmo, weaponInstance.Durability, weaponInstance.InstanceId, weaponInstance.Rarity, weaponInstance.Affixes, false)
+
             : null;
+
     }
 
     public ItemInstance Clone()
@@ -121,13 +260,15 @@ public class ItemInstance
             && definition == itemDefinition
             && definition.MaxStackSize > 1
             && Rarity == ItemRarityUtility.Sanitize(itemRarity)
-            && !IsArmor;
+            && !IsArmor
+            && !HasAffixes;
     }
 
     public bool CanStackWith(ItemInstance other)
     {
         return other != null
             && other.weaponDefinition == null
+            && !other.HasAffixes
             && CanStackWith(other.definition, other.Rarity);
     }
 
@@ -158,7 +299,7 @@ public class ItemInstance
     public WeaponInstance ToWeaponInstance()
     {
         return weaponDefinition != null
-            ? WeaponInstance.Create(weaponDefinition, MagazineAmmo, Mathf.Max(0f, currentDurability), instanceId, Rarity)
+            ? WeaponInstance.Create(weaponDefinition, MagazineAmmo, Mathf.Max(0f, currentDurability), instanceId, Rarity, affixes, false)
             : null;
     }
 
@@ -172,7 +313,7 @@ public class ItemInstance
         float storedDurability = currentDurability >= 0f
             ? currentDurability
             : GetArmorMaxDurability(armorDefinition, Rarity);
-        return ArmorInstance.Create(armorDefinition, storedDurability, instanceId, Rarity);
+        return ArmorInstance.Create(armorDefinition, storedDurability, instanceId, Rarity, affixes, false);
     }
 
     public void SetDefinition(ItemDefinition itemDefinition)
@@ -181,6 +322,8 @@ public class ItemInstance
         weaponDefinition = null;
         magazineAmmo = 0;
         currentDurability = -1f;
+        affixes = new List<ItemAffix>();
+
         EnsureInstanceId();
     }
 
@@ -191,6 +334,8 @@ public class ItemInstance
         quantity = 1;
         magazineAmmo = 0;
         currentDurability = 1f;
+        affixes = new List<ItemAffix>();
+
         EnsureInstanceId();
     }
 
@@ -233,6 +378,82 @@ public class ItemInstance
         currentDurability = -1f;
     }
 
+
+
+    public void SetAffixes(IReadOnlyList<ItemAffix> newAffixes, bool generateIfMissing = true)
+
+    {
+
+        if (newAffixes != null)
+
+        {
+
+            affixes = ItemAffixUtility.CloneList(newAffixes);
+
+        }
+
+        else if (generateIfMissing)
+
+        {
+
+            affixes = GenerateAffixes();
+
+        }
+
+        else
+
+        {
+
+            affixes = new List<ItemAffix>();
+
+        }
+
+
+
+        ItemAffixUtility.SanitizeAffixes(affixes);
+
+    }
+
+
+
+    private List<ItemAffix> GenerateAffixes()
+
+    {
+
+        if (weaponDefinition != null)
+
+        {
+
+            return ItemAffixUtility.DefaultPool != null
+
+                ? ItemAffixUtility.DefaultPool.GenerateAffixes(Rarity, weaponDefinition.ItemLevel, AffixItemTarget.Weapon)
+
+                : new List<ItemAffix>();
+
+        }
+
+
+
+        if (definition is ArmorDefinition armorDefinition)
+
+        {
+
+            return ItemAffixUtility.DefaultPool != null
+
+                ? ItemAffixUtility.DefaultPool.GenerateAffixes(Rarity, armorDefinition.ItemLevel, AffixItemTarget.Armor)
+
+                : new List<ItemAffix>();
+
+        }
+
+
+
+        return new List<ItemAffix>();
+
+    }
+
+
+
     public void SetInstanceId(string newInstanceId)
     {
         if (!string.IsNullOrWhiteSpace(newInstanceId))
@@ -244,7 +465,21 @@ public class ItemInstance
     }
 
     public void Sanitize()
+
     {
+
+        if (affixes == null)
+
+        {
+
+            affixes = new List<ItemAffix>();
+
+        }
+
+
+
+        ItemAffixUtility.SanitizeAffixes(affixes);
+
         rarity = ItemRarityUtility.Sanitize(rarity);
 
         if (weaponDefinition != null)
@@ -264,6 +499,8 @@ public class ItemInstance
             quantity = 1;
             magazineAmmo = 0;
             currentDurability = -1f;
+            affixes.Clear();
+
             EnsureInstanceId();
             return;
         }
@@ -283,6 +520,17 @@ public class ItemInstance
             currentDurability = -1f;
         }
 
+
+        if (!IsWeapon && !IsArmor)
+
+        {
+
+            affixes.Clear();
+
+        }
+
+
+
         EnsureInstanceId();
     }
 
@@ -296,7 +544,8 @@ public class ItemInstance
             rarity = rarity,
             quantity = HasInstanceState ? 1 : Mathf.Clamp(amount, 1, MaxStackSize),
             magazineAmmo = magazineAmmo,
-            currentDurability = currentDurability
+            currentDurability = currentDurability,
+            affixes = ItemAffixUtility.CloneList(affixes)
         };
         instance.Sanitize();
         return instance;
