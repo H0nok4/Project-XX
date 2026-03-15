@@ -41,6 +41,12 @@ MonoBehaviour:
     maxQuantity: 1
     rollRarity: 1
     weight: 0.75
+  - definition: {fileID: 11400000, guid: 01449ace919542b2bb4ecb803e4982d3, type: 2}
+    weaponDefinition: {fileID: 11400000, guid: 01449ace919542b2bb4ecb803e4982d3, type: 2}
+    minQuantity: 1
+    maxQuantity: 1
+    rollRarity: 0
+    weight: 0.65
   - definition: {fileID: 11400000, guid: d9c180fe32b357048b459e5a32cac308, type: 2}
     itemDefinition: {fileID: 11400000, guid: d9c180fe32b357048b459e5a32cac308, type: 2}
     minQuantity: 1

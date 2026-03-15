@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8de0aa800c67b854597e6da5dcc0aa55, type: 3}
+  m_Name: Weapon_FragGrenade
+  m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
+  weaponId: frag_grenade
+  displayName: Frag Grenade
+  description: Single-use fragmentation grenade for area denial and room clearing.
+  unitWeight: 0.45
+  itemLevel: 6
+  requiredLevel: 4
+  firstPersonViewPrefab: {fileID: 0}
+  equippedWorldPrefab: {fileID: 0}
+  weaponBehavior: 2
+  legacyMeleeWeapon: 0
+  ammoDefinition: {fileID: 0}
+  magazineSize: 1
+  reloadDuration: 0.05
+  roundsPerMinute: 60
+  fireModes: 00000000
+  burstCount: 1
+  effectiveRange: 12
+  spreadAngle: 0
+  addedImpactForce: 14
+  lightBleedChance: 0.14
+  heavyBleedChance: 0.1
+  fractureChance: 0.3
+  penetrationPower: 12
+  meleeDamage: 55
+  meleeRange: 2.2
+  meleeRadius: 0.45
+  meleeCooldown: 0.55
+  throwableCooldown: 1.15
+  throwStaminaCost: 12
+  throwVelocity: 14
+  throwUpwardVelocity: 2.4
+  fuseSeconds: 2.8
+  explosionRadius: 4.8
+  explosionDamage: 128
+  explosionForce: 14
+  explosionNoiseRadius: 32

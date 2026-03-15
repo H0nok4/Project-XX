@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Prototype/Raid/Weapon Definition", fileName = "WeaponDefinition")]
 public class PrototypeWeaponDefinition : ItemDefinitionBase
@@ -15,7 +16,9 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     [SerializeField] private int requiredLevel = ItemDefinition.MinItemLevel;
     [SerializeField] private GameObject firstPersonViewPrefab;
     [SerializeField] private GameObject equippedWorldPrefab;
-    [SerializeField] private bool meleeWeapon;
+    [SerializeField] private PrototypeWeaponBehaviorType weaponBehavior = PrototypeWeaponBehaviorType.Firearm;
+    [FormerlySerializedAs("meleeWeapon")]
+    [SerializeField] private bool legacyMeleeWeapon;
     [SerializeField] private AmmoDefinition ammoDefinition;
     [Min(1)]
     [SerializeField] private int magazineSize = 30;
@@ -48,6 +51,23 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     [SerializeField] private float meleeRadius = 0.45f;
     [Min(0.05f)]
     [SerializeField] private float meleeCooldown = 0.55f;
+    [Min(0.05f)]
+    [SerializeField] private float throwableCooldown = 1.1f;
+    [Min(0f)]
+    [SerializeField] private float throwStaminaCost = 10f;
+    [Min(0.5f)]
+    [SerializeField] private float throwVelocity = 14f;
+    [SerializeField] private float throwUpwardVelocity = 2.35f;
+    [Min(0.1f)]
+    [SerializeField] private float fuseSeconds = 2.8f;
+    [Min(0.5f)]
+    [SerializeField] private float explosionRadius = 4.8f;
+    [Min(1f)]
+    [SerializeField] private float explosionDamage = 120f;
+    [Min(0f)]
+    [SerializeField] private float explosionForce = 12f;
+    [Min(0f)]
+    [SerializeField] private float explosionNoiseRadius = 30f;
 
     public override string ItemId => WeaponId;
     public string WeaponId => string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
@@ -61,8 +81,11 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public override int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
     public GameObject EquippedWorldPrefab => equippedWorldPrefab != null ? equippedWorldPrefab : firstPersonViewPrefab;
-    public bool IsMeleeWeapon => meleeWeapon;
-    public AmmoDefinition AmmoDefinition => ammoDefinition;
+    public PrototypeWeaponBehaviorType WeaponBehavior => ResolveWeaponBehavior();
+    public bool IsFirearmWeapon => WeaponBehavior == PrototypeWeaponBehaviorType.Firearm;
+    public bool IsMeleeWeapon => WeaponBehavior == PrototypeWeaponBehaviorType.Melee;
+    public bool IsThrowableWeapon => WeaponBehavior == PrototypeWeaponBehaviorType.Throwable;
+    public AmmoDefinition AmmoDefinition => IsFirearmWeapon ? ammoDefinition : null;
     public int MagazineSize => Mathf.Max(1, magazineSize);
     public float ReloadDuration => Mathf.Max(0.05f, reloadDuration);
     public float RoundsPerMinute => Mathf.Max(30f, roundsPerMinute);
@@ -79,9 +102,18 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public float MeleeRange => Mathf.Max(0.5f, meleeRange);
     public float MeleeRadius => Mathf.Max(0f, meleeRadius);
     public float MeleeCooldown => Mathf.Max(0.05f, meleeCooldown);
+    public float ThrowableCooldown => Mathf.Max(0.05f, throwableCooldown);
+    public float ThrowStaminaCost => Mathf.Max(0f, throwStaminaCost);
+    public float ThrowVelocity => Mathf.Max(0.5f, throwVelocity);
+    public float ThrowUpwardVelocity => throwUpwardVelocity;
+    public float FuseSeconds => Mathf.Max(0.1f, fuseSeconds);
+    public float ExplosionRadius => Mathf.Max(0.5f, explosionRadius);
+    public float ExplosionDamage => ItemDefinition.GetScaledValue(Mathf.Max(1f, explosionDamage), ItemLevel);
+    public float ExplosionForce => Mathf.Max(0f, explosionForce);
+    public float ExplosionNoiseRadius => Mathf.Max(0f, explosionNoiseRadius);
     public PrototypeWeaponFireMode[] FireModes => fireModes != null && fireModes.Length > 0
         ? fireModes
-        : new[] { meleeWeapon ? PrototypeWeaponFireMode.Semi : PrototypeWeaponFireMode.Auto };
+        : new[] { IsFirearmWeapon ? PrototypeWeaponFireMode.Auto : PrototypeWeaponFireMode.Semi };
 
     public PrototypeWeaponFireMode GetFireMode(int modeIndex)
     {
@@ -118,7 +150,8 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         displayName = string.IsNullOrWhiteSpace(nameLabel) ? weaponId : nameLabel.Trim();
         description = weaponDescription ?? string.Empty;
         unitWeight = Mathf.Max(0f, unitWeight);
-        meleeWeapon = false;
+        weaponBehavior = PrototypeWeaponBehaviorType.Firearm;
+        legacyMeleeWeapon = false;
         ammoDefinition = ammo;
         magazineSize = Mathf.Max(1, magSize);
         roundsPerMinute = Mathf.Max(30f, rpm);
@@ -144,7 +177,8 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         displayName = string.IsNullOrWhiteSpace(nameLabel) ? weaponId : nameLabel.Trim();
         description = weaponDescription ?? string.Empty;
         unitWeight = Mathf.Max(0f, unitWeight);
-        meleeWeapon = true;
+        weaponBehavior = PrototypeWeaponBehaviorType.Melee;
+        legacyMeleeWeapon = true;
         ammoDefinition = null;
         penetrationPower = 6f;
         lightBleedChance = 0.55f;
@@ -154,6 +188,47 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         meleeRange = Mathf.Max(0.5f, range);
         meleeRadius = Mathf.Max(0f, radius);
         meleeCooldown = Mathf.Max(0.05f, cooldown);
+        magazineSize = 1;
+        SetFireModes(PrototypeWeaponFireMode.Semi);
+    }
+
+    public void ConfigureThrowable(
+        string id,
+        string nameLabel,
+        string weaponDescription,
+        float cooldown,
+        float staminaCost,
+        float velocity,
+        float upwardVelocity,
+        float fuseDuration,
+        float radius,
+        float damage,
+        float force,
+        float noiseRadius)
+    {
+        weaponId = string.IsNullOrWhiteSpace(id) ? name : id.Trim();
+        displayName = string.IsNullOrWhiteSpace(nameLabel) ? weaponId : nameLabel.Trim();
+        description = weaponDescription ?? string.Empty;
+        unitWeight = Mathf.Max(0f, unitWeight);
+        weaponBehavior = PrototypeWeaponBehaviorType.Throwable;
+        legacyMeleeWeapon = false;
+        ammoDefinition = null;
+        magazineSize = 1;
+        reloadDuration = 0.05f;
+        roundsPerMinute = 60f;
+        burstCount = 1;
+        effectiveRange = Mathf.Max(1f, radius * 2.5f);
+        spreadAngle = 0f;
+        addedImpactForce = Mathf.Max(0f, force);
+        throwableCooldown = Mathf.Max(0.05f, cooldown);
+        throwStaminaCost = Mathf.Max(0f, staminaCost);
+        throwVelocity = Mathf.Max(0.5f, velocity);
+        throwUpwardVelocity = upwardVelocity;
+        fuseSeconds = Mathf.Max(0.1f, fuseDuration);
+        explosionRadius = Mathf.Max(0.5f, radius);
+        explosionDamage = Mathf.Max(1f, damage);
+        explosionForce = Mathf.Max(0f, force);
+        explosionNoiseRadius = Mathf.Max(0f, noiseRadius);
         SetFireModes(PrototypeWeaponFireMode.Semi);
     }
 
@@ -161,7 +236,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     {
         if (supportedModes == null || supportedModes.Length == 0)
         {
-            fireModes = new[] { meleeWeapon ? PrototypeWeaponFireMode.Semi : PrototypeWeaponFireMode.Auto };
+            fireModes = new[] { IsFirearmWeapon ? PrototypeWeaponFireMode.Auto : PrototypeWeaponFireMode.Semi };
             return;
         }
 
@@ -182,11 +257,20 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         equippedWorldPrefab = prefab;
     }
 
+    private PrototypeWeaponBehaviorType ResolveWeaponBehavior()
+    {
+        return legacyMeleeWeapon && weaponBehavior == PrototypeWeaponBehaviorType.Firearm
+            ? PrototypeWeaponBehaviorType.Melee
+            : weaponBehavior;
+    }
+
     private void OnValidate()
     {
         weaponId = string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
         displayName = string.IsNullOrWhiteSpace(displayName) ? weaponId : displayName.Trim();
         unitWeight = Mathf.Max(0f, unitWeight);
+        weaponBehavior = ResolveWeaponBehavior();
+        legacyMeleeWeapon = weaponBehavior == PrototypeWeaponBehaviorType.Melee;
         magazineSize = Mathf.Max(1, magazineSize);
         reloadDuration = Mathf.Max(0.05f, reloadDuration);
         roundsPerMinute = Mathf.Max(30f, roundsPerMinute);
@@ -202,8 +286,30 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         meleeRange = Mathf.Max(0.5f, meleeRange);
         meleeRadius = Mathf.Max(0f, meleeRadius);
         meleeCooldown = Mathf.Max(0.05f, meleeCooldown);
+        throwableCooldown = Mathf.Max(0.05f, throwableCooldown);
+        throwStaminaCost = Mathf.Max(0f, throwStaminaCost);
+        throwVelocity = Mathf.Max(0.5f, throwVelocity);
+        fuseSeconds = Mathf.Max(0.1f, fuseSeconds);
+        explosionRadius = Mathf.Max(0.5f, explosionRadius);
+        explosionDamage = Mathf.Max(1f, explosionDamage);
+        explosionForce = Mathf.Max(0f, explosionForce);
+        explosionNoiseRadius = Mathf.Max(0f, explosionNoiseRadius);
+
+        if (!IsFirearmWeapon)
+        {
+            ammoDefinition = null;
+            magazineSize = 1;
+        }
+
+        SetFireModes(fireModes);
         itemLevel = Mathf.Clamp(itemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
         requiredLevel = Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
-        SetFireModes(fireModes);
     }
+}
+
+public enum PrototypeWeaponBehaviorType
+{
+    Firearm = 0,
+    Melee = 1,
+    Throwable = 2
 }

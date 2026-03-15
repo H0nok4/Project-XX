@@ -680,6 +680,7 @@ public static class PrototypeProfileService
             version = ProfileSchemaVersion.CurrentLegacyVersion,
             worldState = new WorldStateData(),
             progression = new PlayerProgressionData(),
+            specialEquipmentItemInstances = CreateInventoryWeaponInstanceDtosFromPresets(catalog != null ? catalog.DefaultSpecialEquipmentWeapons : null),
             stashItems = CreateRecordsFromPresets(catalog != null ? catalog.DefaultStashItems : null),
             loadoutItems = new List<ItemStackRecord>(),
             extractedItems = new List<ItemStackRecord>(),
@@ -701,6 +702,46 @@ public static class PrototypeProfileService
             catalog);
         ApplyInstanceMigration(profile, catalog);
         return profile;
+    }
+
+    private static List<SavedItemInstanceDto> CreateInventoryWeaponInstanceDtosFromPresets(IReadOnlyList<PrototypeItemCatalog.WeaponPreset> presets)
+    {
+        var records = new List<SavedItemInstanceDto>();
+        if (presets == null)
+        {
+            return records;
+        }
+
+        for (int presetIndex = 0; presetIndex < presets.Count; presetIndex++)
+        {
+            PrototypeItemCatalog.WeaponPreset preset = presets[presetIndex];
+            if (preset?.definition == null)
+            {
+                continue;
+            }
+
+            int quantity = Mathf.Max(1, preset.quantity);
+            for (int instanceIndex = 0; instanceIndex < quantity; instanceIndex++)
+            {
+                ItemInstance instance = ItemInstance.Create(
+                    preset.definition,
+                    preset.definition.IsMeleeWeapon ? 0 : preset.definition.MagazineSize,
+                    1f,
+                    null,
+                    ItemRarity.Common,
+                    null,
+                    false,
+                    null,
+                    false);
+                SavedItemInstanceDto record = CreateInventoryItemInstanceRecord(instance);
+                if (record != null)
+                {
+                    records.Add(record);
+                }
+            }
+        }
+
+        return records;
     }
 
     internal static void ApplyLegacyCompatibilityMigrations(ProfileData profile, PrototypeItemCatalog catalog)

@@ -29,6 +29,7 @@ public class PrototypeFpsInput : MonoBehaviour
     [SerializeField] private string stopBleedActionName = "StopBleed";
     [SerializeField] private string splintActionName = "UseSplint";
     [SerializeField] private string painkillerActionName = "UsePainkiller";
+    [SerializeField] private string throwThrowableActionName = "ThrowThrowable";
     [SerializeField] private string jumpActionName = "Jump";
     [SerializeField] private string toggleCrouchActionName = "ToggleCrouch";
     [SerializeField] private string speedAdjustModifierActionName = "SpeedAdjustModifier";
@@ -55,6 +56,7 @@ public class PrototypeFpsInput : MonoBehaviour
     private InputAction stopBleedAction;
     private InputAction splintAction;
     private InputAction painkillerAction;
+    private InputAction throwThrowableAction;
     private InputAction jumpAction;
     private InputAction toggleCrouchAction;
     private InputAction speedAdjustModifierAction;
@@ -80,6 +82,7 @@ public class PrototypeFpsInput : MonoBehaviour
     public bool StopBleedPressedThisFrame => stopBleedAction?.WasPressedThisFrame() ?? false;
     public bool SplintPressedThisFrame => splintAction?.WasPressedThisFrame() ?? false;
     public bool PainkillerPressedThisFrame => painkillerAction?.WasPressedThisFrame() ?? false;
+    public bool ThrowThrowablePressedThisFrame => throwThrowableAction?.WasPressedThisFrame() ?? false;
     public bool JumpPressedThisFrame => jumpAction?.WasPressedThisFrame() ?? false;
     public bool ToggleCrouchPressedThisFrame => toggleCrouchAction?.WasPressedThisFrame() ?? false;
     public bool SpeedAdjustModifierHeld => speedAdjustModifierAction?.IsPressed() ?? false;
@@ -235,6 +238,7 @@ public class PrototypeFpsInput : MonoBehaviour
             stopBleedAction = EnsureAction(runtimeActionMap, stopBleedActionName, "<Keyboard>/5");
             splintAction = EnsureAction(runtimeActionMap, splintActionName, "<Keyboard>/6");
             painkillerAction = EnsureAction(runtimeActionMap, painkillerActionName, "<Keyboard>/7");
+            throwThrowableAction = EnsureAction(runtimeActionMap, throwThrowableActionName, "<Keyboard>/g");
             jumpAction = runtimeActionMap.FindAction(jumpActionName, true);
             toggleCrouchAction = EnsureAction(runtimeActionMap, toggleCrouchActionName, "<Keyboard>/c");
             speedAdjustModifierAction = EnsureAction(runtimeActionMap, speedAdjustModifierActionName, "<Keyboard>/leftCtrl");
@@ -275,6 +279,7 @@ public class PrototypeFpsInput : MonoBehaviour
         stopBleedAction = actionMap.AddAction(stopBleedActionName, InputActionType.Button, "<Keyboard>/5");
         splintAction = actionMap.AddAction(splintActionName, InputActionType.Button, "<Keyboard>/6");
         painkillerAction = actionMap.AddAction(painkillerActionName, InputActionType.Button, "<Keyboard>/7");
+        throwThrowableAction = actionMap.AddAction(throwThrowableActionName, InputActionType.Button, "<Keyboard>/g");
         jumpAction = actionMap.AddAction(jumpActionName, InputActionType.Button, "<Keyboard>/space");
         toggleCrouchAction = actionMap.AddAction(toggleCrouchActionName, InputActionType.Button, "<Keyboard>/c");
         speedAdjustModifierAction = actionMap.AddAction(speedAdjustModifierActionName, InputActionType.Button, "<Keyboard>/leftCtrl");
@@ -334,6 +339,7 @@ public class PrototypeFpsInput : MonoBehaviour
         stopBleedAction = null;
         splintAction = null;
         painkillerAction = null;
+        throwThrowableAction = null;
         jumpAction = null;
         toggleCrouchAction = null;
         speedAdjustModifierAction = null;

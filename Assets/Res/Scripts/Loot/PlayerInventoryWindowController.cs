@@ -300,9 +300,16 @@ public class PlayerInventoryWindowController : MonoBehaviour
         string detail;
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
-            detail = item.WeaponDefinition.IsMeleeWeapon
-                ? $"Melee  Weight {item.TotalWeight:0.00}"
-                : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
+            if (item.WeaponDefinition.IsThrowableWeapon)
+            {
+                detail = $"Throwable  Fuse {item.WeaponDefinition.FuseSeconds:0.0}s  Radius {item.WeaponDefinition.ExplosionRadius:0.0}m  Weight {item.TotalWeight:0.00}";
+            }
+            else
+            {
+                detail = item.WeaponDefinition.IsMeleeWeapon
+                    ? $"Melee  Weight {item.TotalWeight:0.00}"
+                    : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
+            }
         }
         else if (item.IsArmor)
         {

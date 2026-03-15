@@ -289,16 +289,31 @@ public class PlayerWeaponController : MonoBehaviour
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
     {
+        if (weaponDefinition != null && weaponDefinition.IsThrowableWeapon)
+        {
+            return "Special";
+        }
+
         return GetSlotDisplayName(ChoosePickupSlot(weaponDefinition));
     }
 
     public bool PickupWouldReplaceEquippedWeapon(PrototypeWeaponDefinition weaponDefinition)
     {
+        if (weaponDefinition != null && weaponDefinition.IsThrowableWeapon)
+        {
+            return false;
+        }
+
         return GetLootedWeaponAction(weaponDefinition) == LootedWeaponAction.Swap;
     }
 
     public bool PickupWouldStoreInBackpack(PrototypeWeaponDefinition weaponDefinition)
     {
+        if (weaponDefinition != null && weaponDefinition.IsThrowableWeapon)
+        {
+            return inventory != null && inventory.CanAccept(ItemInstance.Create(weaponDefinition, weaponDefinition.MagazineSize, 1f, null, ItemRarity.Common));
+        }
+
         return GetLootedWeaponAction(weaponDefinition) == LootedWeaponAction.StoreInBackpack;
     }
 
@@ -327,6 +342,11 @@ public class PlayerWeaponController : MonoBehaviour
         if (weaponInstance == null || !weaponInstance.IsWeapon || weaponInstance.WeaponDefinition == null)
         {
             return false;
+        }
+
+        if (weaponInstance.WeaponDefinition.IsThrowableWeapon)
+        {
+            return inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone());
         }
 
         WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponInstance.WeaponDefinition));
@@ -359,6 +379,11 @@ public class PlayerWeaponController : MonoBehaviour
     {
         droppedWeapon = null;
         if (itemInstance == null || !itemInstance.IsWeapon || itemInstance.WeaponDefinition == null)
+        {
+            return false;
+        }
+
+        if (itemInstance.WeaponDefinition.IsThrowableWeapon)
         {
             return false;
         }
@@ -998,6 +1023,11 @@ public class PlayerWeaponController : MonoBehaviour
     private WeaponSlot ChoosePickupSlot(PrototypeWeaponDefinition weaponDefinition)
     {
         if (weaponDefinition == null)
+        {
+            return activeWeaponSlot;
+        }
+
+        if (weaponDefinition.IsThrowableWeapon)
         {
             return activeWeaponSlot;
         }

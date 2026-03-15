@@ -27,6 +27,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8cff610c8544f0144a9aacd336a93d48, type: 2}
   - {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
   - {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
+  - {fileID: 11400000, guid: 01449ace919542b2bb4ecb803e4982d3, type: 2}
   defaultStashItems:
   - definition: {fileID: 11400000, guid: ec5402d2f4ea7f94fa4812e8ba234fd5, type: 2}
     quantity: 8
@@ -70,6 +71,9 @@ MonoBehaviour:
     quantity: 1
   - definition: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
     quantity: 1
+  defaultSpecialEquipmentWeapons:
+  - definition: {fileID: 11400000, guid: 01449ace919542b2bb4ecb803e4982d3, type: 2}
+    quantity: 2
   defaultPrimaryWeapon: {fileID: 11400000, guid: 8cff610c8544f0144a9aacd336a93d48, type: 2}
   defaultSecondaryWeapon: {fileID: 11400000, guid: ba6283cdf46910b43acf021b5fd54279, type: 2}
   defaultMeleeWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}

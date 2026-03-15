@@ -26,6 +26,7 @@ public class PrototypeItemCatalog : ScriptableObject
     [SerializeField] private List<ItemStackPreset> defaultStashItems = new List<ItemStackPreset>();
     [SerializeField] private List<ItemStackPreset> defaultLoadoutItems = new List<ItemStackPreset>();
     [SerializeField] private List<WeaponPreset> defaultStashWeapons = new List<WeaponPreset>();
+    [SerializeField] private List<WeaponPreset> defaultSpecialEquipmentWeapons = new List<WeaponPreset>();
     [SerializeField] private PrototypeWeaponDefinition defaultPrimaryWeapon;
     [SerializeField] private PrototypeWeaponDefinition defaultSecondaryWeapon;
     [SerializeField] private PrototypeWeaponDefinition defaultMeleeWeapon;
@@ -38,6 +39,7 @@ public class PrototypeItemCatalog : ScriptableObject
     public IReadOnlyList<ItemStackPreset> DefaultStashItems => defaultStashItems;
     public IReadOnlyList<ItemStackPreset> DefaultLoadoutItems => defaultLoadoutItems;
     public IReadOnlyList<WeaponPreset> DefaultStashWeapons => defaultStashWeapons;
+    public IReadOnlyList<WeaponPreset> DefaultSpecialEquipmentWeapons => defaultSpecialEquipmentWeapons;
     public PrototypeWeaponDefinition DefaultPrimaryWeapon => defaultPrimaryWeapon;
     public PrototypeWeaponDefinition DefaultSecondaryWeapon => defaultSecondaryWeapon;
     public PrototypeWeaponDefinition DefaultMeleeWeapon => defaultMeleeWeapon;
@@ -126,11 +128,13 @@ public class PrototypeItemCatalog : ScriptableObject
         SanitizePresetList(defaultStashItems);
         SanitizePresetList(defaultLoadoutItems);
         SanitizeWeaponPresetList(defaultStashWeapons);
+        SanitizeWeaponPresetList(defaultSpecialEquipmentWeapons);
 
         EnsureWeaponRegistered(defaultPrimaryWeapon);
         EnsureWeaponRegistered(defaultSecondaryWeapon);
         EnsureWeaponRegistered(defaultMeleeWeapon);
         EnsurePresetWeaponsRegistered(defaultStashWeapons);
+        EnsurePresetWeaponsRegistered(defaultSpecialEquipmentWeapons);
 
         itemLookup = null;
         weaponLookup = null;

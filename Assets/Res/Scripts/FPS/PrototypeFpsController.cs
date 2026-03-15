@@ -39,6 +39,7 @@ public class PrototypeFpsController : MonoBehaviour
     [Header("Controllers")]
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerMedicalController medicalController;
+    [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
 
     private PrototypeFpsMovementModule movementModule;
@@ -80,6 +81,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         weaponController = GetOrCreateWeaponController();
         medicalController = GetOrCreateMedicalController();
+        throwableController = GetOrCreateThrowableController();
         skillManager = GetOrCreateSkillManager();
 
         ApplyControllerSettings();
@@ -99,6 +101,11 @@ public class PrototypeFpsController : MonoBehaviour
         if (medicalController != null)
         {
             medicalController.SetPlayerDependencies(playerVitals, inventory);
+        }
+
+        if (throwableController != null)
+        {
+            throwableController.SetPlayerDependencies(viewCamera, playerVitals, inventory);
         }
 
         movementModule?.SetViewCamera(viewCamera);
@@ -200,6 +207,7 @@ public class PrototypeFpsController : MonoBehaviour
 
             weaponController?.TickVisuals(Time.deltaTime);
             medicalController?.TickFeedback(Time.deltaTime);
+            throwableController?.TickFeedback(Time.deltaTime);
             return;
         }
 
@@ -218,13 +226,15 @@ public class PrototypeFpsController : MonoBehaviour
         weaponController?.HandleWeaponInput(fpsInput);
 
         bool usedMedical = medicalController != null && medicalController.HandleMedicalInput(fpsInput);
-        if (!usedMedical)
+        bool usedThrowable = !usedMedical && throwableController != null && throwableController.HandleThrowableInput(fpsInput);
+        if (!usedMedical && !usedThrowable)
         {
             weaponController?.HandleCombat(fpsInput);
         }
 
         weaponController?.TickVisuals(Time.deltaTime);
         medicalController?.TickFeedback(Time.deltaTime);
+        throwableController?.TickFeedback(Time.deltaTime);
     }
 
     private void HandleLook()
@@ -272,6 +282,11 @@ public class PrototypeFpsController : MonoBehaviour
         if (weaponController != null)
         {
             return weaponController.GetSuggestedPickupSlotLabel(weaponDefinition);
+        }
+
+        if (weaponDefinition != null && weaponDefinition.IsThrowableWeapon)
+        {
+            return "Special";
         }
 
         return weaponDefinition != null && weaponDefinition.IsMeleeWeapon ? "Melee" : "Primary";
@@ -402,6 +417,11 @@ public class PrototypeFpsController : MonoBehaviour
         {
             medicalController.ApplyHostSettings(medicalUseCooldown, medicalFeedbackLifetime);
         }
+
+        if (throwableController != null)
+        {
+            throwableController.ApplyHostSettings(viewCamera, medicalFeedbackLifetime);
+        }
     }
 
     private PlayerWeaponController GetOrCreateWeaponController()
@@ -425,6 +445,18 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         medicalController = controller;
+        return controller;
+    }
+
+    private PlayerThrowableController GetOrCreateThrowableController()
+    {
+        PlayerThrowableController controller = throwableController != null ? throwableController : GetComponent<PlayerThrowableController>();
+        if (controller == null)
+        {
+            controller = gameObject.AddComponent<PlayerThrowableController>();
+        }
+
+        throwableController = controller;
         return controller;
     }
 
@@ -457,7 +489,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         GUI.Label(
             new Rect(18f, 100f, 380f, 280f),
-            "Move\nLook\nAttack\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint Shift\nToggle Crouch C\nAdjust Pace LCtrl + Wheel\nToggle Cursor",
+            "Move\nLook\nAttack\nThrow G\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint Shift\nToggle Crouch C\nAdjust Pace LCtrl + Wheel\nToggle Cursor",
             hudStyle);
 
         if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
@@ -564,6 +596,20 @@ public class PrototypeFpsController : MonoBehaviour
         {
             builder.Append("\n");
             builder.Append(feedbackMessage);
+        }
+
+        string throwableSummary = throwableController != null ? throwableController.BuildHudSummary() : string.Empty;
+        if (!string.IsNullOrWhiteSpace(throwableSummary))
+        {
+            builder.Append("\n");
+            builder.Append(throwableSummary);
+        }
+
+        string throwableFeedback = throwableController != null ? throwableController.FeedbackMessage : string.Empty;
+        if (!string.IsNullOrWhiteSpace(throwableFeedback))
+        {
+            builder.Append("\n");
+            builder.Append(throwableFeedback);
         }
 
         string skillSummary = skillManager != null ? skillManager.BuildHudSummary() : string.Empty;
@@ -698,6 +744,11 @@ public class PrototypeFpsController : MonoBehaviour
         if (medicalController == null)
         {
             medicalController = GetComponent<PlayerMedicalController>();
+        }
+
+        if (throwableController == null)
+        {
+            throwableController = GetComponent<PlayerThrowableController>();
         }
 
         if (skillManager == null)

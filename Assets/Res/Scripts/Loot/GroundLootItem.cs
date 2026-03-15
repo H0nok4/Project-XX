@@ -263,6 +263,25 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             return false;
         }
 
+        if (weaponInstance.WeaponDefinition != null && weaponInstance.WeaponDefinition.IsThrowableWeapon)
+        {
+            InventoryContainer specialInventory = interactor != null ? interactor.SpecialInventory : null;
+            if (specialInventory != null && specialInventory.TryAddItemInstance(weaponInstance))
+            {
+                HandleCollected();
+                return true;
+            }
+
+            InventoryContainer fallbackInventory = interactor != null ? interactor.PrimaryInventory : null;
+            if (fallbackInventory != null && fallbackInventory.TryAddItemInstance(itemInstance.Clone()))
+            {
+                HandleCollected();
+                return true;
+            }
+
+            return false;
+        }
+
         PrototypeFpsController controller = interactor != null ? interactor.GetComponent<PrototypeFpsController>() : null;
         if (controller != null && controller.TryEquipLootedWeapon(weaponInstance, out ItemInstance droppedWeapon))
         {
@@ -288,6 +307,14 @@ public class GroundLootItem : MonoBehaviour, IInteractable
 
     private string GetWeaponInteractionLabel(PlayerInteractor interactor, PrototypeWeaponDefinition weaponDefinition)
     {
+        string displayName = itemInstance != null ? itemInstance.DisplayName : weaponDefinition.DisplayNameWithLevel;
+        if (weaponDefinition.IsThrowableWeapon)
+        {
+            InventoryContainer specialInventory = interactor != null ? interactor.SpecialInventory : null;
+            bool goesToSpecial = specialInventory != null && specialInventory.CanAccept(itemInstance != null ? itemInstance.Clone() : ItemInstance.Create(weaponDefinition, 1));
+            return $"Pack {(goesToSpecial ? "Special" : "Backpack")}: {displayName}";
+        }
+
         PrototypeFpsController controller = interactor != null ? interactor.GetComponent<PrototypeFpsController>() : null;
         bool storeInBackpack = controller != null && controller.PickupWouldStoreInBackpack(weaponDefinition);
         string slotLabel = storeInBackpack
@@ -300,7 +327,6 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             : controller != null && controller.PickupWouldReplaceEquippedWeapon(weaponDefinition)
                 ? "Swap"
                 : interactionVerb;
-        string displayName = itemInstance != null ? itemInstance.DisplayName : weaponDefinition.DisplayNameWithLevel;
 
         if (weaponDefinition.IsMeleeWeapon)
         {
@@ -344,6 +370,11 @@ public class GroundLootItem : MonoBehaviour, IInteractable
 
         if (instance.IsWeapon && instance.WeaponDefinition != null)
         {
+            if (instance.WeaponDefinition.IsThrowableWeapon)
+            {
+                return new Vector3(0.18f, 0.18f, 0.18f);
+            }
+
             return instance.WeaponDefinition.IsMeleeWeapon
                 ? new Vector3(0.14f, 0.52f, 0.14f)
                 : new Vector3(0.48f, 0.1f, 0.18f);
@@ -364,6 +395,11 @@ public class GroundLootItem : MonoBehaviour, IInteractable
 
         if (instance.IsWeapon && instance.WeaponDefinition != null)
         {
+            if (instance.WeaponDefinition.IsThrowableWeapon)
+            {
+                return 0.5f;
+            }
+
             return instance.WeaponDefinition.IsMeleeWeapon ? 0.7f : 1.5f;
         }
 

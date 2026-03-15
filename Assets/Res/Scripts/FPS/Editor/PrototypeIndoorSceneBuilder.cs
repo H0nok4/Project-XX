@@ -34,6 +34,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string CarbineWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Carbine.asset";
     private const string SidearmWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_Sidearm.asset";
     private const string KnifeWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_CombatKnife.asset";
+    private const string FragGrenadeWeaponPath = "Assets/Res/Data/PrototypeFPS/Weapons/Weapon_FragGrenade.asset";
     private const string PrimaryWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Primary.prefab";
     private const string SecondaryWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Secondary.prefab";
     private const string MeleeWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Melee.prefab";
@@ -151,6 +152,20 @@ public static class PrototypeIndoorSceneBuilder
             0.42f,
             0.52f,
             meleeWeaponViewPrefab);
+        PrototypeWeaponDefinition fragGrenadeWeapon = CreateOrUpdateThrowableDefinition(
+            FragGrenadeWeaponPath,
+            "frag_grenade",
+            "Frag Grenade",
+            "Single-use fragmentation grenade for room clearing and area denial.",
+            1.15f,
+            12f,
+            14f,
+            2.4f,
+            2.8f,
+            4.8f,
+            128f,
+            14f,
+            32f);
 
         cashItem.SetProgression(1, 1);
         medkitItem.SetProgression(5, 3);
@@ -165,6 +180,7 @@ public static class PrototypeIndoorSceneBuilder
         carbineWeapon.SetProgression(9, 7);
         sidearmWeapon.SetProgression(6, 4);
         knifeWeapon.SetProgression(4, 2);
+        fragGrenadeWeapon.SetProgression(6, 4);
 
         Material floorMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Floor.mat", new Color(0.25f, 0.27f, 0.30f));
         Material wallMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Wall.mat", new Color(0.54f, 0.59f, 0.66f));
@@ -232,6 +248,7 @@ public static class PrototypeIndoorSceneBuilder
             CreateLootEntry(carbineWeapon, 1, 1, 1.05f, true),
             CreateLootEntry(sidearmWeapon, 1, 1, 1.1f, true),
             CreateLootEntry(knifeWeapon, 1, 1, 0.75f, true),
+            CreateLootEntry(fragGrenadeWeapon, 1, 1, 0.65f),
             CreateLootEntry(helmetArmor, 1, 1, 0.9f, true),
             CreateLootEntry(vestArmor, 1, 1, 0.7f, true),
             CreateLootEntry(rifleAmmoItem, 24, 48, 0.95f),
@@ -792,6 +809,45 @@ public static class PrototypeIndoorSceneBuilder
 
         definition.ConfigureMelee(weaponId, displayName, description, damage, range, radius, cooldown);
         definition.SetFirstPersonViewPrefab(firstPersonViewPrefab);
+        EditorUtility.SetDirty(definition);
+        return definition;
+    }
+
+    private static PrototypeWeaponDefinition CreateOrUpdateThrowableDefinition(
+        string assetPath,
+        string weaponId,
+        string displayName,
+        string description,
+        float cooldown,
+        float staminaCost,
+        float velocity,
+        float upwardVelocity,
+        float fuseDuration,
+        float explosionRadius,
+        float explosionDamage,
+        float explosionForce,
+        float explosionNoiseRadius)
+    {
+        PrototypeWeaponDefinition definition = AssetDatabase.LoadAssetAtPath<PrototypeWeaponDefinition>(assetPath);
+        if (definition == null)
+        {
+            definition = ScriptableObject.CreateInstance<PrototypeWeaponDefinition>();
+            AssetDatabase.CreateAsset(definition, assetPath);
+        }
+
+        definition.ConfigureThrowable(
+            weaponId,
+            displayName,
+            description,
+            cooldown,
+            staminaCost,
+            velocity,
+            upwardVelocity,
+            fuseDuration,
+            explosionRadius,
+            explosionDamage,
+            explosionForce,
+            explosionNoiseRadius);
         EditorUtility.SetDirty(definition);
         return definition;
     }
