@@ -15,6 +15,7 @@ MonoBehaviour:
   merchants:
   - merchantId: weapons_trader
     displayName: "\u6B66\u5668\u5546\u4EBA"
+    merchantLevel: 4
     itemOffers:
     - definition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
       quantity: 30
@@ -31,6 +32,7 @@ MonoBehaviour:
       price: 10
   - merchantId: medical_vendor
     displayName: "\u836F\u54C1\u5546\u4EBA"
+    merchantLevel: 3
     itemOffers:
     - definition: {fileID: 11400000, guid: 94d329bee42f14c419e7c0230b717bd8, type: 2}
       quantity: 1
@@ -50,6 +52,7 @@ MonoBehaviour:
     weaponOffers: []
   - merchantId: armor_vendor
     displayName: "\u62A4\u7532\u5546\u4EBA"
+    merchantLevel: 4
     itemOffers:
     - definition: {fileID: 11400000, guid: d9c180fe32b357048b459e5a32cac308, type: 2}
       quantity: 1

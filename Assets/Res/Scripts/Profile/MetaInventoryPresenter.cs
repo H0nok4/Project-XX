@@ -227,6 +227,11 @@ public sealed class MetaInventoryPresenter
                 {
                     GUILayout.Label(lockerAffixSummary, host.BodyStyle);
                 }
+                string lockerSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(weapon.Skills);
+                if (!string.IsNullOrWhiteSpace(lockerSkillSummary))
+                {
+                    GUILayout.Label(lockerSkillSummary, host.BodyStyle);
+                }
                 if (weapon.WeaponDefinition.IsMeleeWeapon)
                 {
                     GUILayout.BeginHorizontal();
@@ -314,6 +319,11 @@ public sealed class MetaInventoryPresenter
                 {
                     GUILayout.Label(armorAffixSummary, host.BodyStyle);
                 }
+                string armorSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(armorInstance.Skills);
+                if (!string.IsNullOrWhiteSpace(armorSkillSummary))
+                {
+                    GUILayout.Label(armorSkillSummary, host.BodyStyle);
+                }
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
                 {
@@ -386,6 +396,12 @@ public sealed class MetaInventoryPresenter
             if (!string.IsNullOrWhiteSpace(slotAffixSummary))
             {
                 GUILayout.Label(slotAffixSummary, host.BodyStyle);
+            }
+
+            string slotSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(weaponInstance.Skills);
+            if (!string.IsNullOrWhiteSpace(slotSkillSummary))
+            {
+                GUILayout.Label(slotSkillSummary, host.BodyStyle);
             }
         }
         if (protectedOnDeath)
@@ -743,34 +759,7 @@ public sealed class MetaInventoryPresenter
 
     private static string GetInventoryEntryDetail(ItemInstance item)
     {
-        if (item == null)
-        {
-            return string.Empty;
-        }
-
-        string detail;
-        if (item.IsWeapon && item.WeaponDefinition != null)
-        {
-            detail = item.WeaponDefinition.IsMeleeWeapon
-                ? $"近战  重量 {item.TotalWeight:0.00}"
-                : $"弹药 {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  重量 {item.TotalWeight:0.00}";
-        }
-        else if (item.IsArmor)
-        {
-            detail = $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
-        }
-        else
-        {
-            detail = $"重量 {item.TotalWeight:0.00}";
-        }
-
-        string affixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
-        if (!string.IsNullOrWhiteSpace(affixSummary))
-        {
-            detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
-        }
-
-        return detail;
+        return PrototypeMainMenuController.BuildItemInstanceDetail(item);
     }
 
     private void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
@@ -787,7 +776,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        int sellPrice = merchantCatalog.GetSellPrice(item.Definition, quantity);
+        int sellPrice = merchantCatalog.GetSellPrice(item.CloneWithQuantity(quantity));
         if (sellPrice <= 0)
         {
             return;
@@ -819,7 +808,7 @@ public sealed class MetaInventoryPresenter
 
         ItemInstance weaponInstance = host.WeaponLocker[lockerIndex];
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
+        int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
             host.SetFeedback("仓库空间不足，无法接收这笔付款。");
@@ -848,7 +837,7 @@ public sealed class MetaInventoryPresenter
 
         ItemInstance weaponInstance = GetEquippedWeapon(slotType);
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(weaponDefinition);
+        int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
         if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
             host.SetFeedback("仓库空间不足，无法接收这笔付款。");
@@ -877,7 +866,7 @@ public sealed class MetaInventoryPresenter
 
         ArmorInstance armorInstance = host.EquippedArmor[armorIndex];
         ArmorDefinition armorDefinition = armorInstance != null ? armorInstance.Definition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(armorDefinition, 1);
+        int sellPrice = merchantCatalog.GetSellPrice(ItemInstance.Create(armorInstance));
         if (armorDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
         {
             host.SetFeedback("仓库空间不足，无法接收这笔付款。");

@@ -61,6 +61,9 @@ public class PrototypeBotController : MonoBehaviour
     [SerializeField] private Transform combatTarget;
     [SerializeField] private Transform eyeAnchor;
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
+    [SerializeField] private ItemRarity primaryWeaponRarity = ItemRarity.Common;
+    [SerializeField] private List<ItemAffix> primaryWeaponAffixes = new List<ItemAffix>();
+    [SerializeField] private List<ItemSkill> primaryWeaponSkills = new List<ItemSkill>();
     [SerializeField] private LayerMask perceptionMask = Physics.DefaultRaycastLayers;
 
     [Header("Perception")]
@@ -135,6 +138,14 @@ public class PrototypeBotController : MonoBehaviour
     [Min(1)]
     [SerializeField] private int corpseLootSlots = 6;
     [SerializeField] private LootTableDefinition carriedLootTable;
+    [SerializeField] private RaidGameMode raidGameMode;
+    [SerializeField] private bool bossLootProfile;
+    [Range(0, 3)]
+    [SerializeField] private int bonusLootRarityBias;
+    [Min(0)]
+    [SerializeField] private int bonusLootRolls;
+    [Min(0)]
+    [SerializeField] private int bonusLootItemLevel;
     [SerializeField] private bool rollCarriedLootOnDeath = true;
     [SerializeField] private bool transferEquippedArmorToCorpse = true;
     [SerializeField] private bool transferMagazineAmmoToCorpse = true;
@@ -149,7 +160,9 @@ public class PrototypeBotController : MonoBehaviour
     private Vector3 currentAimPoint;
     private Vector3 lockedAimPoint;
     private Vector3 lastAwarenessDirection = Vector3.forward;
+    private ItemAffixSummary primaryWeaponAffixSummary = ItemAffixSummary.CreateDefault();
     private int patrolIndex;
+    private int startingMagazineAmmo;
     private int magazineAmmo;
     private int searchPointIndex;
     private int currentBurstShotsRemaining;
@@ -219,9 +232,51 @@ public class PrototypeBotController : MonoBehaviour
         PrototypeWeaponDefinition weaponDefinition,
         params Vector3[] worldPatrolPoints)
     {
+        ConfigureInternal(
+            target,
+            enemyArchetype,
+            weaponDefinition,
+            ItemRarity.Common,
+            null,
+            null,
+            weaponDefinition != null && !weaponDefinition.IsMeleeWeapon ? weaponDefinition.MagazineSize : 0,
+            worldPatrolPoints);
+    }
+
+    public void Configure(
+        Transform target,
+        PrototypeEnemyArchetype enemyArchetype,
+        WeaponInstance weaponInstance,
+        params Vector3[] worldPatrolPoints)
+    {
+        ConfigureInternal(
+            target,
+            enemyArchetype,
+            weaponInstance != null ? weaponInstance.Definition : null,
+            weaponInstance != null ? weaponInstance.Rarity : ItemRarity.Common,
+            weaponInstance != null ? weaponInstance.Affixes : null,
+            weaponInstance != null ? weaponInstance.Skills : null,
+            weaponInstance != null ? weaponInstance.MagazineAmmo : 0,
+            worldPatrolPoints);
+    }
+
+    private void ConfigureInternal(
+        Transform target,
+        PrototypeEnemyArchetype enemyArchetype,
+        PrototypeWeaponDefinition weaponDefinition,
+        ItemRarity weaponRarity,
+        IReadOnlyList<ItemAffix> weaponAffixes,
+        IReadOnlyList<ItemSkill> weaponSkills,
+        int loadedAmmo,
+        params Vector3[] worldPatrolPoints)
+    {
         archetype = enemyArchetype;
         combatTarget = target;
         primaryWeapon = weaponDefinition;
+        ApplyPrimaryWeaponLootState(weaponRarity, weaponAffixes, weaponSkills);
+        startingMagazineAmmo = weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
+            ? Mathf.Clamp(loadedAmmo, 0, weaponDefinition.MagazineSize)
+            : 0;
         patrolPoints = new List<Vector3>();
 
         if (worldPatrolPoints != null)
@@ -241,6 +296,14 @@ public class PrototypeBotController : MonoBehaviour
     public void SetCarriedLootTable(LootTableDefinition lootTable)
     {
         carriedLootTable = lootTable;
+    }
+
+    public void ConfigureLootProfile(bool isBoss, int rarityBias, int bonusRollsOverride, int itemLevelBonus)
+    {
+        bossLootProfile = isBoss;
+        bonusLootRarityBias = Mathf.Clamp(rarityBias, 0, 3);
+        bonusLootRolls = Mathf.Max(0, bonusRollsOverride);
+        bonusLootItemLevel = Mathf.Max(0, itemLevelBonus);
     }
 
     private void Update()
@@ -674,7 +737,7 @@ public class PrototypeBotController : MonoBehaviour
             if (Time.time >= reloadEndTime)
             {
                 isReloading = false;
-                magazineAmmo = primaryWeapon.MagazineSize;
+                magazineAmmo = GetWeaponMagazineSize();
             }
 
             return;
@@ -708,17 +771,19 @@ public class PrototypeBotController : MonoBehaviour
         currentBurstShotsRemaining--;
         ReportAttackNoise(primaryWeapon, shotOrigin, false);
 
-        float spread = primaryWeapon.SpreadAngle * attackSpreadMultiplier;
+        float spread = GetEffectiveSpreadAngle() * attackSpreadMultiplier;
         Vector3 spreadDirection = ApplySpread(shotDirection, spread);
-        if (TryGetCombatHit(shotOrigin, spreadDirection, primaryWeapon.EffectiveRange, out RaycastHit hit))
+        if (TryGetCombatHit(shotOrigin, spreadDirection, GetEffectiveWeaponRange(), out RaycastHit hit))
         {
-            ResolveCombatHit(hit, BuildFirearmDamageInfo(primaryWeapon), ResolveImpactForce(primaryWeapon));
+            PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(primaryWeapon);
+            ApplyWeaponCriticalHit(ref damageInfo);
+            ResolveCombatHit(hit, damageInfo, ResolveImpactForce(primaryWeapon));
         }
 
         if (currentBurstShotsRemaining > 0)
         {
             nextBurstShotTime = Time.time
-                + primaryWeapon.SecondsPerShot * rangedBurstShotIntervalMultiplier
+                + GetWeaponSecondsPerShot() * rangedBurstShotIntervalMultiplier
                 + UnityEngine.Random.Range(0f, attackCadenceJitter);
         }
         else
@@ -761,7 +826,9 @@ public class PrototypeBotController : MonoBehaviour
 
         if (TrySelectCombatHit(hits, out RaycastHit hit))
         {
-            ResolveCombatHit(hit, BuildMeleeDamageInfo(primaryWeapon), ResolveImpactForce(primaryWeapon));
+            PrototypeUnitVitals.DamageInfo damageInfo = BuildMeleeDamageInfo(primaryWeapon);
+            ApplyWeaponCriticalHit(ref damageInfo);
+            ResolveCombatHit(hit, damageInfo, ResolveImpactForce(primaryWeapon));
         }
     }
 
@@ -812,12 +879,15 @@ public class PrototypeBotController : MonoBehaviour
         AmmoDefinition ammo = weaponDefinition != null ? weaponDefinition.AmmoDefinition : null;
         float directDamage = ammo != null ? ammo.DirectDamage : fallbackDamage;
         float armorDamage = ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, directDamage * 0.5f);
+        float rarityMultiplier = GetPrimaryWeaponStatMultiplier();
+        float damageMultiplier = Mathf.Max(0.1f, primaryWeaponAffixSummary.DamageMultiplier);
+        float penetrationPower = (ammo != null ? ammo.PenetrationPower : weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier;
 
         return new PrototypeUnitVitals.DamageInfo
         {
-            damage = Mathf.Max(1f, directDamage),
-            penetrationPower = ammo != null ? ammo.PenetrationPower : weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f,
-            armorDamage = armorDamage,
+            damage = Mathf.Max(1f, directDamage * rarityMultiplier * damageMultiplier),
+            penetrationPower = Mathf.Max(0f, penetrationPower + primaryWeaponAffixSummary.ArmorPenetrationBonus),
+            armorDamage = Mathf.Max(1f, armorDamage * rarityMultiplier * damageMultiplier),
             lightBleedChance = ammo != null ? ammo.LightBleedChance : weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.08f,
             heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.02f,
             fractureChance = ammo != null ? ammo.FractureChance : weaponDefinition != null ? weaponDefinition.FractureChance : 0.04f,
@@ -831,11 +901,19 @@ public class PrototypeBotController : MonoBehaviour
 
     private PrototypeUnitVitals.DamageInfo BuildMeleeDamageInfo(PrototypeWeaponDefinition weaponDefinition)
     {
+        float rarityMultiplier = GetPrimaryWeaponStatMultiplier();
+        float damageMultiplier = Mathf.Max(0.1f, primaryWeaponAffixSummary.DamageMultiplier);
+        float penetrationPower = weaponDefinition != null ? weaponDefinition.PenetrationPower : 4f;
+
         return new PrototypeUnitVitals.DamageInfo
         {
-            damage = weaponDefinition != null ? weaponDefinition.MeleeDamage : Mathf.Max(8f, fallbackDamage),
-            penetrationPower = weaponDefinition != null ? weaponDefinition.PenetrationPower : 4f,
-            armorDamage = weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.25f) : 6f,
+            damage = weaponDefinition != null
+                ? Mathf.Max(1f, weaponDefinition.MeleeDamage * rarityMultiplier * damageMultiplier)
+                : Mathf.Max(8f, fallbackDamage),
+            penetrationPower = Mathf.Max(0f, penetrationPower * rarityMultiplier + primaryWeaponAffixSummary.ArmorPenetrationBonus),
+            armorDamage = weaponDefinition != null
+                ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.25f * rarityMultiplier * damageMultiplier)
+                : 6f,
             lightBleedChance = weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.3f,
             heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.06f,
             fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.08f,
@@ -893,19 +971,95 @@ public class PrototypeBotController : MonoBehaviour
         }
 
         isReloading = true;
-        reloadEndTime = Time.time + primaryWeapon.ReloadDuration;
+        reloadEndTime = Time.time + GetWeaponReloadDuration();
     }
 
     private void InitializeWeaponState()
     {
         isReloading = false;
-        magazineAmmo = primaryWeapon != null && !primaryWeapon.IsMeleeWeapon ? primaryWeapon.MagazineSize : 0;
+        magazineAmmo = primaryWeapon != null && !primaryWeapon.IsMeleeWeapon
+            ? Mathf.Clamp(startingMagazineAmmo > 0 ? startingMagazineAmmo : primaryWeapon.MagazineSize, 0, primaryWeapon.MagazineSize)
+            : 0;
         nextAttackTime = 0f;
         nextBurstShotTime = 0f;
         reloadEndTime = 0f;
         attackSequenceCooldownUntil = 0f;
         currentBurstShotsRemaining = 0;
         ClearRangedAimLock();
+    }
+
+    private void ApplyPrimaryWeaponLootState(ItemRarity rarity, IReadOnlyList<ItemAffix> affixes, IReadOnlyList<ItemSkill> skills)
+    {
+        primaryWeaponRarity = ItemRarityUtility.Sanitize(rarity);
+        primaryWeaponAffixes = affixes != null ? ItemAffixUtility.CloneList(affixes) : new List<ItemAffix>();
+        primaryWeaponSkills = skills != null ? ItemSkillUtility.CloneList(skills) : new List<ItemSkill>();
+        SanitizePrimaryWeaponLootState();
+    }
+
+    private void SanitizePrimaryWeaponLootState()
+    {
+        if (primaryWeaponAffixes == null)
+        {
+            primaryWeaponAffixes = new List<ItemAffix>();
+        }
+
+        if (primaryWeaponSkills == null)
+        {
+            primaryWeaponSkills = new List<ItemSkill>();
+        }
+
+        ItemAffixUtility.SanitizeAffixes(primaryWeaponAffixes);
+        ItemSkillUtility.SanitizeSkills(primaryWeaponSkills);
+        primaryWeaponRarity = ItemRarityUtility.Sanitize(primaryWeaponRarity);
+        primaryWeaponAffixSummary = ItemAffixUtility.BuildSummary(primaryWeaponAffixes);
+    }
+
+    private float GetPrimaryWeaponStatMultiplier()
+    {
+        return ItemRarityUtility.GetStatMultiplier(primaryWeaponRarity);
+    }
+
+    private float GetEffectiveSpreadAngle()
+    {
+        return primaryWeapon != null
+            ? primaryWeapon.SpreadAngle * Mathf.Max(0.1f, primaryWeaponAffixSummary.SpreadMultiplier)
+            : 0f;
+    }
+
+    private float GetEffectiveWeaponRange()
+    {
+        return primaryWeapon != null
+            ? primaryWeapon.EffectiveRange * Mathf.Max(0.1f, primaryWeaponAffixSummary.EffectiveRangeMultiplier)
+            : 0f;
+    }
+
+    private float GetWeaponSecondsPerShot()
+    {
+        return primaryWeapon != null
+            ? primaryWeapon.SecondsPerShot / Mathf.Max(0.1f, primaryWeaponAffixSummary.FireRateMultiplier)
+            : 0.25f;
+    }
+
+    private float GetWeaponReloadDuration()
+    {
+        return primaryWeapon != null
+            ? primaryWeapon.ReloadDuration / Mathf.Max(0.1f, primaryWeaponAffixSummary.ReloadSpeedMultiplier)
+            : 1f;
+    }
+
+    private int GetWeaponMagazineSize()
+    {
+        return primaryWeapon != null && !primaryWeapon.IsMeleeWeapon ? primaryWeapon.MagazineSize : 0;
+    }
+
+    private void ApplyWeaponCriticalHit(ref PrototypeUnitVitals.DamageInfo damageInfo)
+    {
+        if (primaryWeaponAffixSummary.CritChance <= 0f || UnityEngine.Random.value >= primaryWeaponAffixSummary.CritChance)
+        {
+            return;
+        }
+
+        damageInfo.damage *= Mathf.Max(1f, primaryWeaponAffixSummary.CritDamageMultiplier);
     }
 
     private void RefreshArchetypeDefaults(bool force = false)
@@ -1172,6 +1326,11 @@ public class PrototypeBotController : MonoBehaviour
             }
         }
 
+        if (raidGameMode == null)
+        {
+            raidGameMode = FindFirstObjectByType<RaidGameMode>();
+        }
+
         ResolveTargetIfNeeded();
     }
 
@@ -1191,6 +1350,7 @@ public class PrototypeBotController : MonoBehaviour
 
     private void EnsureSettings()
     {
+        SanitizePrimaryWeaponLootState();
         detectionRadius = Mathf.Max(1f, detectionRadius);
         fieldOfView = Mathf.Clamp(fieldOfView, 25f, 180f);
         smellDetectionRadius = Mathf.Max(0f, smellDetectionRadius);
@@ -1223,6 +1383,12 @@ public class PrototypeBotController : MonoBehaviour
         fallbackImpactForce = Mathf.Max(0f, fallbackImpactForce);
         corpseInteractionLabel = string.IsNullOrWhiteSpace(corpseInteractionLabel) ? "Search Corpse" : corpseInteractionLabel.Trim();
         corpseLootSlots = Mathf.Max(1, corpseLootSlots);
+        bonusLootRarityBias = Mathf.Clamp(bonusLootRarityBias, 0, 3);
+        bonusLootRolls = Mathf.Max(0, bonusLootRolls);
+        bonusLootItemLevel = Mathf.Max(0, bonusLootItemLevel);
+        startingMagazineAmmo = primaryWeapon != null && !primaryWeapon.IsMeleeWeapon
+            ? Mathf.Clamp(startingMagazineAmmo > 0 ? startingMagazineAmmo : primaryWeapon.MagazineSize, 0, primaryWeapon.MagazineSize)
+            : 0;
 
         if (patrolPoints == null)
         {
@@ -1308,7 +1474,17 @@ public class PrototypeBotController : MonoBehaviour
             corpseLoot.Configure(BuildCorpseLootLabel());
             if (primaryWeapon != null)
             {
-                corpseLoot.AddWeapon(primaryWeapon, primaryWeapon.IsMeleeWeapon ? 0 : magazineAmmo, 1f, ItemRarity.Common);
+                ItemInstance droppedWeapon = ItemInstance.Create(
+                    primaryWeapon,
+                    primaryWeapon.IsMeleeWeapon ? 0 : magazineAmmo,
+                    1f,
+                    null,
+                    primaryWeaponRarity,
+                    primaryWeaponAffixes,
+                    false,
+                    primaryWeaponSkills,
+                    false);
+                corpseLoot.AddWeapon(droppedWeapon);
             }
         }
 
@@ -1343,7 +1519,7 @@ public class PrototypeBotController : MonoBehaviour
             return;
         }
 
-        List<LootTableDefinition.LootRoll> lootRolls = carriedLootTable.RollLoot();
+        List<LootTableDefinition.LootRoll> lootRolls = carriedLootTable.RollLoot(ResolveLootGenerationContext());
         for (int index = 0; index < lootRolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = lootRolls[index];
@@ -1372,6 +1548,20 @@ public class PrototypeBotController : MonoBehaviour
     {
         string baseLabel = string.IsNullOrWhiteSpace(corpseInteractionLabel) ? "Search Corpse" : corpseInteractionLabel.Trim();
         return $"{gameObject.name} - {baseLabel}";
+    }
+
+    private LootTableDefinition.LootGenerationContext ResolveLootGenerationContext()
+    {
+        LootTableDefinition.LootGenerationContext context = raidGameMode != null
+            ? raidGameMode.CreateLootContext()
+            : default;
+
+        if (!bossLootProfile)
+        {
+            return context;
+        }
+
+        return context.WithBonuses(bonusLootItemLevel, bonusLootRarityBias, bonusLootRolls);
     }
 
     private float ResolveImpactForce(PrototypeWeaponDefinition weaponDefinition)

@@ -9,4 +9,5 @@ public sealed class SavedArmorInstanceDto
     public ItemRarity rarity = ItemRarity.Common;
     public float currentDurability;
     public List<ItemAffix> affixes;
+    public List<ItemSkill> skills;
 }

@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Weapon_CombatKnife
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
   weaponId: combat_knife
+  itemLevel: 4
+  requiredLevel: 2
   displayName: 战术匕首
   description: 适合近距离快速处决的近战利刃。
   meleeWeapon: 1

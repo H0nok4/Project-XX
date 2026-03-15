@@ -176,6 +176,15 @@ public class LootContainerWindowController : MonoBehaviour
                         GUILayout.Label(weaponAffixSummary, windowStyle);
                         GUILayout.EndHorizontal();
                     }
+
+                    string weaponSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(entry.Skills);
+                    if (!string.IsNullOrWhiteSpace(weaponSkillSummary))
+                    {
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Space(16f);
+                        GUILayout.Label(weaponSkillSummary, windowStyle);
+                        GUILayout.EndHorizontal();
+                    }
                     GUILayout.EndVertical();
                 }
 
@@ -209,6 +218,15 @@ public class LootContainerWindowController : MonoBehaviour
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(16f);
                     GUILayout.Label(itemAffixSummary, windowStyle);
+                    GUILayout.EndHorizontal();
+                }
+
+                string itemSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(item.Skills);
+                if (!string.IsNullOrWhiteSpace(itemSkillSummary))
+                {
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(16f);
+                    GUILayout.Label(itemSkillSummary, windowStyle);
                     GUILayout.EndHorizontal();
                 }
 

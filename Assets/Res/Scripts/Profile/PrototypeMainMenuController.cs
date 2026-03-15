@@ -414,6 +414,44 @@ public class PrototypeMainMenuController : MonoBehaviour
         return inventory != null ? inventory.OccupiedSlots : 0;
     }
 
+    internal static string BuildItemInstanceDetail(ItemInstance item)
+    {
+        if (item == null)
+        {
+            return string.Empty;
+        }
+
+        string detail;
+        if (item.IsWeapon && item.WeaponDefinition != null)
+        {
+            detail = item.WeaponDefinition.IsMeleeWeapon
+                ? $"近战  重量 {item.TotalWeight:0.00}"
+                : $"弹药 {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  重量 {item.TotalWeight:0.00}";
+        }
+        else if (item.IsArmor)
+        {
+            detail = $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
+        }
+        else
+        {
+            detail = $"重量 {item.TotalWeight:0.00}";
+        }
+
+        string affixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
+        if (!string.IsNullOrWhiteSpace(affixSummary))
+        {
+            detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
+        }
+
+        string skillSummary = ItemSkillUtility.BuildSkillSummaryRich(item.Skills);
+        if (!string.IsNullOrWhiteSpace(skillSummary))
+        {
+            detail = string.IsNullOrWhiteSpace(detail) ? skillSummary : $"{detail}\n{skillSummary}";
+        }
+
+        return detail;
+    }
+
     private void ResolveCatalog()
     {
         if (itemCatalog == null)
@@ -430,6 +468,8 @@ public class PrototypeMainMenuController : MonoBehaviour
         {
             merchantCatalog = MetaMerchantPresenter.CreateRuntimeMerchantCatalog(itemCatalog);
         }
+
+        merchantCatalog?.EnsureRuntimeInventories();
 
         cashDefinition = itemCatalog != null ? itemCatalog.FindByItemId("cash_bundle") : null;
     }

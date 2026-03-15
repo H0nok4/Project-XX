@@ -18,6 +18,8 @@ MonoBehaviour:
   maxStackSize: 1
   unitWeight: 8.2
   icon: {fileID: 0}
+  itemLevel: 9
+  requiredLevel: 6
   coveredPartIds:
   - torso
   armorClass: 4

@@ -13,6 +13,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
     [SerializeField] private string pickupVerb = "Pick Up";
     [SerializeField] private bool clearPreviousLoot = true;
     [SerializeField] private Transform pickupParent;
+    [SerializeField] private RaidGameMode raidGameMode;
 
     private readonly List<GroundLootItem> spawnedItems = new List<GroundLootItem>();
     private bool hasSpawnedLoot;
@@ -22,6 +23,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
 
     private void Start()
     {
+        ResolveReferences();
         if (spawnOnStart)
         {
             SpawnLoot();
@@ -33,6 +35,7 @@ public class GroundLootSpawnPoint : MonoBehaviour
         scatterRadius = Mathf.Max(0f, scatterRadius);
         spawnHeightOffset = Mathf.Max(0.05f, spawnHeightOffset);
         pickupVerb = string.IsNullOrWhiteSpace(pickupVerb) ? "Pick Up" : pickupVerb.Trim();
+        ResolveReferences();
     }
 
     public void Configure(LootTableDefinition table, float radius = 0.6f, string verb = "Pick Up")
@@ -54,7 +57,10 @@ public class GroundLootSpawnPoint : MonoBehaviour
             ClearSpawnedLoot();
         }
 
-        List<LootTableDefinition.LootRoll> rolls = lootTable.RollLoot();
+        LootTableDefinition.LootGenerationContext lootContext = raidGameMode != null
+            ? raidGameMode.CreateLootContext()
+            : default;
+        List<LootTableDefinition.LootRoll> rolls = lootTable.RollLoot(lootContext);
         for (int index = 0; index < rolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = rolls[index];
@@ -125,5 +131,13 @@ public class GroundLootSpawnPoint : MonoBehaviour
         Gizmos.color = new Color(0.98f, 0.82f, 0.22f, 0.35f);
         Gizmos.DrawSphere(transform.position, 0.12f);
         Gizmos.DrawWireSphere(transform.position, Mathf.Max(0.08f, scatterRadius));
+    }
+
+    private void ResolveReferences()
+    {
+        if (raidGameMode == null)
+        {
+            raidGameMode = FindFirstObjectByType<RaidGameMode>();
+        }
     }
 }

@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Weapon_Carbine
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeWeaponDefinition
   weaponId: carbine_alpha
+  itemLevel: 9
+  requiredLevel: 7
   displayName: AR-4 卡宾枪
   description: 一把易于控制的主武器，支持全自动与点射模式。
   meleeWeapon: 0

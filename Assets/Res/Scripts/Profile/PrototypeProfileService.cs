@@ -299,7 +299,7 @@ public static class PrototypeProfileService
             }
 
             instance = resolvedDefinition != null
-                ? ItemInstance.Create(resolvedDefinition, magazineAmmo, durability, instanceId, record.rarity, record.affixes, false)
+                ? ItemInstance.Create(resolvedDefinition, magazineAmmo, durability, instanceId, record.rarity, record.affixes, false, record.skills, false)
                 : null;
             return instance != null;
         }
@@ -318,11 +318,11 @@ public static class PrototypeProfileService
         if (definition is ArmorDefinition armorDefinition)
         {
             float durability = GetStoredArmorDurability(armorDefinition, record.rarity, record.durability);
-            instance = ItemInstance.Create(armorDefinition, durability, EnsureInstanceId(record.instanceId), record.rarity, record.affixes, false);
+            instance = ItemInstance.Create(armorDefinition, durability, EnsureInstanceId(record.instanceId), record.rarity, record.affixes, false, record.skills, false);
             return true;
         }
 
-        instance = ItemInstance.Create(definition, Mathf.Max(1, record.quantity), EnsureInstanceId(record.instanceId), record.rarity, record.affixes, false);
+        instance = ItemInstance.Create(definition, Mathf.Max(1, record.quantity), EnsureInstanceId(record.instanceId), record.rarity, record.affixes, false, record.skills, false);
         return instance != null;
     }
 
@@ -343,7 +343,8 @@ public static class PrototypeProfileService
                 quantity = 1,
                 magazineAmmo = item.MagazineAmmo,
                 durability = Mathf.Max(0f, item.CurrentDurability),
-                affixes = ItemAffixUtility.CloneList(item.Affixes)
+                affixes = ItemAffixUtility.CloneList(item.Affixes),
+                skills = ItemSkillUtility.CloneList(item.Skills)
             };
         }
 
@@ -359,7 +360,8 @@ public static class PrototypeProfileService
             rarity = item.Rarity,
             quantity = item.IsArmor ? 1 : item.Quantity,
             durability = item.IsArmor ? Mathf.Max(0f, item.CurrentDurability) : -1f,
-            affixes = ItemAffixUtility.CloneList(item.Affixes)
+            affixes = ItemAffixUtility.CloneList(item.Affixes),
+            skills = ItemSkillUtility.CloneList(item.Skills)
         };
     }
 
@@ -447,7 +449,8 @@ public static class PrototypeProfileService
                     itemId = armorInstance.Definition.ItemId,
                     rarity = armorInstance.Rarity,
                     currentDurability = armorInstance.CurrentDurability,
-                    affixes = ItemAffixUtility.CloneList(armorInstance.Affixes)
+                    affixes = ItemAffixUtility.CloneList(armorInstance.Affixes),
+                    skills = ItemSkillUtility.CloneList(armorInstance.Skills)
                 });
         }
 
@@ -475,7 +478,8 @@ public static class PrototypeProfileService
                     itemId = armorState.definition.ItemId,
                     rarity = armorState.Rarity,
                     currentDurability = armorState.currentDurability,
-                    affixes = ItemAffixUtility.CloneList(armorState.affixes)
+                    affixes = ItemAffixUtility.CloneList(armorState.affixes),
+                    skills = ItemSkillUtility.CloneList(armorState.skills)
                 });
         }
 
@@ -533,7 +537,7 @@ public static class PrototypeProfileService
                 continue;
             }
 
-            ArmorInstance instance = ArmorInstance.Create(armorDefinition, record.currentDurability, record.instanceId, record.rarity, record.affixes, false);
+            ArmorInstance instance = ArmorInstance.Create(armorDefinition, record.currentDurability, record.instanceId, record.rarity, record.affixes, false, record.skills, false);
             armorInstances.Add(instance);
         }
 
@@ -1071,7 +1075,8 @@ public static class PrototypeProfileService
                 quantity = 1,
                 magazineAmmo = weaponRecord.magazineAmmo,
                 durability = weaponRecord.durability,
-                affixes = ItemAffixUtility.CloneList(weaponRecord.affixes)
+                affixes = ItemAffixUtility.CloneList(weaponRecord.affixes),
+                skills = ItemSkillUtility.CloneList(weaponRecord.skills)
             });
         }
 
@@ -1105,7 +1110,8 @@ public static class PrototypeProfileService
                     rarity = record.rarity,
                     magazineAmmo = record.magazineAmmo,
                     durability = record.durability,
-                    affixes = ItemAffixUtility.CloneList(record.affixes)
+                    affixes = ItemAffixUtility.CloneList(record.affixes),
+                    skills = ItemSkillUtility.CloneList(record.skills)
                 }, catalog);
 
                 if (sanitizedWeaponRecord != null)
@@ -1118,7 +1124,8 @@ public static class PrototypeProfileService
                         quantity = 1,
                         magazineAmmo = sanitizedWeaponRecord.magazineAmmo,
                         durability = sanitizedWeaponRecord.durability,
-                        affixes = ItemAffixUtility.CloneList(sanitizedWeaponRecord.affixes)
+                        affixes = ItemAffixUtility.CloneList(sanitizedWeaponRecord.affixes),
+                        skills = ItemSkillUtility.CloneList(sanitizedWeaponRecord.skills)
                     });
                 }
 
@@ -1146,7 +1153,8 @@ public static class PrototypeProfileService
                     rarity = ItemRarityUtility.Sanitize(record.rarity),
                     quantity = 1,
                     durability = GetStoredArmorDurability(armorDefinition, record.rarity, record.durability),
-                    affixes = ItemAffixUtility.CloneList(record.affixes)
+                    affixes = ItemAffixUtility.CloneList(record.affixes),
+                    skills = ItemSkillUtility.CloneList(record.skills)
                 });
                 continue;
             }
@@ -1217,6 +1225,8 @@ public static class PrototypeProfileService
         string itemId = armorDefinition != null ? armorDefinition.ItemId : record.itemId.Trim();
         List<ItemAffix> affixes = ItemAffixUtility.CloneList(record.affixes);
         ItemAffixUtility.SanitizeAffixes(affixes);
+        List<ItemSkill> skills = ItemSkillUtility.CloneList(record.skills);
+        ItemSkillUtility.SanitizeSkills(skills);
 
         return new SavedArmorInstanceDto
         {
@@ -1224,7 +1234,8 @@ public static class PrototypeProfileService
             itemId = itemId,
             rarity = ItemRarityUtility.Sanitize(record.rarity),
             currentDurability = clampedDurability,
-            affixes = affixes
+            affixes = affixes,
+            skills = skills
         };
     }
 
@@ -1287,6 +1298,8 @@ public static class PrototypeProfileService
 
         List<ItemAffix> affixes = ItemAffixUtility.CloneList(record.affixes);
         ItemAffixUtility.SanitizeAffixes(affixes);
+        List<ItemSkill> skills = ItemSkillUtility.CloneList(record.skills);
+        ItemSkillUtility.SanitizeSkills(skills);
 
         return new SavedItemInstanceDto
         {
@@ -1296,7 +1309,8 @@ public static class PrototypeProfileService
             quantity = 1,
             magazineAmmo = ammo,
             durability = Mathf.Max(0f, record.durability),
-            affixes = affixes
+            affixes = affixes,
+            skills = skills
         };
     }
 

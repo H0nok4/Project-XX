@@ -20,6 +20,11 @@ MonoBehaviour:
   primaryWeapon: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
   weaponPool:
   - {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+  primaryWeaponCommonWeight: 75
+  primaryWeaponUncommonWeight: 19
+  primaryWeaponRareWeight: 5
+  primaryWeaponEpicWeight: 1
+  primaryWeaponLegendaryWeight: 0
   carriedLootTable: {fileID: 0}
   bodyMaterial: {fileID: 2100000, guid: 9b9a156feadda874eb094a399e01e315, type: 2}
   localScale: {x: 0.68, y: 0.72, z: 1.05}

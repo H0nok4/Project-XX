@@ -18,3 +18,5 @@ MonoBehaviour:
   maxStackSize: 10
   unitWeight: 0.2
   icon: {fileID: 0}
+  itemLevel: 1
+  requiredLevel: 1

@@ -15,6 +15,7 @@ public class ItemInstance
     [SerializeField] private int magazineAmmo;
     [SerializeField] private float currentDurability = -1f;
     [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+    [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
 
 
     public string InstanceId => instanceId;
@@ -28,12 +29,14 @@ public class ItemInstance
         : 0;
     public float CurrentDurability => currentDurability;
     public IReadOnlyList<ItemAffix> Affixes => affixes;
+    public IReadOnlyList<ItemSkill> Skills => skills;
 
     public bool HasAffixes => affixes != null && affixes.Count > 0;
+    public bool HasSkills => skills != null && skills.Count > 0;
 
     public bool IsWeapon => weaponDefinition != null;
     public bool IsArmor => definition is ArmorDefinition;
-    public bool HasInstanceState => IsWeapon || IsArmor || HasAffixes;
+    public bool HasInstanceState => IsWeapon || IsArmor || HasAffixes || HasSkills;
     public string DisplayName => IsWeapon
         ? $"{weaponDefinition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
         : definition != null
@@ -55,7 +58,11 @@ public class ItemInstance
 
         IReadOnlyList<ItemAffix> affixesOverride = null,
 
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+
+        bool generateSkillsIfMissing = true)
 
     {
 
@@ -75,7 +82,7 @@ public class ItemInstance
 
             int startingAmmo = weaponDefinition.IsMeleeWeapon ? 0 : weaponDefinition.MagazineSize;
 
-            return Create(weaponDefinition, startingAmmo, 1f, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+            return Create(weaponDefinition, startingAmmo, 1f, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing, skillsOverride, generateSkillsIfMissing);
 
         }
 
@@ -87,7 +94,7 @@ public class ItemInstance
 
             float maxDurability = GetArmorMaxDurability(armorDefinition, itemRarity);
 
-            return Create(armorDefinition, maxDurability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+            return Create(armorDefinition, maxDurability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing, skillsOverride, generateSkillsIfMissing);
 
         }
 
@@ -97,7 +104,7 @@ public class ItemInstance
 
         {
 
-            return Create(itemDefinition, amount, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+            return Create(itemDefinition, amount, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing, skillsOverride, generateSkillsIfMissing);
 
         }
 
@@ -120,7 +127,11 @@ public class ItemInstance
 
         IReadOnlyList<ItemAffix> affixesOverride = null,
 
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+
+        bool generateSkillsIfMissing = true)
 
     {
 
@@ -135,6 +146,8 @@ public class ItemInstance
         instance.SetInstanceId(instanceIdOverride);
 
         instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
+
+        instance.SetSkills(skillsOverride, generateAffixesIfMissing && generateSkillsIfMissing);
 
         return instance;
 
@@ -153,7 +166,11 @@ public class ItemInstance
 
         IReadOnlyList<ItemAffix> affixesOverride = null,
 
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+
+        bool generateSkillsIfMissing = true)
 
     {
 
@@ -170,6 +187,8 @@ public class ItemInstance
         instance.SetInstanceId(instanceIdOverride);
 
         instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
+
+        instance.SetSkills(skillsOverride, generateAffixesIfMissing && generateSkillsIfMissing);
 
         return instance;
 
@@ -190,7 +209,11 @@ public class ItemInstance
 
         IReadOnlyList<ItemAffix> affixesOverride = null,
 
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+
+        bool generateSkillsIfMissing = true)
 
     {
 
@@ -208,6 +231,8 @@ public class ItemInstance
 
         instance.SetAffixes(affixesOverride, generateAffixesIfMissing);
 
+        instance.SetSkills(skillsOverride, generateAffixesIfMissing && generateSkillsIfMissing);
+
         return instance;
 
     }
@@ -217,7 +242,7 @@ public class ItemInstance
     {
         return armorInstance != null && armorInstance.Definition != null
 
-            ? Create(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes, false)
+            ? Create(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes, false, armorInstance.Skills, false)
 
             : null;
 
@@ -227,7 +252,7 @@ public class ItemInstance
     {
         return weaponInstance != null && weaponInstance.Definition != null
 
-            ? Create(weaponInstance.Definition, weaponInstance.MagazineAmmo, weaponInstance.Durability, weaponInstance.InstanceId, weaponInstance.Rarity, weaponInstance.Affixes, false)
+            ? Create(weaponInstance.Definition, weaponInstance.MagazineAmmo, weaponInstance.Durability, weaponInstance.InstanceId, weaponInstance.Rarity, weaponInstance.Affixes, false, weaponInstance.Skills, false)
 
             : null;
 
@@ -261,7 +286,8 @@ public class ItemInstance
             && definition.MaxStackSize > 1
             && Rarity == ItemRarityUtility.Sanitize(itemRarity)
             && !IsArmor
-            && !HasAffixes;
+            && !HasAffixes
+            && !HasSkills;
     }
 
     public bool CanStackWith(ItemInstance other)
@@ -269,6 +295,7 @@ public class ItemInstance
         return other != null
             && other.weaponDefinition == null
             && !other.HasAffixes
+            && !other.HasSkills
             && CanStackWith(other.definition, other.Rarity);
     }
 
@@ -299,7 +326,7 @@ public class ItemInstance
     public WeaponInstance ToWeaponInstance()
     {
         return weaponDefinition != null
-            ? WeaponInstance.Create(weaponDefinition, MagazineAmmo, Mathf.Max(0f, currentDurability), instanceId, Rarity, affixes, false)
+            ? WeaponInstance.Create(weaponDefinition, MagazineAmmo, Mathf.Max(0f, currentDurability), instanceId, Rarity, affixes, false, skills, false)
             : null;
     }
 
@@ -313,7 +340,7 @@ public class ItemInstance
         float storedDurability = currentDurability >= 0f
             ? currentDurability
             : GetArmorMaxDurability(armorDefinition, Rarity);
-        return ArmorInstance.Create(armorDefinition, storedDurability, instanceId, Rarity, affixes, false);
+        return ArmorInstance.Create(armorDefinition, storedDurability, instanceId, Rarity, affixes, false, skills, false);
     }
 
     public void SetDefinition(ItemDefinition itemDefinition)
@@ -323,6 +350,7 @@ public class ItemInstance
         magazineAmmo = 0;
         currentDurability = -1f;
         affixes = new List<ItemAffix>();
+        skills = new List<ItemSkill>();
 
         EnsureInstanceId();
     }
@@ -335,6 +363,7 @@ public class ItemInstance
         magazineAmmo = 0;
         currentDurability = 1f;
         affixes = new List<ItemAffix>();
+        skills = new List<ItemSkill>();
 
         EnsureInstanceId();
     }
@@ -414,6 +443,24 @@ public class ItemInstance
 
     }
 
+    public void SetSkills(IReadOnlyList<ItemSkill> newSkills, bool generateIfMissing = true)
+    {
+        if (newSkills != null)
+        {
+            skills = ItemSkillUtility.CloneList(newSkills);
+        }
+        else if (generateIfMissing)
+        {
+            skills = GenerateSkills();
+        }
+        else
+        {
+            skills = new List<ItemSkill>();
+        }
+
+        ItemSkillUtility.SanitizeSkills(skills);
+    }
+
 
 
     private List<ItemAffix> GenerateAffixes()
@@ -452,6 +499,21 @@ public class ItemInstance
 
     }
 
+    private List<ItemSkill> GenerateSkills()
+    {
+        if (weaponDefinition != null)
+        {
+            return ItemSkillUtility.GenerateSkills(Rarity, weaponDefinition.ItemLevel, AffixItemTarget.Weapon);
+        }
+
+        if (definition is ArmorDefinition armorDefinition)
+        {
+            return ItemSkillUtility.GenerateSkills(Rarity, armorDefinition.ItemLevel, AffixItemTarget.Armor);
+        }
+
+        return new List<ItemSkill>();
+    }
+
 
 
     public void SetInstanceId(string newInstanceId)
@@ -476,9 +538,18 @@ public class ItemInstance
 
         }
 
+        if (skills == null)
+
+        {
+
+            skills = new List<ItemSkill>();
+
+        }
+
 
 
         ItemAffixUtility.SanitizeAffixes(affixes);
+        ItemSkillUtility.SanitizeSkills(skills);
 
         rarity = ItemRarityUtility.Sanitize(rarity);
 
@@ -500,6 +571,7 @@ public class ItemInstance
             magazineAmmo = 0;
             currentDurability = -1f;
             affixes.Clear();
+            skills.Clear();
 
             EnsureInstanceId();
             return;
@@ -526,6 +598,7 @@ public class ItemInstance
         {
 
             affixes.Clear();
+            skills.Clear();
 
         }
 
@@ -545,7 +618,8 @@ public class ItemInstance
             quantity = HasInstanceState ? 1 : Mathf.Clamp(amount, 1, MaxStackSize),
             magazineAmmo = magazineAmmo,
             currentDurability = currentDurability,
-            affixes = ItemAffixUtility.CloneList(affixes)
+            affixes = ItemAffixUtility.CloneList(affixes),
+            skills = ItemSkillUtility.CloneList(skills)
         };
         instance.Sanitize();
         return instance;

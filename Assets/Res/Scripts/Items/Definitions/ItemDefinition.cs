@@ -56,6 +56,12 @@ public class ItemDefinition : ItemDefinitionBase
         return GetScaledValue(baseValue, ItemLevel);
     }
 
+    public void SetProgression(int level, int required = MinItemLevel)
+    {
+        itemLevel = Mathf.Clamp(level, MinItemLevel, MaxItemLevel);
+        requiredLevel = Mathf.Clamp(required, MinItemLevel, MaxItemLevel);
+    }
+
     public static float GetScaledValue(float baseValue, int level)
     {
         int clampedLevel = Mathf.Clamp(level, MinItemLevel, MaxItemLevel);

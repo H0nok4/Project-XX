@@ -16,6 +16,7 @@ public sealed class MetaMerchantPresenter
     public void DrawMerchantsPage()
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
+        merchantCatalog?.EnsureRuntimeInventories();
         if (merchantCatalog == null || merchantCatalog.Merchants == null || merchantCatalog.Merchants.Count == 0)
         {
             Rect emptyRect = new Rect(292f, 140f, Mathf.Max(560f, Screen.width - 336f), 220f);
@@ -56,122 +57,93 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        host.BeginPanel(rect, merchant.displayName, accent, $"资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
+        host.BeginPanel(rect, merchant.DisplayName, accent, $"Lv {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(rect.height - 130f));
 
-        bool drewWeaponHeader = false;
-        bool drewItemHeader = false;
+        bool drewAnyOffer = false;
         foreach (PrototypeMerchantCatalog.MerchantOfferView offer in merchant.EnumerateOffers())
         {
-            ItemDefinitionBase definition = offer.DefinitionBase;
-            if (definition == null)
+            if (!offer.IsValid || offer.ItemInstance == null)
             {
                 continue;
             }
 
-            if (definition is PrototypeWeaponDefinition weaponDefinition)
-            {
-                if (!drewWeaponHeader)
-                {
-                    GUILayout.Label("武器", host.BodyStyle);
-                    drewWeaponHeader = true;
-                }
+            drewAnyOffer = true;
+            DrawOfferEntry(offer);
+        }
 
-                GUILayout.BeginVertical(host.ListStyle);
-                GUILayout.Label(weaponDefinition.DisplayNameWithLevel, host.BodyStyle);
-                GUILayout.Label($"{(weaponDefinition.IsMeleeWeapon ? "近战" : "枪械")}  价格 {offer.Price}", host.BodyStyle);
-                if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
-                {
-                    BuyOffer(offer);
-                    GUIUtility.ExitGUI();
-                }
-
-                GUILayout.EndVertical();
-                continue;
-            }
-
-            if (!drewItemHeader)
-            {
-                if (drewWeaponHeader)
-                {
-                    GUILayout.Space(8f);
-                }
-
-                GUILayout.Label("补给", host.BodyStyle);
-                drewItemHeader = true;
-            }
-
-            GUILayout.BeginVertical(host.ListStyle);
-            GUILayout.Label($"{definition.DisplayNameWithLevel} x{offer.Quantity}", host.BodyStyle);
-            GUILayout.Label($"价格 {offer.Price}", host.BodyStyle);
-            if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
-            {
-                BuyOffer(offer);
-                GUIUtility.ExitGUI();
-            }
-
-            GUILayout.EndVertical();
+        if (!drewAnyOffer)
+        {
+            GUILayout.Label("当前没有可售商品。", host.BodyStyle);
         }
 
         GUILayout.EndScrollView();
         host.EndPanel();
     }
 
-    private void BuyOffer(PrototypeMerchantCatalog.MerchantOfferView offer)
+    private void DrawOfferEntry(PrototypeMerchantCatalog.MerchantOfferView offer)
     {
-        if (!offer.IsValid)
+        ItemInstance item = offer.ItemInstance;
+        if (item == null)
         {
             return;
         }
 
-        if (offer.DefinitionBase is PrototypeWeaponDefinition)
+        GUILayout.BeginVertical(host.ListStyle);
+        string title = item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName;
+        GUILayout.Label(title, host.BodyStyle);
+
+        string detail = PrototypeMainMenuController.BuildItemInstanceDetail(item);
+        if (!string.IsNullOrWhiteSpace(detail))
         {
-            BuyWeaponOffer(offer.WeaponOffer);
-            return;
+            GUILayout.Label(detail, host.BodyStyle);
         }
 
-        BuyItemOffer(offer.ItemOffer);
+        GUILayout.Label($"价格 {offer.Price}", host.BodyStyle);
+        if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
+        {
+            BuyOffer(offer);
+            GUIUtility.ExitGUI();
+        }
+
+        GUILayout.EndVertical();
     }
 
-    private void BuyItemOffer(PrototypeMerchantCatalog.ItemOffer offer)
+    private void BuyOffer(PrototypeMerchantCatalog.MerchantOfferView offer)
     {
-        if (offer?.definition == null || offer.quantity <= 0 || offer.price <= 0 || host.StashInventory == null)
+        if (!offer.IsValid || offer.ItemInstance == null)
         {
             return;
         }
 
-        if (!host.TrySpendFunds(offer.price, "仓库里的现金不足。"))
+        if (!host.TrySpendFunds(offer.Price, "仓库里的现金不足。"))
         {
             return;
         }
 
-        if (!host.StashInventory.TryAddItem(offer.definition, offer.quantity, out int addedQuantity) || addedQuantity < offer.quantity)
+        ItemInstance purchasedItem = offer.ItemInstance.Clone();
+        bool addedSuccessfully;
+        if (purchasedItem.IsWeapon)
         {
-            host.TryAddFunds(offer.price);
+            host.WeaponLocker.Add(purchasedItem);
+            addedSuccessfully = true;
+        }
+        else
+        {
+            addedSuccessfully = host.StashInventory != null && host.StashInventory.TryAddItemInstance(purchasedItem);
+        }
+
+        if (!addedSuccessfully)
+        {
+            host.TryAddFunds(offer.Price);
             host.SetFeedback("仓库空间不足，无法完成购买。");
             return;
         }
 
-        host.SetFeedback($"已购买 {offer.definition.DisplayNameWithLevel} x{offer.quantity}。");
-        host.AutoSaveIfNeeded();
-    }
-
-    private void BuyWeaponOffer(PrototypeMerchantCatalog.WeaponOffer offer)
-    {
-        if (offer?.definition == null || offer.price <= 0)
-        {
-            return;
-        }
-
-        if (!host.TrySpendFunds(offer.price, "仓库里的现金不足。"))
-        {
-            return;
-        }
-
-        int startingAmmo = offer.definition.IsMeleeWeapon ? 0 : offer.definition.MagazineSize;
-        ItemInstance weaponInstance = ItemInstance.Create(offer.definition, startingAmmo, 1f);
-        host.WeaponLocker.Add(weaponInstance);
-        host.SetFeedback($"已购买 {weaponInstance.DisplayName}。");
+        string purchasedLabel = purchasedItem.Quantity > 1
+            ? $"{purchasedItem.DisplayName} x{purchasedItem.Quantity}"
+            : purchasedItem.DisplayName;
+        host.SetFeedback($"已购买 {purchasedLabel}。");
         host.AutoSaveIfNeeded();
     }
 
@@ -205,6 +177,7 @@ public sealed class MetaMerchantPresenter
             {
                 merchantId = "weapons_trader",
                 displayName = "武器商人",
+                merchantLevel = 4,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(rifleAmmo, 30, 6),
@@ -221,6 +194,7 @@ public sealed class MetaMerchantPresenter
             {
                 merchantId = "medical_trader",
                 displayName = "医药商人",
+                merchantLevel = 3,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(medkit, 1, 10),
@@ -234,6 +208,7 @@ public sealed class MetaMerchantPresenter
             {
                 merchantId = "armor_trader",
                 displayName = "护甲商人",
+                merchantLevel = 4,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     CreateItemOffer(helmet, 1, 14),
@@ -241,6 +216,7 @@ public sealed class MetaMerchantPresenter
                 }
             });
 
+        runtimeCatalog.EnsureRuntimeInventories();
         return runtimeCatalog;
     }
 

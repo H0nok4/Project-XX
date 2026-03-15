@@ -11,6 +11,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     [Min(0f)]
     [SerializeField] private float durability = 1f;
     [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+    [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
     [SerializeField] private string interactionVerb = "Take";
     [SerializeField] private bool destroyWhenCollected = true;
 
@@ -18,6 +19,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
     public float Durability => Mathf.Max(0f, durability);
     public IReadOnlyList<ItemAffix> Affixes => affixes;
+    public IReadOnlyList<ItemSkill> Skills => skills;
     public int MagazineAmmo => weaponDefinition != null && !weaponDefinition.IsMeleeWeapon
         ? Mathf.Clamp(magazineAmmo, 0, weaponDefinition.MagazineSize)
         : 0;
@@ -42,6 +44,8 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         }
 
         ItemAffixUtility.SanitizeAffixes(affixes);
+        skills ??= new List<ItemSkill>();
+        ItemSkillUtility.SanitizeSkills(skills);
         RefreshVisuals();
     }
 
@@ -60,6 +64,8 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         durability = instance != null ? instance.CurrentDurability : 1f;
         affixes = ItemAffixUtility.CloneList(instance != null ? instance.Affixes : null);
         ItemAffixUtility.SanitizeAffixes(affixes);
+        skills = ItemSkillUtility.CloneList(instance != null ? instance.Skills : null);
+        ItemSkillUtility.SanitizeSkills(skills);
         interactionVerb = string.IsNullOrWhiteSpace(verb) ? "Take" : verb.Trim();
 
         if (weaponDefinition != null && !weaponDefinition.IsMeleeWeapon)
@@ -302,7 +308,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
             return null;
         }
 
-        return ItemInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity, affixes, false);
+        return ItemInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity, affixes, false, skills, false);
     }
 
     private void RefreshVisuals()

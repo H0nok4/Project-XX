@@ -26,6 +26,7 @@ public class PlayerWeaponController : MonoBehaviour
         public float Durability;
         public bool IsReloading;
         public List<ItemAffix> Affixes = new List<ItemAffix>();
+        public List<ItemSkill> Skills = new List<ItemSkill>();
         public ItemAffixSummary AffixSummary = ItemAffixSummary.CreateDefault();
 
         public bool IsConfigured => Definition != null;
@@ -99,6 +100,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
+    private PlayerSkillManager skillManager;
     private readonly WeaponRuntime primaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Primary };
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
@@ -137,6 +139,8 @@ public class PlayerWeaponController : MonoBehaviour
     {
         playerVitals = vitals;
         inventory = inventoryContainer;
+        skillManager = GetComponent<PlayerSkillManager>();
+        skillManager?.SetPlayerDependencies(playerVitals, this);
     }
 
     public void ApplyHostSettings(
@@ -188,6 +192,7 @@ public class PlayerWeaponController : MonoBehaviour
     public void InitializeRuntime()
     {
         ConfigureRuntimeWeapons();
+        skillManager?.RefreshFromEquipment();
     }
 
     public void TickVisuals(float deltaTime)
@@ -267,6 +272,19 @@ public class PlayerWeaponController : MonoBehaviour
     public WeaponInstance GetMeleeWeaponInstance()
     {
         return GetMeleeItemInstance()?.ToWeaponInstance();
+    }
+
+    public int RecoverAmmoToActiveWeapon(int rounds)
+    {
+        WeaponRuntime runtime = GetActiveWeapon();
+        if (runtime == null || !runtime.IsConfigured || runtime.Definition == null || runtime.Definition.IsMeleeWeapon || rounds <= 0)
+        {
+            return 0;
+        }
+
+        int recovered = Mathf.Clamp(rounds, 0, runtime.Definition.MagazineSize - runtime.MagazineAmmo);
+        runtime.MagazineAmmo += recovered;
+        return recovered;
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -538,7 +556,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.MagazineAmmo--;
-        float secondsPerShot = runtime.Definition.SecondsPerShot / runtime.FireRateMultiplier;
+        float secondsPerShot = runtime.Definition.SecondsPerShot / (runtime.FireRateMultiplier * GetPassiveFireRateMultiplier());
         runtime.NextAttackTime = Time.time + Mathf.Max(0.01f, secondsPerShot);
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
 
@@ -572,7 +590,7 @@ public class PlayerWeaponController : MonoBehaviour
             return;
         }
 
-        runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown;
+        runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown / GetPassiveFireRateMultiplier();
         float meleeRadius = Mathf.Max(meleeNoiseRadius, runtime.Definition.MeleeRange * 3.8f);
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, meleeRadius);
 
@@ -719,10 +737,13 @@ public class PlayerWeaponController : MonoBehaviour
         bool shouldApplyImpactForce = true;
         if (unitHitbox != null)
         {
+            PrototypeUnitVitals targetVitals = unitHitbox.Owner;
+            bool wasDead = targetVitals != null && targetVitals.IsDead;
             unitHitbox.ApplyDamage(damageInfo);
-            if (unitHitbox.Owner != null)
+            skillManager?.HandleDamageResolved(targetVitals, damageInfo, targetVitals != null && !wasDead && targetVitals.IsDead);
+            if (targetVitals != null)
             {
-                shouldApplyImpactForce = unitHitbox.Owner.ShouldReceiveImpactForce;
+                shouldApplyImpactForce = targetVitals.ShouldReceiveImpactForce;
             }
         }
         else
@@ -768,7 +789,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.IsReloading = true;
-        float reloadDuration = runtime.Definition.ReloadDuration / runtime.ReloadSpeedMultiplier;
+        float reloadDuration = runtime.Definition.ReloadDuration / (runtime.ReloadSpeedMultiplier * GetPassiveReloadSpeedMultiplier());
         runtime.ReloadEndTime = Time.time + Mathf.Max(0.05f, reloadDuration);
         runtime.PendingBurstShots = 0;
     }
@@ -858,7 +879,8 @@ public class PlayerWeaponController : MonoBehaviour
             primaryInstance != null ? primaryInstance.InstanceId : null,
             primaryInstance != null ? primaryInstance.CurrentDurability : -1f,
             primaryInstance != null ? primaryInstance.Rarity : ItemRarity.Common,
-            primaryInstance != null ? primaryInstance.Affixes : null);
+            primaryInstance != null ? primaryInstance.Affixes : null,
+            primaryInstance != null ? primaryInstance.Skills : null);
         SetupWeaponRuntime(
             secondaryRuntime,
             secondaryWeapon,
@@ -866,7 +888,8 @@ public class PlayerWeaponController : MonoBehaviour
             secondaryInstance != null ? secondaryInstance.InstanceId : null,
             secondaryInstance != null ? secondaryInstance.CurrentDurability : -1f,
             secondaryInstance != null ? secondaryInstance.Rarity : ItemRarity.Common,
-            secondaryInstance != null ? secondaryInstance.Affixes : null);
+            secondaryInstance != null ? secondaryInstance.Affixes : null,
+            secondaryInstance != null ? secondaryInstance.Skills : null);
         SetupWeaponRuntime(
             meleeRuntime,
             meleeWeapon,
@@ -874,9 +897,11 @@ public class PlayerWeaponController : MonoBehaviour
             meleeInstance != null ? meleeInstance.InstanceId : null,
             meleeInstance != null ? meleeInstance.CurrentDurability : -1f,
             meleeInstance != null ? meleeInstance.Rarity : ItemRarity.Common,
-            meleeInstance != null ? meleeInstance.Affixes : null);
+            meleeInstance != null ? meleeInstance.Affixes : null,
+            meleeInstance != null ? meleeInstance.Skills : null);
         SelectInitialWeapon();
         RefreshWeaponViewModels();
+        skillManager?.RefreshFromEquipment();
     }
 
     private void SetupWeaponRuntime(
@@ -893,13 +918,17 @@ public class PlayerWeaponController : MonoBehaviour
 
         ItemRarity rarity = ItemRarity.Common,
 
-        IReadOnlyList<ItemAffix> affixes = null)
+        IReadOnlyList<ItemAffix> affixes = null,
+
+        IReadOnlyList<ItemSkill> skills = null)
 
     {
         runtime.Definition = definition;
         runtime.Rarity = ItemRarityUtility.Sanitize(rarity);
         runtime.Affixes = ItemAffixUtility.CloneList(affixes);
         ItemAffixUtility.SanitizeAffixes(runtime.Affixes);
+        runtime.Skills = ItemSkillUtility.CloneList(skills);
+        ItemSkillUtility.SanitizeSkills(runtime.Skills);
         runtime.AffixSummary = ItemAffixUtility.BuildSummary(runtime.Affixes);
         runtime.PendingBurstShots = 0;
         runtime.IsReloading = false;
@@ -1026,7 +1055,8 @@ public class PlayerWeaponController : MonoBehaviour
             instance.InstanceId,
             instance.CurrentDurability,
             instance.Rarity,
-            instance.Affixes);
+            instance.Affixes,
+            instance.Skills);
     }
 
     private void SetWeaponForSlot(WeaponSlot slot, WeaponInstance instance)
@@ -1048,30 +1078,33 @@ public class PlayerWeaponController : MonoBehaviour
 
         ItemRarity rarity = ItemRarity.Common,
 
-        IReadOnlyList<ItemAffix> affixes = null)
+        IReadOnlyList<ItemAffix> affixes = null,
+
+        IReadOnlyList<ItemSkill> skills = null)
 
     {
         switch (slot)
         {
             case WeaponSlot.Primary:
                 primaryWeapon = weaponDefinition;
-                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
+                SetupWeaponRuntime(primaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes, skills);
                 break;
 
             case WeaponSlot.Secondary:
                 secondaryWeapon = weaponDefinition;
-                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
+                SetupWeaponRuntime(secondaryRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes, skills);
                 break;
 
             default:
                 meleeWeapon = weaponDefinition;
-                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes);
+                SetupWeaponRuntime(meleeRuntime, weaponDefinition, startingMagazineAmmo, instanceId, durability, rarity, affixes, skills);
                 break;
         }
 
         if (Application.isPlaying)
         {
             RefreshWeaponViewModels();
+            skillManager?.RefreshFromEquipment();
         }
     }
 
@@ -1089,12 +1122,24 @@ public class PlayerWeaponController : MonoBehaviour
             runtime.InstanceId,
             runtime.Rarity,
             runtime.Affixes,
+            false,
+            runtime.Skills,
             false);
     }
 
     private WeaponInstance BuildWeaponInstance(WeaponRuntime runtime)
     {
         return BuildItemInstance(runtime)?.ToWeaponInstance();
+    }
+
+    private float GetPassiveFireRateMultiplier()
+    {
+        return Mathf.Max(0.1f, skillManager != null ? skillManager.GetFireRateMultiplier() : 1f);
+    }
+
+    private float GetPassiveReloadSpeedMultiplier()
+    {
+        return Mathf.Max(0.1f, skillManager != null ? skillManager.GetReloadSpeedMultiplier() : 1f);
     }
 
     private int GetReserveAmmoCount(WeaponRuntime runtime)
@@ -1318,11 +1363,16 @@ public class PlayerWeaponController : MonoBehaviour
             inventory = GetComponent<InventoryContainer>();
         }
 
+        if (skillManager == null)
+        {
+            skillManager = GetComponent<PlayerSkillManager>();
+        }
+
     }
 
     private void EnsureDependencies()
     {
-        if (playerVitals == null || inventory == null)
+        if (playerVitals == null || inventory == null || skillManager == null)
         {
             ResolveReferences();
         }

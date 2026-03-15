@@ -15,6 +15,7 @@ public class PrototypeCorpseLoot : MonoBehaviour
         [Min(0f)]
         [SerializeField] private float durability = 1f;
         [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+        [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
 
         public PrototypeWeaponDefinition WeaponDefinition => weaponDefinition;
         public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
@@ -24,8 +25,15 @@ public class PrototypeCorpseLoot : MonoBehaviour
             : 0;
 
         public IReadOnlyList<ItemAffix> Affixes => affixes;
+        public IReadOnlyList<ItemSkill> Skills => skills;
 
-        public void Configure(PrototypeWeaponDefinition definition, int loadedAmmo, float startingDurability = 1f, ItemRarity itemRarity = ItemRarity.Common, IReadOnlyList<ItemAffix> affixesOverride = null)
+        public void Configure(
+            PrototypeWeaponDefinition definition,
+            int loadedAmmo,
+            float startingDurability = 1f,
+            ItemRarity itemRarity = ItemRarity.Common,
+            IReadOnlyList<ItemAffix> affixesOverride = null,
+            IReadOnlyList<ItemSkill> skillsOverride = null)
         {
             weaponDefinition = definition;
             rarity = ItemRarityUtility.Sanitize(itemRarity);
@@ -35,6 +43,8 @@ public class PrototypeCorpseLoot : MonoBehaviour
             durability = Mathf.Max(0f, startingDurability);
             affixes = ItemAffixUtility.CloneList(affixesOverride);
             ItemAffixUtility.SanitizeAffixes(affixes);
+            skills = ItemSkillUtility.CloneList(skillsOverride);
+            ItemSkillUtility.SanitizeSkills(skills);
         }
 
         public void Configure(ItemInstance instance)
@@ -44,7 +54,8 @@ public class PrototypeCorpseLoot : MonoBehaviour
                 instance != null ? instance.MagazineAmmo : 0,
                 instance != null ? instance.CurrentDurability : 1f,
                 instance != null ? instance.Rarity : ItemRarity.Common,
-                instance != null ? instance.Affixes : null);
+                instance != null ? instance.Affixes : null,
+                instance != null ? instance.Skills : null);
         }
 
         public void Configure(WeaponInstance instance)
@@ -59,7 +70,13 @@ public class PrototypeCorpseLoot : MonoBehaviour
                 affixes = new List<ItemAffix>();
             }
 
+            if (skills == null)
+            {
+                skills = new List<ItemSkill>();
+            }
+
             ItemAffixUtility.SanitizeAffixes(affixes);
+            ItemSkillUtility.SanitizeSkills(skills);
             rarity = ItemRarityUtility.Sanitize(rarity);
             if (weaponDefinition != null && !weaponDefinition.IsMeleeWeapon)
             {
@@ -76,7 +93,7 @@ public class PrototypeCorpseLoot : MonoBehaviour
         public ItemInstance CreateInstance()
         {
             return weaponDefinition != null
-                ? ItemInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity, affixes, false)
+                ? ItemInstance.Create(weaponDefinition, MagazineAmmo, Durability, null, Rarity, affixes, false, skills, false)
                 : null;
         }
     }

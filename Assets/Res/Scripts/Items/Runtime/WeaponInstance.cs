@@ -13,6 +13,7 @@ public class WeaponInstance
     [Min(0f)]
     [SerializeField] private float durability = 1f;
     [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+    [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
 
     public string InstanceId => instanceId;
     public PrototypeWeaponDefinition Definition => definition;
@@ -20,7 +21,9 @@ public class WeaponInstance
     public int MagazineAmmo => magazineAmmo;
     public float Durability => durability;
     public IReadOnlyList<ItemAffix> Affixes => affixes;
+    public IReadOnlyList<ItemSkill> Skills => skills;
     public bool HasAffixes => affixes != null && affixes.Count > 0;
+    public bool HasSkills => skills != null && skills.Count > 0;
     public string DisplayName => definition != null
         ? $"{definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]"
         : "Unknown Weapon";
@@ -34,10 +37,12 @@ public class WeaponInstance
         string instanceIdOverride = null,
         ItemRarity itemRarity = ItemRarity.Common,
         IReadOnlyList<ItemAffix> affixesOverride = null,
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+        bool generateSkillsIfMissing = true)
     {
         var instance = new WeaponInstance();
-        instance.ApplyDefinition(weaponDefinition, startingAmmo, startingDurability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+        instance.ApplyDefinition(weaponDefinition, startingAmmo, startingDurability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing, skillsOverride, generateSkillsIfMissing);
         return instance;
     }
 
@@ -48,7 +53,9 @@ public class WeaponInstance
         string instanceIdOverride = null,
         ItemRarity itemRarity = ItemRarity.Common,
         IReadOnlyList<ItemAffix> affixesOverride = null,
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+        bool generateSkillsIfMissing = true)
     {
         definition = weaponDefinition;
         rarity = ItemRarityUtility.Sanitize(itemRarity);
@@ -63,6 +70,7 @@ public class WeaponInstance
 
         durability = Mathf.Max(0f, startingDurability);
         SetAffixes(affixesOverride, generateAffixesIfMissing);
+        SetSkills(skillsOverride, generateAffixesIfMissing && generateSkillsIfMissing);
         SetInstanceId(instanceIdOverride);
     }
 
@@ -84,6 +92,24 @@ public class WeaponInstance
         ItemAffixUtility.SanitizeAffixes(affixes);
     }
 
+    public void SetSkills(IReadOnlyList<ItemSkill> newSkills, bool generateIfMissing = true)
+    {
+        if (newSkills != null)
+        {
+            skills = ItemSkillUtility.CloneList(newSkills);
+        }
+        else if (generateIfMissing)
+        {
+            skills = GenerateSkills();
+        }
+        else
+        {
+            skills = new List<ItemSkill>();
+        }
+
+        ItemSkillUtility.SanitizeSkills(skills);
+    }
+
     private List<ItemAffix> GenerateAffixes()
     {
         if (definition == null)
@@ -96,6 +122,13 @@ public class WeaponInstance
             : new List<ItemAffix>();
     }
 
+    private List<ItemSkill> GenerateSkills()
+    {
+        return definition != null
+            ? ItemSkillUtility.GenerateSkills(Rarity, definition.ItemLevel, AffixItemTarget.Weapon)
+            : new List<ItemSkill>();
+    }
+
     public void Sanitize()
     {
         if (affixes == null)
@@ -103,7 +136,13 @@ public class WeaponInstance
             affixes = new List<ItemAffix>();
         }
 
+        if (skills == null)
+        {
+            skills = new List<ItemSkill>();
+        }
+
         ItemAffixUtility.SanitizeAffixes(affixes);
+        ItemSkillUtility.SanitizeSkills(skills);
         rarity = ItemRarityUtility.Sanitize(rarity);
         if (definition != null && !definition.IsMeleeWeapon)
         {

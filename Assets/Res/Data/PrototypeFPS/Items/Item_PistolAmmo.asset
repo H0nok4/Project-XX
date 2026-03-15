@@ -18,6 +18,8 @@ MonoBehaviour:
   maxStackSize: 60
   unitWeight: 0.015
   icon: {fileID: 0}
+  itemLevel: 5
+  requiredLevel: 3
   directDamage: 27
   impactForce: 12
   penetrationPower: 12

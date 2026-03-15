@@ -18,6 +18,8 @@ MonoBehaviour:
   maxStackSize: 1
   unitWeight: 1.6
   icon: {fileID: 0}
+  itemLevel: 6
+  requiredLevel: 4
   coveredPartIds:
   - head
   armorClass: 4

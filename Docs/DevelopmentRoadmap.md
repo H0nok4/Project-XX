@@ -363,12 +363,12 @@ public class AffixPool : ScriptableObject
 - 词条数值区间与分类参考 `Docs/GameDesignDocument_Part2.md` 3.4（可按数值平衡再微调）
 
 **验收标准**
-- [ ] 装备可以生成随机词条（普通/优秀/稀有/史诗/传说分别为0/1/2/3/4条，可配置）
-- [ ] 同一装备词条不重复，且与装备类型匹配
-- [ ] 词条数值落在配置区间，并受Tier/等级缩放
-- [ ] 词条效果正确应用到战斗（至少覆盖伤害、暴击、护甲、移速等核心数值）
-- [ ] UI正确显示词条名称、数值、类型/品质色与排序
-- [ ] 存档/读档后词条保持一致
+- [x] 装备可以生成随机词条（普通/优秀/稀有/史诗/传说分别为0/1/2/3/4条，可配置）
+- [x] 同一装备词条不重复，且与装备类型匹配
+- [x] 词条数值落在配置区间，并受Tier/等级缩放
+- [x] 词条效果正确应用到战斗（至少覆盖伤害、暴击、护甲、移速等核心数值）
+- [x] UI正确显示词条名称、数值、类型/品质色与排序
+- [x] 存档/读档后词条保持一致
 
 **相关文件**
 - 新增：`ItemAffix.cs`, `AffixType.cs`, `AffixCategory.cs`, `AffixPool.cs`, `AffixDefinition.cs`
@@ -426,11 +426,11 @@ public class PlayerSkillManager : MonoBehaviour
 ```
 
 **验收标准**
-- [ ] 史诗/传说装备可能有技能
-- [ ] 技能效果正确触发
-- [ ] UI正确显示技能描述
-- [ ] 多个技能可以同时生效
-- [ ] 技能效果平衡合理
+- [x] 史诗/传说装备可能有技能
+- [x] 技能效果正确触发
+- [x] UI正确显示技能描述
+- [x] 多个技能可以同时生效
+- [x] 技能效果平衡合理
 
 **相关文件**
 - 新增：`ItemSkill.cs`, `ItemSkillType.cs`, `PlayerSkillManager.cs`
@@ -480,10 +480,10 @@ public class LootTableDefinition : ScriptableObject
 ```
 
 **验收标准**
-- [ ] 战利品生成RPG装备
-- [ ] 装备等级符合地图难度
-- [ ] 品质分布合理
-- [ ] Boss掉落更好的装备
+- [x] 战利品生成RPG装备
+- [x] 装备等级符合地图难度
+- [x] 品质分布合理
+- [x] Boss掉落更好的装备
 
 **相关文件**
 - `Assets/Res/Scripts/Loot/LootTableDefinition.cs`
@@ -530,10 +530,10 @@ public class MerchantInventory
 - 商人等级 / 信誉 / 世界状态 / 刷新规则的职责边界以 [MerchantProgressionMatrix.md](./MerchantProgressionMatrix.md) 为准
 
 **验收标准**
-- [ ] 商店出售RPG装备
-- [ ] 装备价格合理
-- [ ] 商人等级影响商品品质
-- [ ] UI显示完整装备信息
+- [x] 商店出售RPG装备
+- [x] 装备价格合理
+- [x] 商人等级影响商品品质
+- [x] UI显示完整装备信息
 
 **相关文件**
 - `Assets/Res/Scripts/Profile/PrototypeMerchantCatalog.cs`

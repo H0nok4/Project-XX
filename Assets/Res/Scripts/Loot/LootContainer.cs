@@ -11,6 +11,7 @@ public class LootContainer : MonoBehaviour, IInteractable
     [SerializeField] private bool populateOnFirstOpen = true;
     [SerializeField] private bool populateOnlyWhenEmpty = true;
     [SerializeField] private bool lootGenerated;
+    [SerializeField] private RaidGameMode raidGameMode;
 
     public InventoryContainer Inventory => inventory;
     public string ContainerLabel => string.IsNullOrWhiteSpace(containerLabel) ? name : containerLabel.Trim();
@@ -94,7 +95,10 @@ public class LootContainer : MonoBehaviour, IInteractable
             return;
         }
 
-        var rolls = lootTable.RollLoot();
+        LootTableDefinition.LootGenerationContext lootContext = raidGameMode != null
+            ? raidGameMode.CreateLootContext()
+            : default;
+        var rolls = lootTable.RollLoot(lootContext);
         for (int index = 0; index < rolls.Count; index++)
         {
             LootTableDefinition.LootRoll roll = rolls[index];
@@ -112,6 +116,11 @@ public class LootContainer : MonoBehaviour, IInteractable
         if (inventory == null)
         {
             inventory = GetComponent<InventoryContainer>();
+        }
+
+        if (raidGameMode == null)
+        {
+            raidGameMode = FindFirstObjectByType<RaidGameMode>();
         }
 
         containerLabel = string.IsNullOrWhiteSpace(containerLabel) ? name : containerLabel.Trim();

@@ -21,6 +21,15 @@ public class LootTableDefinition : ScriptableObject
 
         public ItemDefinitionBase DefinitionBase => ResolveDefinition();
         public bool IsWeapon => ResolveDefinition() is PrototypeWeaponDefinition;
+        public bool IsLevelSensitive
+        {
+            get
+            {
+                ItemDefinitionBase resolvedDefinition = ResolveDefinition();
+                return rollRarity || resolvedDefinition is PrototypeWeaponDefinition || resolvedDefinition is ArmorDefinition;
+            }
+        }
+
         public bool IsValid => ResolveDefinition() != null;
 
         public void Sanitize()
@@ -84,6 +93,57 @@ public class LootTableDefinition : ScriptableObject
         public bool IsValid => Instance != null && Instance.IsDefined() && Quantity > 0;
     }
 
+    public readonly struct LootGenerationContext
+    {
+        public LootGenerationContext(int minItemLevel, int maxItemLevel, int rarityBias = 0, int bonusRolls = 0)
+        {
+            if (minItemLevel > 0 || maxItemLevel > 0)
+            {
+                int normalizedMin = minItemLevel > 0
+                    ? Mathf.Clamp(minItemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)
+                    : ItemDefinition.MinItemLevel;
+                int normalizedMax = maxItemLevel > 0
+                    ? Mathf.Clamp(maxItemLevel, normalizedMin, ItemDefinition.MaxItemLevel)
+                    : ItemDefinition.MaxItemLevel;
+
+                MinItemLevel = normalizedMin;
+                MaxItemLevel = normalizedMax;
+            }
+            else
+            {
+                MinItemLevel = 0;
+                MaxItemLevel = 0;
+            }
+
+            RarityBias = Mathf.Max(0, rarityBias);
+            BonusRolls = Mathf.Max(0, bonusRolls);
+        }
+
+        public int MinItemLevel { get; }
+        public int MaxItemLevel { get; }
+        public int RarityBias { get; }
+        public int BonusRolls { get; }
+        public bool HasItemLevelRange => MinItemLevel > 0 && MaxItemLevel >= MinItemLevel;
+
+        public LootGenerationContext WithBonuses(int itemLevelBonus = 0, int rarityBiasBonus = 0, int bonusRollsBonus = 0)
+        {
+            int minItemLevel = MinItemLevel;
+            int maxItemLevel = MaxItemLevel;
+
+            if (HasItemLevelRange && itemLevelBonus != 0)
+            {
+                minItemLevel = Mathf.Clamp(MinItemLevel + itemLevelBonus, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+                maxItemLevel = Mathf.Clamp(MaxItemLevel + itemLevelBonus, minItemLevel, ItemDefinition.MaxItemLevel);
+            }
+
+            return new LootGenerationContext(
+                minItemLevel,
+                maxItemLevel,
+                RarityBias + rarityBiasBonus,
+                BonusRolls + bonusRollsBonus);
+        }
+    }
+
     [SerializeField] private string tableId = "loot_table";
     [SerializeField] private string displayName = "Loot Table";
     [Min(0)]
@@ -113,12 +173,22 @@ public class LootTableDefinition : ScriptableObject
 
     public List<LootRoll> RollLoot()
     {
+        return RollLoot(default);
+    }
+
+    public List<LootRoll> RollLoot(LootGenerationContext context)
+    {
         var results = new List<LootRoll>();
-        RollInto(results);
+        RollInto(results, context);
         return results;
     }
 
     public void RollInto(List<LootRoll> results)
+    {
+        RollInto(results, default);
+    }
+
+    public void RollInto(List<LootRoll> results, LootGenerationContext context)
     {
         if (results == null)
         {
@@ -132,38 +202,23 @@ public class LootTableDefinition : ScriptableObject
         }
 
         List<LootEntry> candidateEntries = new List<LootEntry>();
-        float totalWeight = 0f;
-
-        for (int index = 0; index < entries.Count; index++)
-        {
-            LootEntry entry = entries[index];
-            if (entry == null)
-            {
-                continue;
-            }
-
-            entry.Sanitize();
-            if (!entry.IsValid || entry.weight <= 0f)
-            {
-                continue;
-            }
-
-            candidateEntries.Add(entry);
-            totalWeight += entry.weight;
-        }
+        float totalWeight;
+        CollectCandidateEntries(candidateEntries, context, out totalWeight);
 
         if (candidateEntries.Count == 0 || totalWeight <= 0f)
         {
             return;
         }
 
-        int rollCount = UnityEngine.Random.Range(MinRolls, MaxRolls + 1);
+        int minimumRolls = Mathf.Max(0, MinRolls + context.BonusRolls);
+        int maximumRolls = Mathf.Max(minimumRolls, MaxRolls + context.BonusRolls);
+        int rollCount = UnityEngine.Random.Range(minimumRolls, maximumRolls + 1);
         for (int rollIndex = 0; rollIndex < rollCount && candidateEntries.Count > 0; rollIndex++)
         {
             int selectedIndex = SelectWeightedEntryIndex(candidateEntries, totalWeight);
             LootEntry selectedEntry = candidateEntries[selectedIndex];
             ItemRarity rarity = selectedEntry.rollRarity
-                ? ItemRarityUtility.RollWeighted(commonWeight, uncommonWeight, rareWeight, epicWeight, legendaryWeight)
+                ? ItemRarityUtility.RollWeightedBiased(commonWeight, uncommonWeight, rareWeight, epicWeight, legendaryWeight, context.RarityBias)
                 : ItemRarity.Common;
             ItemInstance instance = selectedEntry.CreateInstance(rarity);
             if (instance != null && instance.IsDefined() && instance.Quantity > 0)
@@ -274,5 +329,71 @@ public class LootTableDefinition : ScriptableObject
         }
 
         return Mathf.Max(0, candidates.Count - 1);
+    }
+
+    private void CollectCandidateEntries(List<LootEntry> candidateEntries, LootGenerationContext context, out float totalWeight)
+    {
+        totalWeight = 0f;
+        bool useItemLevelRange = context.HasItemLevelRange;
+        int matchedLevelSensitiveEntries = 0;
+        List<LootEntry> fallbackLevelEntries = useItemLevelRange ? new List<LootEntry>() : null;
+
+        for (int index = 0; index < entries.Count; index++)
+        {
+            LootEntry entry = entries[index];
+            if (entry == null)
+            {
+                continue;
+            }
+
+            entry.Sanitize();
+            if (!entry.IsValid || entry.weight <= 0f)
+            {
+                continue;
+            }
+
+            if (useItemLevelRange && entry.IsLevelSensitive && !IsEntryWithinLevelRange(entry, context))
+            {
+                fallbackLevelEntries.Add(entry);
+                continue;
+            }
+
+            if (entry.IsLevelSensitive)
+            {
+                matchedLevelSensitiveEntries++;
+            }
+
+            candidateEntries.Add(entry);
+            totalWeight += entry.weight;
+        }
+
+        if (!useItemLevelRange || matchedLevelSensitiveEntries > 0 || fallbackLevelEntries == null || fallbackLevelEntries.Count == 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < fallbackLevelEntries.Count; index++)
+        {
+            LootEntry fallbackEntry = fallbackLevelEntries[index];
+            candidateEntries.Add(fallbackEntry);
+            totalWeight += fallbackEntry.weight;
+        }
+    }
+
+    private static bool IsEntryWithinLevelRange(LootEntry entry, LootGenerationContext context)
+    {
+        if (entry == null || !entry.IsValid || !context.HasItemLevelRange)
+        {
+            return true;
+        }
+
+        ItemDefinitionBase definition = entry.DefinitionBase;
+        if (definition == null)
+        {
+            return false;
+        }
+
+        int itemLevel = Mathf.Clamp(definition.ItemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        return itemLevel >= context.MinItemLevel && itemLevel <= context.MaxItemLevel;
     }
 }

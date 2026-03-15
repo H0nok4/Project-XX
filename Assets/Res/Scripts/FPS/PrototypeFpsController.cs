@@ -39,6 +39,7 @@ public class PrototypeFpsController : MonoBehaviour
     [Header("Controllers")]
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerMedicalController medicalController;
+    [SerializeField] private PlayerSkillManager skillManager;
 
     private PrototypeFpsMovementModule movementModule;
     private PrototypeFpsInput fpsInput;
@@ -79,6 +80,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         weaponController = GetOrCreateWeaponController();
         medicalController = GetOrCreateMedicalController();
+        skillManager = GetOrCreateSkillManager();
 
         ApplyControllerSettings();
 
@@ -86,6 +88,12 @@ public class PrototypeFpsController : MonoBehaviour
         {
             weaponController.SetPlayerDependencies(playerVitals, inventory);
             weaponController.InitializeRuntime();
+        }
+
+        if (skillManager != null)
+        {
+            skillManager.SetPlayerDependencies(playerVitals, weaponController);
+            skillManager.RefreshFromEquipment();
         }
 
         if (medicalController != null)
@@ -117,6 +125,7 @@ public class PrototypeFpsController : MonoBehaviour
         meleeWeapon = meleeDefinition;
 
         weaponController?.ConfigureWeaponLoadout(primaryDefinition, secondaryDefinition, meleeDefinition);
+        skillManager?.RefreshFromEquipment();
     }
 
     public void ConfigureWeaponLoadout(
@@ -129,6 +138,7 @@ public class PrototypeFpsController : MonoBehaviour
         meleeWeapon = meleeInstance != null ? meleeInstance.Definition : null;
 
         weaponController?.ConfigureWeaponLoadout(primaryInstance, secondaryInstance, meleeInstance);
+        skillManager?.RefreshFromEquipment();
     }
 
     public void ConfigureWeaponLoadout(
@@ -418,6 +428,18 @@ public class PrototypeFpsController : MonoBehaviour
         return controller;
     }
 
+    private PlayerSkillManager GetOrCreateSkillManager()
+    {
+        PlayerSkillManager manager = skillManager != null ? skillManager : GetComponent<PlayerSkillManager>();
+        if (manager == null)
+        {
+            manager = gameObject.AddComponent<PlayerSkillManager>();
+        }
+
+        skillManager = manager;
+        return manager;
+    }
+
     private void OnGUI()
     {
         if (!showHud)
@@ -542,6 +564,13 @@ public class PrototypeFpsController : MonoBehaviour
         {
             builder.Append("\n");
             builder.Append(feedbackMessage);
+        }
+
+        string skillSummary = skillManager != null ? skillManager.BuildHudSummary() : string.Empty;
+        if (!string.IsNullOrWhiteSpace(skillSummary))
+        {
+            builder.Append("\n");
+            builder.Append(skillSummary);
         }
 
         return builder.ToString();
@@ -671,6 +700,11 @@ public class PrototypeFpsController : MonoBehaviour
             medicalController = GetComponent<PlayerMedicalController>();
         }
 
+        if (skillManager == null)
+        {
+            skillManager = GetComponent<PlayerSkillManager>();
+        }
+
 #if UNITY_EDITOR
         if (!Application.isPlaying && movementModule == null)
         {
@@ -689,6 +723,13 @@ public class PrototypeFpsController : MonoBehaviour
         if (!Application.isPlaying && interactionState == null)
         {
             interactionState = gameObject.AddComponent<PlayerInteractionState>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && skillManager == null)
+        {
+            skillManager = gameObject.AddComponent<PlayerSkillManager>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }

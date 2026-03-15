@@ -319,6 +319,12 @@ public class PlayerInventoryWindowController : MonoBehaviour
             detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
         }
 
+        string skillSummary = ItemSkillUtility.BuildSkillSummaryRich(item.Skills);
+        if (!string.IsNullOrWhiteSpace(skillSummary))
+        {
+            detail = string.IsNullOrWhiteSpace(detail) ? skillSummary : $"{detail}\n{skillSummary}";
+        }
+
         return detail;
     }
 

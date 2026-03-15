@@ -149,4 +149,32 @@ public static class ItemRarityUtility
 
         return ItemRarity.Legendary;
     }
+
+    public static ItemRarity RollWeightedBiased(
+        float commonWeight,
+        float uncommonWeight,
+        float rareWeight,
+        float epicWeight,
+        float legendaryWeight,
+        int rarityBias)
+    {
+        int sanitizedBias = Mathf.Max(0, rarityBias);
+        if (sanitizedBias <= 0)
+        {
+            return RollWeighted(commonWeight, uncommonWeight, rareWeight, epicWeight, legendaryWeight);
+        }
+
+        float commonScale = Mathf.Pow(0.58f, sanitizedBias);
+        float uncommonScale = Mathf.Pow(0.82f, sanitizedBias);
+        float rareScale = Mathf.Pow(1.22f, sanitizedBias);
+        float epicScale = Mathf.Pow(1.55f, sanitizedBias);
+        float legendaryScale = Mathf.Pow(1.9f, sanitizedBias);
+
+        return RollWeighted(
+            commonWeight * commonScale,
+            uncommonWeight * uncommonScale,
+            rareWeight * rareScale,
+            epicWeight * epicScale,
+            legendaryWeight * legendaryScale);
+    }
 }

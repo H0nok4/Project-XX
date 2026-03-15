@@ -122,11 +122,13 @@ public class PrototypeUnitVitals : MonoBehaviour
         [Min(1f)] public float maxDurability = 1f;
         [Min(0f)] public float currentDurability = 1f;
         public List<ItemAffix> affixes = new List<ItemAffix>();
+        public List<ItemSkill> skills = new List<ItemSkill>();
         private ItemAffixSummary affixSummary = ItemAffixSummary.CreateDefault();
 
         public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
         public float StatMultiplier => ItemRarityUtility.GetStatMultiplier(Rarity);
         public ItemAffixSummary AffixSummary => affixSummary;
+        public IReadOnlyList<ItemSkill> Skills => skills;
         public float DamageReduction => affixSummary.DamageReduction;
         public float MoveSpeedMultiplier => affixSummary.MoveSpeedMultiplier;
         public float EffectiveArmorClass => definition != null
@@ -144,7 +146,8 @@ public class PrototypeUnitVitals : MonoBehaviour
             float preservedDurability,
             string desiredInstanceId = null,
             ItemRarity itemRarity = ItemRarity.Common,
-            IReadOnlyList<ItemAffix> affixesOverride = null)
+            IReadOnlyList<ItemAffix> affixesOverride = null,
+            IReadOnlyList<ItemSkill> skillsOverride = null)
         {
             definition = armorDefinition;
             rarity = ItemRarityUtility.Sanitize(itemRarity);
@@ -153,6 +156,8 @@ public class PrototypeUnitVitals : MonoBehaviour
                 : string.Empty;
             affixes = affixesOverride != null ? ItemAffixUtility.CloneList(affixesOverride) : new List<ItemAffix>();
             ItemAffixUtility.SanitizeAffixes(affixes);
+            skills = skillsOverride != null ? ItemSkillUtility.CloneList(skillsOverride) : new List<ItemSkill>();
+            ItemSkillUtility.SanitizeSkills(skills);
             affixSummary = ItemAffixUtility.BuildSummary(affixes);
             maxDurability = armorDefinition != null
                 ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(armorDefinition.MaxDurability, Rarity) * affixSummary.DurabilityMultiplier)
@@ -174,7 +179,13 @@ public class PrototypeUnitVitals : MonoBehaviour
                 affixes = new List<ItemAffix>();
             }
 
+            if (skills == null)
+            {
+                skills = new List<ItemSkill>();
+            }
+
             ItemAffixUtility.SanitizeAffixes(affixes);
+            ItemSkillUtility.SanitizeSkills(skills);
             affixSummary = ItemAffixUtility.BuildSummary(affixes);
             rarity = ItemRarityUtility.Sanitize(rarity);
             displayName = string.IsNullOrWhiteSpace(displayName) && definition != null
@@ -401,6 +412,7 @@ public class PrototypeUnitVitals : MonoBehaviour
     [Header("Runtime State")]
     [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
+    [SerializeField] private PlayerSkillManager skillManager;
     [SerializeField] private bool allowImpactForceWhenAlive = true;
     [SerializeField, HideInInspector] private DamageSourceSnapshot lastDamageSource;
     [SerializeField] private UnityEvent onDied = new UnityEvent();
@@ -492,11 +504,13 @@ public class PrototypeUnitVitals : MonoBehaviour
 
     private void Reset()
     {
+        ResolveRuntimeDependencies();
         EnsureBodyPartSetup(true);
     }
 
     private void Awake()
     {
+        ResolveRuntimeDependencies();
         EnsureBodyPartSetup(true);
     }
 
@@ -507,6 +521,7 @@ public class PrototypeUnitVitals : MonoBehaviour
 
     private void OnValidate()
     {
+        ResolveRuntimeDependencies();
         EnsureBodyPartSetup(false);
     }
 
@@ -526,6 +541,7 @@ public class PrototypeUnitVitals : MonoBehaviour
     {
         armorLoadout = CopyArmorLoadoutDefinitions(armorDefinitions);
         SyncArmorLoadout(armorLoadout, true);
+        skillManager?.RefreshFromEquipment();
     }
 
     public void SetArmorInstances(System.Collections.Generic.IEnumerable<ArmorInstance> armorInstances)
@@ -544,13 +560,14 @@ public class PrototypeUnitVitals : MonoBehaviour
 
                 armorLoadout.Add(armorInstance.Definition);
                 var armorState = new ArmorState();
-                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes);
+                armorState.ApplyDefinition(armorInstance.Definition, armorInstance.CurrentDurability, armorInstance.InstanceId, armorInstance.Rarity, armorInstance.Affixes, armorInstance.Skills);
                 equippedArmor.Add(armorState);
             }
         }
 
         SanitizeArmorLoadout();
         SanitizeArmor();
+        skillManager?.RefreshFromEquipment();
     }
 
     public bool TryConsumeStamina(float amount)
@@ -612,6 +629,15 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         EnsureBodyPartSetup(false);
+        if (skillManager != null)
+        {
+            damageInfo = skillManager.AdjustIncomingDamage(partId, damageInfo);
+            if (damageInfo.damage <= 0f && damageInfo.armorDamage <= 0f)
+            {
+                return;
+            }
+        }
+
         pendingDamage.Enqueue(new PendingDamage(partId, damageInfo, DamageOrigin.DirectHit));
         FlushPendingDamage();
     }
@@ -691,6 +717,11 @@ public class PrototypeUnitVitals : MonoBehaviour
         }
 
         return used;
+    }
+
+    public bool TryRestoreHealthFromSkill(float amount)
+    {
+        return RestoreHealth(amount);
     }
 
     public void ApplyGlobalDamage(float damage)
@@ -1710,6 +1741,14 @@ public class PrototypeUnitVitals : MonoBehaviour
         if (resetStatuses)
         {
             statusEffects.ResetAllEffects();
+        }
+    }
+
+    private void ResolveRuntimeDependencies()
+    {
+        if (skillManager == null)
+        {
+            skillManager = GetComponent<PlayerSkillManager>();
         }
     }
 

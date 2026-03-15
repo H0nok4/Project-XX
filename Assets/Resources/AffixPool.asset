@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ef44d136eb29174dbeb3ee3829dc73e, type: 3}
+  m_Name: AffixPool
+  m_EditorClassIdentifier: Assembly-CSharp::AffixPool
+  availableAffixes:
+  - {fileID: 11400000, guid: 1077995d74544c40b5af345e02c76d3c, type: 2}
+  - {fileID: 11400000, guid: 714d715f9065454c933de777f0b2dc36, type: 2}
+  - {fileID: 11400000, guid: 2e0cdc562166490c88355d0914f0841f, type: 2}
+  - {fileID: 11400000, guid: 7664d21fa0284d169297aac2719b0ec4, type: 2}
+  - {fileID: 11400000, guid: 14b19dbd641d4ad282ed5bea7a943978, type: 2}
+  - {fileID: 11400000, guid: 528b685961b94ec893415abd2473994a, type: 2}
+  - {fileID: 11400000, guid: 08d2d84e3f014c2db9bdd4972d7dbb2b, type: 2}
+  - {fileID: 11400000, guid: 11da339fd606480889ad00a05759a3b7, type: 2}
+  - {fileID: 11400000, guid: 0011b03d4eff41be9770067e362e35b5, type: 2}
+  - {fileID: 11400000, guid: 283f7373da534ce181488d0106e31c94, type: 2}
+  - {fileID: 11400000, guid: 683a98215fca465aa50cc585acf0b90a, type: 2}
+  - {fileID: 11400000, guid: 0a677ce2688c48a0b446852a7174c5fa, type: 2}
+  - {fileID: 11400000, guid: 3a83095af56e43d4b9575d2a04dc17b2, type: 2}
+  commonAffixCount: 0
+  uncommonAffixCount: 1
+  rareAffixCount: 2
+  epicAffixCount: 3
+  legendaryAffixCount: 4
+  maxLevelMultiplier: 1.6
+  rarityValueBonus: 0.12
+  tierValueBonus: 0.12

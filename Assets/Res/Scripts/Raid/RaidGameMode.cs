@@ -24,6 +24,12 @@ public class RaidGameMode : MonoBehaviour
     [SerializeField] private PrototypeUnitVitals playerVitals;
     [SerializeField] private PlayerInteractionState interactionState;
 
+    [Header("Loot Progression")]
+    [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
+    [SerializeField] private int lootMinItemLevel = 4;
+    [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
+    [SerializeField] private int lootMaxItemLevel = 10;
+
     [Header("Runtime")]
     [SerializeField] private RaidState currentState = RaidState.Idle;
     [SerializeField] private float remainingSeconds;
@@ -40,6 +46,8 @@ public class RaidGameMode : MonoBehaviour
     public float RemainingSeconds => remainingSeconds;
     public string LastResultMessage => lastResultMessage;
     public bool IsRunning => currentState == RaidState.Running;
+    public int LootMinItemLevel => Mathf.Clamp(lootMinItemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+    public int LootMaxItemLevel => Mathf.Clamp(lootMaxItemLevel, LootMinItemLevel, ItemDefinition.MaxItemLevel);
 
     private void Awake()
     {
@@ -91,6 +99,8 @@ public class RaidGameMode : MonoBehaviour
     private void OnValidate()
     {
         raidDurationSeconds = Mathf.Max(30f, raidDurationSeconds);
+        lootMinItemLevel = Mathf.Clamp(lootMinItemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        lootMaxItemLevel = Mathf.Clamp(lootMaxItemLevel, lootMinItemLevel, ItemDefinition.MaxItemLevel);
         ResolveReferences();
 
         if (currentState == RaidState.Idle || currentState == RaidState.Running)
@@ -183,6 +193,19 @@ public class RaidGameMode : MonoBehaviour
         playerVitals = vitals;
         raidDurationSeconds = Mathf.Max(30f, durationSeconds);
         remainingSeconds = Mathf.Clamp(remainingSeconds, 0f, raidDurationSeconds);
+    }
+
+    public void ConfigureLootProgression(int minimumItemLevel, int maximumItemLevel)
+    {
+        lootMinItemLevel = Mathf.Clamp(minimumItemLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        lootMaxItemLevel = Mathf.Clamp(maximumItemLevel, lootMinItemLevel, ItemDefinition.MaxItemLevel);
+    }
+
+    public LootTableDefinition.LootGenerationContext CreateLootContext(int itemLevelBonus = 0, int rarityBias = 0, int bonusRolls = 0)
+    {
+        int minItemLevel = Mathf.Clamp(LootMinItemLevel + itemLevelBonus, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        int maxItemLevel = Mathf.Clamp(LootMaxItemLevel + itemLevelBonus, minItemLevel, ItemDefinition.MaxItemLevel);
+        return new LootTableDefinition.LootGenerationContext(minItemLevel, maxItemLevel, rarityBias, bonusRolls);
     }
 
     public void StartRaid()

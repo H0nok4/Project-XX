@@ -27,6 +27,7 @@ public static class PrototypeEnemyRuntimeFactory
         }
 
         PrototypeWeaponDefinition equippedWeapon = profile.ResolvePrimaryWeapon();
+        WeaponInstance equippedWeaponInstance = CreatePrimaryWeaponInstance(profile, equippedWeapon);
         GameObject enemyObject = CreateEnemyObject(profile, position, rotation, parent, overrideName);
         if (enemyObject == null)
         {
@@ -72,15 +73,36 @@ public static class PrototypeEnemyRuntimeFactory
         botController.Configure(
             combatTarget,
             profile.Archetype,
-            equippedWeapon,
+            equippedWeaponInstance,
             patrolPoints != null ? new List<Vector3>(patrolPoints).ToArray() : null);
         botController.SetCarriedLootTable(profile.CarriedLootTable);
+        botController.ConfigureLootProfile(
+            profile.IsBossProfile,
+            profile.BossLootRarityBias,
+            profile.BossBonusLootRolls,
+            profile.BossItemLevelBonus);
 
         PrototypeEquippedWeaponVisual equippedWeaponVisual = GetOrAddComponent<PrototypeEquippedWeaponVisual>(enemyObject);
         equippedWeaponVisual.Configure(FindOrCreateWeaponVisualAnchor(enemyObject.transform));
-        equippedWeaponVisual.SetEquippedWeapon(equippedWeapon);
+        equippedWeaponVisual.SetEquippedWeapon(equippedWeaponInstance != null ? equippedWeaponInstance.Definition : equippedWeapon);
 
         return botController;
+    }
+
+    private static WeaponInstance CreatePrimaryWeaponInstance(PrototypeEnemySpawnProfile profile, PrototypeWeaponDefinition weaponDefinition)
+    {
+        if (profile == null || weaponDefinition == null)
+        {
+            return null;
+        }
+
+        int startingAmmo = weaponDefinition.IsMeleeWeapon ? 0 : weaponDefinition.MagazineSize;
+        return WeaponInstance.Create(
+            weaponDefinition,
+            startingAmmo,
+            1f,
+            null,
+            profile.RollPrimaryWeaponRarity());
     }
 
     private static GameObject CreateEnemyObject(

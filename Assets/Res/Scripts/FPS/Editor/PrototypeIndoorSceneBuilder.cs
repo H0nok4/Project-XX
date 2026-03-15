@@ -38,6 +38,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string SecondaryWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Secondary.prefab";
     private const string MeleeWeaponViewPrefabPath = "Assets/Res/Prefabs/Weapon/WeaponView_Melee.prefab";
     private const string AmmoLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_AmmoCache.asset";
+    private const string WeaponLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_WeaponCrate.asset";
     private const string MedicalLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_MedicalStash.asset";
     private const string FloorLootTablePath = "Assets/Res/Data/PrototypeFPS/LootTables/Loot_FloorScatter.asset";
     private const string RegularZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_RegularZombie.asset";
@@ -151,6 +152,20 @@ public static class PrototypeIndoorSceneBuilder
             0.52f,
             meleeWeaponViewPrefab);
 
+        cashItem.SetProgression(1, 1);
+        medkitItem.SetProgression(5, 3);
+        bandageItem.SetProgression(2, 1);
+        tourniquetItem.SetProgression(4, 2);
+        splintItem.SetProgression(4, 2);
+        painkillerItem.SetProgression(3, 2);
+        rifleAmmoItem.SetProgression(8, 6);
+        pistolAmmoItem.SetProgression(5, 3);
+        helmetArmor.SetProgression(6, 4);
+        vestArmor.SetProgression(9, 6);
+        carbineWeapon.SetProgression(9, 7);
+        sidearmWeapon.SetProgression(6, 4);
+        knifeWeapon.SetProgression(4, 2);
+
         Material floorMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Floor.mat", new Color(0.25f, 0.27f, 0.30f));
         Material wallMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Wall.mat", new Color(0.54f, 0.59f, 0.66f));
         Material ceilingMat = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Ceiling.mat", new Color(0.80f, 0.82f, 0.84f));
@@ -207,6 +222,21 @@ public static class PrototypeIndoorSceneBuilder
             CreateLootEntry(rifleAmmoItem, 18, 36, 1.2f),
             CreateLootEntry(pistolAmmoItem, 12, 30, 1f),
             CreateLootEntry(cashItem, 1, 3, 0.45f));
+        LootTableDefinition weaponLootTable = CreateOrUpdateLootTable(
+            WeaponLootTablePath,
+            "weapon_crate",
+            "Weapon Crate",
+            2,
+            3,
+            false,
+            CreateLootEntry(carbineWeapon, 1, 1, 1.05f, true),
+            CreateLootEntry(sidearmWeapon, 1, 1, 1.1f, true),
+            CreateLootEntry(knifeWeapon, 1, 1, 0.75f, true),
+            CreateLootEntry(helmetArmor, 1, 1, 0.9f, true),
+            CreateLootEntry(vestArmor, 1, 1, 0.7f, true),
+            CreateLootEntry(rifleAmmoItem, 24, 48, 0.95f),
+            CreateLootEntry(pistolAmmoItem, 12, 30, 0.8f),
+            CreateLootEntry(cashItem, 1, 2, 0.3f));
         LootTableDefinition medicalLootTable = CreateOrUpdateLootTable(
             MedicalLootTablePath,
             "medical_stash",
@@ -276,6 +306,14 @@ public static class PrototypeIndoorSceneBuilder
         policeZombieProfile.SetCarriedLootTable(medicalLootTable);
         soldierZombieProfile.SetCarriedLootTable(ammoLootTable);
         zombieDogProfile.SetCarriedLootTable(null);
+        regularZombieProfile.SetPrimaryWeaponRarityWeights(70f, 22f, 6f, 2f, 0f);
+        policeZombieProfile.SetPrimaryWeaponRarityWeights(42f, 34f, 17f, 6f, 1f);
+        soldierZombieProfile.SetPrimaryWeaponRarityWeights(20f, 36f, 28f, 13f, 3f);
+        zombieDogProfile.SetPrimaryWeaponRarityWeights(75f, 19f, 5f, 1f, 0f);
+        regularZombieProfile.SetBossLootProfile(false, 0, 0, 0, 0);
+        policeZombieProfile.SetBossLootProfile(true, 1, 2, 1, 1);
+        soldierZombieProfile.SetBossLootProfile(false, 0, 0, 0, 0);
+        zombieDogProfile.SetBossLootProfile(false, 0, 0, 0, 0);
         regularZombieProfile.SetWeaponPool(knifeWeapon);
         policeZombieProfile.SetWeaponPool(sidearmWeapon);
         soldierZombieProfile.SetWeaponPool(carbineWeapon);
@@ -400,6 +438,7 @@ public static class PrototypeIndoorSceneBuilder
         raidSystems.transform.SetParent(root.transform, false);
         RaidGameMode raidGameMode = raidSystems.AddComponent<RaidGameMode>();
         raidGameMode.Configure(interactor, playerVitals, 420f);
+        raidGameMode.ConfigureLootProgression(4, 10);
         PrototypeRaidProfileFlow raidProfileFlow = raidSystems.AddComponent<PrototypeRaidProfileFlow>();
         raidProfileFlow.Configure(
             raidGameMode,
@@ -453,7 +492,7 @@ public static class PrototypeIndoorSceneBuilder
         CreateRaidPickup(root.transform, "Pickup_Splint", PrimitiveType.Cube, new Vector3(5.25f, 1.18f, 2.05f), new Vector3(0.16f, 0.22f, 0.12f), medicalMat, splintItem, 1);
         CreateRaidPickup(root.transform, "Pickup_Painkillers", PrimitiveType.Cube, new Vector3(0.35f, 0.96f, -6.4f), new Vector3(0.18f, 0.16f, 0.12f), medicalMat, painkillerItem, 1);
         CreateRaidPickup(root.transform, "Pickup_Cash_Desk", PrimitiveType.Sphere, new Vector3(0f, 0.96f, -6.4f), new Vector3(0.22f, 0.16f, 0.22f), lootMat, cashItem, 2);
-        CreateRandomLootContainer(root.transform, "Crate_Center", "Weapon Crate", new Vector3(-1.4f, 1.0f, 3.55f), new Vector3(0.95f, 0.45f, 0.65f), propMat, ammoLootTable);
+        CreateRandomLootContainer(root.transform, "Crate_Center", "Weapon Crate", new Vector3(-1.4f, 1.0f, 3.55f), new Vector3(0.95f, 0.45f, 0.65f), propMat, weaponLootTable);
         CreateRandomLootContainer(root.transform, "Crate_Side", "医疗箱", new Vector3(4.9f, 1.18f, 2.4f), new Vector3(0.68f, 0.56f, 0.54f), medicalMat, medicalLootTable);
         CreateGroundLootSpawnPoint(root.transform, "LootSpawn_West", new Vector3(-5.6f, 0.08f, 5.4f), floorLootTable, lootMat);
         CreateGroundLootSpawnPoint(root.transform, "LootSpawn_East", new Vector3(5.4f, 0.08f, -4.7f), ammoLootTable, accentMat);
@@ -757,16 +796,21 @@ public static class PrototypeIndoorSceneBuilder
         return definition;
     }
 
-    private static LootTableDefinition.LootEntry CreateLootEntry(ItemDefinition itemDefinition, int minQuantity, int maxQuantity, float weight)
+    private static LootTableDefinition.LootEntry CreateLootEntry(ItemDefinitionBase definition, int minQuantity, int maxQuantity, float weight, bool rollRarity = false)
     {
-        return new LootTableDefinition.LootEntry
+        var entry = new LootTableDefinition.LootEntry
         {
-            definition = itemDefinition,
-            itemDefinition = itemDefinition,
-            minQuantity = Mathf.Max(1, minQuantity),
-            maxQuantity = Mathf.Max(Mathf.Max(1, minQuantity), maxQuantity),
+            definition = definition,
+            itemDefinition = definition as ItemDefinition,
+            weaponDefinition = definition as PrototypeWeaponDefinition,
+            minQuantity = definition is PrototypeWeaponDefinition ? 1 : Mathf.Max(1, minQuantity),
+            maxQuantity = definition is PrototypeWeaponDefinition ? 1 : Mathf.Max(Mathf.Max(1, minQuantity), maxQuantity),
+            rollRarity = rollRarity,
             weight = Mathf.Max(0f, weight)
         };
+
+        entry.Sanitize();
+        return entry;
     }
 
     private static LootTableDefinition CreateOrUpdateLootTable(

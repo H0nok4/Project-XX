@@ -89,6 +89,12 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         return modes[Mathf.Clamp(modeIndex, 0, modes.Length - 1)];
     }
 
+    public void SetProgression(int level, int required = ItemDefinition.MinItemLevel)
+    {
+        itemLevel = Mathf.Clamp(level, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+        requiredLevel = Mathf.Clamp(required, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
+    }
+
     public int GetValidModeIndex(int requestedIndex)
     {
         return Mathf.Clamp(requestedIndex, 0, FireModes.Length - 1);

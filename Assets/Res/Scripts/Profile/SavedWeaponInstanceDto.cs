@@ -10,4 +10,5 @@ public sealed class SavedWeaponInstanceDto
     public int magazineAmmo;
     public float durability = 1f;
     public List<ItemAffix> affixes;
+    public List<ItemSkill> skills;
 }

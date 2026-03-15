@@ -11,6 +11,7 @@ public class ArmorInstance
     [Min(0f)]
     [SerializeField] private float currentDurability = 1f;
     [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
+    [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
 
     private ItemAffixSummary affixSummary = ItemAffixSummary.CreateDefault();
 
@@ -19,7 +20,9 @@ public class ArmorInstance
     public ItemRarity Rarity => ItemRarityUtility.Sanitize(rarity);
     public float CurrentDurability => currentDurability;
     public IReadOnlyList<ItemAffix> Affixes => affixes;
+    public IReadOnlyList<ItemSkill> Skills => skills;
     public bool HasAffixes => affixes != null && affixes.Count > 0;
+    public bool HasSkills => skills != null && skills.Count > 0;
     public ItemAffixSummary AffixSummary => affixSummary;
     public float MaxDurability => definition != null
         ? Mathf.Max(1f, ItemRarityUtility.ScaleValue(definition.MaxDurability, Rarity) * affixSummary.DurabilityMultiplier)
@@ -36,10 +39,12 @@ public class ArmorInstance
         string instanceIdOverride = null,
         ItemRarity itemRarity = ItemRarity.Common,
         IReadOnlyList<ItemAffix> affixesOverride = null,
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+        bool generateSkillsIfMissing = true)
     {
         var instance = new ArmorInstance();
-        instance.ApplyDefinition(armorDefinition, durability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing);
+        instance.ApplyDefinition(armorDefinition, durability, instanceIdOverride, itemRarity, affixesOverride, generateAffixesIfMissing, skillsOverride, generateSkillsIfMissing);
         return instance;
     }
 
@@ -49,11 +54,14 @@ public class ArmorInstance
         string instanceIdOverride = null,
         ItemRarity itemRarity = ItemRarity.Common,
         IReadOnlyList<ItemAffix> affixesOverride = null,
-        bool generateAffixesIfMissing = true)
+        bool generateAffixesIfMissing = true,
+        IReadOnlyList<ItemSkill> skillsOverride = null,
+        bool generateSkillsIfMissing = true)
     {
         definition = armorDefinition;
         rarity = ItemRarityUtility.Sanitize(itemRarity);
         SetAffixes(affixesOverride, generateAffixesIfMissing);
+        SetSkills(skillsOverride, generateAffixesIfMissing && generateSkillsIfMissing);
         float maxDurability = MaxDurability;
         currentDurability = Mathf.Clamp(durability, 0f, maxDurability);
         SetInstanceId(instanceIdOverride);
@@ -78,6 +86,24 @@ public class ArmorInstance
         affixSummary = ItemAffixUtility.BuildSummary(affixes);
     }
 
+    public void SetSkills(IReadOnlyList<ItemSkill> newSkills, bool generateIfMissing = true)
+    {
+        if (newSkills != null)
+        {
+            skills = ItemSkillUtility.CloneList(newSkills);
+        }
+        else if (generateIfMissing)
+        {
+            skills = GenerateSkills();
+        }
+        else
+        {
+            skills = new List<ItemSkill>();
+        }
+
+        ItemSkillUtility.SanitizeSkills(skills);
+    }
+
     private List<ItemAffix> GenerateAffixes()
     {
         if (definition == null)
@@ -90,6 +116,13 @@ public class ArmorInstance
             : new List<ItemAffix>();
     }
 
+    private List<ItemSkill> GenerateSkills()
+    {
+        return definition != null
+            ? ItemSkillUtility.GenerateSkills(Rarity, definition.ItemLevel, AffixItemTarget.Armor)
+            : new List<ItemSkill>();
+    }
+
     public void Sanitize()
     {
         if (affixes == null)
@@ -97,7 +130,13 @@ public class ArmorInstance
             affixes = new List<ItemAffix>();
         }
 
+        if (skills == null)
+        {
+            skills = new List<ItemSkill>();
+        }
+
         ItemAffixUtility.SanitizeAffixes(affixes);
+        ItemSkillUtility.SanitizeSkills(skills);
         affixSummary = ItemAffixUtility.BuildSummary(affixes);
         rarity = ItemRarityUtility.Sanitize(rarity);
         float maxDurability = MaxDurability;

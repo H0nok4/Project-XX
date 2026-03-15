@@ -2562,7 +2562,7 @@ MonoBehaviour:
   containerLabel: Weapon Crate
   interactionVerb: Search
   inventory: {fileID: 475561119}
-  lootTable: {fileID: 11400000, guid: b95f5c804465ac14db4b7bdd65ea8774, type: 2}
+  lootTable: {fileID: 11400000, guid: a3a638c997ff43c9ad33e0328173b1f3, type: 2}
   populateOnFirstOpen: 1
   populateOnlyWhenEmpty: 1
   lootGenerated: 0
