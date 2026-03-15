@@ -81,6 +81,28 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     [Tooltip("站立空间检测时从控制器半径里扣掉的安全边距。")]
     [SerializeField] private float stanceClearancePadding = 0.04f;
 
+    [Header("View Motion")]
+    [Tooltip("是否启用移动时的轻微视角摇晃。")]
+    [SerializeField] private bool headBobEnabled = true;
+    [Tooltip("基础摇晃频率，数值越大步伐感越明显。")]
+    [SerializeField] private float headBobFrequency = 7.5f;
+    [Tooltip("垂直方向的轻微摇晃幅度。")]
+    [SerializeField] private float headBobVerticalAmplitude = 0.014f;
+    [Tooltip("水平方向的轻微摇晃幅度。")]
+    [SerializeField] private float headBobHorizontalAmplitude = 0.008f;
+    [Tooltip("开始出现摇晃所需的最小移动速度。")]
+    [SerializeField] private float headBobActivationSpeed = 0.18f;
+    [Tooltip("冲刺时对摇晃幅度施加的额外倍率。")]
+    [SerializeField, Range(1f, 2f)] private float sprintHeadBobAmplitudeMultiplier = 1.22f;
+    [Tooltip("冲刺时对摇晃频率施加的额外倍率。")]
+    [SerializeField, Range(1f, 2f)] private float sprintHeadBobFrequencyMultiplier = 1.12f;
+    [Tooltip("蹲姿时对摇晃幅度施加的倍率。")]
+    [SerializeField, Range(0.1f, 1f)] private float crouchHeadBobAmplitudeMultiplier = 0.72f;
+    [Tooltip("摇晃偏移追踪目标时的平滑速度。")]
+    [SerializeField] private float headBobSmoothing = 14f;
+    [Tooltip("停止移动后回正的平滑速度。")]
+    [SerializeField] private float headBobResetSpeed = 10f;
+
     [Header("AI Awareness")]
     [Tooltip("普通步行时制造的基础噪声半径。")]
     [SerializeField] private float walkNoiseRadius = 4.8f;
@@ -104,15 +126,18 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     private float landingRecoveryTimer;
     private float standingHeight;
     private float standingCameraLocalY;
+    private Vector3 standingCameraLocalPosition;
     private float standingStepOffset;
     private Vector3 standingCenter;
     private float sprintSpeedBlend;
+    private float headBobCycle;
     private bool crouchToggleRequested;
     private bool isCrouching;
     private bool isSprinting;
     private bool sprintMomentumCarryActive;
     private bool wasGroundedLastFrame;
     private float nextMovementNoiseTime;
+    private Vector2 headBobOffset;
 
     public bool IsCrouching => isCrouching;
     public bool IsSprinting => isSprinting;
@@ -156,6 +181,8 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         sprintSpeedBlend = 0f;
         isSprinting = false;
         sprintMomentumCarryActive = false;
+        headBobCycle = 0f;
+        headBobOffset = Vector2.zero;
 
         if (characterController != null)
         {
@@ -170,6 +197,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         }
 
         wasGroundedLastFrame = characterController != null && characterController.isGrounded;
+        UpdateViewCamera(0f, wasGroundedLastFrame, false);
     }
 
     public void TickMovement()
@@ -259,6 +287,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
             ReportMovementNoise();
         }
 
+        UpdateViewCamera(deltaTime, groundedAfterMove, uiFocused);
         wasGroundedLastFrame = groundedAfterMove;
     }
 
@@ -296,9 +325,6 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         isCrouching = crouchToggleRequested || !canStand;
 
         float targetHeight = isCrouching ? crouchHeight : standingHeight;
-        float targetCameraY = isCrouching
-            ? standingCameraLocalY - crouchCameraDrop
-            : standingCameraLocalY;
         float targetStepOffset = isCrouching
             ? standingStepOffset * crouchStepOffsetMultiplier
             : standingStepOffset;
@@ -306,13 +332,93 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         characterController.height = nextHeight;
         characterController.center = GetControllerCenterForHeight(nextHeight);
         characterController.stepOffset = grounded ? targetStepOffset : 0f;
+    }
 
-        if (viewCamera != null)
+    private void UpdateViewCamera(float deltaTime, bool grounded, bool uiFocused)
+    {
+        if (viewCamera == null)
         {
-            Vector3 cameraLocalPosition = viewCamera.transform.localPosition;
-            cameraLocalPosition.y = Mathf.MoveTowards(cameraLocalPosition.y, targetCameraY, crouchTransitionSpeed * deltaTime);
-            viewCamera.transform.localPosition = cameraLocalPosition;
+            return;
         }
+
+        bool bobActive = UpdateHeadBob(deltaTime, grounded, uiFocused);
+        Vector3 targetCameraPosition = standingCameraLocalPosition;
+        targetCameraPosition.y = isCrouching
+            ? standingCameraLocalY - crouchCameraDrop + headBobOffset.y
+            : standingCameraLocalY + headBobOffset.y;
+        targetCameraPosition.x += headBobOffset.x;
+
+        if (deltaTime <= 0f)
+        {
+            viewCamera.transform.localPosition = targetCameraPosition;
+            return;
+        }
+
+        Vector3 cameraLocalPosition = viewCamera.transform.localPosition;
+        float lateralSmoothing = bobActive ? headBobSmoothing : headBobResetSpeed;
+        float lateralBlend = 1f - Mathf.Exp(-lateralSmoothing * deltaTime);
+        cameraLocalPosition.x = Mathf.Lerp(cameraLocalPosition.x, targetCameraPosition.x, lateralBlend);
+        cameraLocalPosition.y = Mathf.MoveTowards(
+            cameraLocalPosition.y,
+            targetCameraPosition.y,
+            Mathf.Max(crouchTransitionSpeed, headBobSmoothing) * deltaTime);
+        cameraLocalPosition.z = Mathf.Lerp(cameraLocalPosition.z, targetCameraPosition.z, lateralBlend);
+        viewCamera.transform.localPosition = cameraLocalPosition;
+    }
+
+    private bool UpdateHeadBob(float deltaTime, bool grounded, bool uiFocused)
+    {
+        if (!headBobEnabled || viewCamera == null)
+        {
+            headBobOffset = Vector2.zero;
+            headBobCycle = 0f;
+            return false;
+        }
+
+        float currentPlanarSpeed = planarVelocity.magnitude;
+        float bobTopSpeed = isSprinting
+            ? moveSpeed * sprintSpeedMultiplier
+            : Mathf.Max(headBobActivationSpeed + 0.01f, GetTargetMoveSpeed());
+        float bobStrength = grounded && !uiFocused
+            ? Mathf.InverseLerp(headBobActivationSpeed, bobTopSpeed, currentPlanarSpeed)
+            : 0f;
+        bool bobActive = bobStrength > 0.001f;
+        Vector2 targetBobOffset = Vector2.zero;
+
+        if (bobActive)
+        {
+            float amplitudeMultiplier = bobStrength;
+            if (isSprinting)
+            {
+                amplitudeMultiplier *= sprintHeadBobAmplitudeMultiplier;
+            }
+            else if (isCrouching)
+            {
+                amplitudeMultiplier *= crouchHeadBobAmplitudeMultiplier;
+            }
+
+            float frequencyMultiplier = Mathf.Lerp(0.7f, 1f, bobStrength);
+            if (isSprinting)
+            {
+                frequencyMultiplier *= sprintHeadBobFrequencyMultiplier;
+            }
+
+            headBobCycle += deltaTime * headBobFrequency * frequencyMultiplier;
+            float horizontalBob = Mathf.Sin(headBobCycle) * headBobHorizontalAmplitude * amplitudeMultiplier;
+            float verticalBob = Mathf.Sin(headBobCycle * 2f) * headBobVerticalAmplitude * amplitudeMultiplier;
+            targetBobOffset = new Vector2(horizontalBob, verticalBob);
+        }
+
+        float smoothing = bobActive ? headBobSmoothing : headBobResetSpeed;
+        float blend = deltaTime > 0f ? 1f - Mathf.Exp(-smoothing * deltaTime) : 1f;
+        headBobOffset = Vector2.Lerp(headBobOffset, targetBobOffset, blend);
+        if (!bobActive && headBobOffset.sqrMagnitude <= 0.000001f)
+        {
+            headBobOffset = Vector2.zero;
+            headBobCycle = 0f;
+        }
+
+        return bobActive;
     }
 
     private float GetTargetMoveSpeed()
@@ -793,6 +899,15 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         sprintAccelerationTime = Mathf.Max(0.01f, sprintAccelerationTime);
         sprintDecelerationTime = Mathf.Max(0.01f, sprintDecelerationTime);
         stanceClearancePadding = Mathf.Clamp(stanceClearancePadding, 0f, 0.2f);
+        headBobFrequency = Mathf.Max(0f, headBobFrequency);
+        headBobVerticalAmplitude = Mathf.Max(0f, headBobVerticalAmplitude);
+        headBobHorizontalAmplitude = Mathf.Max(0f, headBobHorizontalAmplitude);
+        headBobActivationSpeed = Mathf.Max(0.01f, headBobActivationSpeed);
+        sprintHeadBobAmplitudeMultiplier = Mathf.Clamp(sprintHeadBobAmplitudeMultiplier, 1f, 2f);
+        sprintHeadBobFrequencyMultiplier = Mathf.Clamp(sprintHeadBobFrequencyMultiplier, 1f, 2f);
+        crouchHeadBobAmplitudeMultiplier = Mathf.Clamp(crouchHeadBobAmplitudeMultiplier, 0.1f, 1f);
+        headBobSmoothing = Mathf.Max(0.1f, headBobSmoothing);
+        headBobResetSpeed = Mathf.Max(0.1f, headBobResetSpeed);
         walkNoiseRadius = Mathf.Max(0f, walkNoiseRadius);
         sprintNoiseRadius = Mathf.Max(walkNoiseRadius, sprintNoiseRadius);
         jumpNoiseRadius = Mathf.Max(0f, jumpNoiseRadius);
@@ -823,10 +938,12 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
         if (viewCamera != null)
         {
+            standingCameraLocalPosition = viewCamera.transform.localPosition;
             standingCameraLocalY = viewCamera.transform.localPosition.y;
         }
         else if (standingCameraLocalY <= 0f)
         {
+            standingCameraLocalPosition = new Vector3(0f, 0.72f, 0f);
             standingCameraLocalY = 0.72f;
         }
     }

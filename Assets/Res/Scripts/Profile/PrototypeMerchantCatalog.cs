@@ -156,6 +156,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
     [SerializeField] private float itemSellbackMultiplier = 0.5f;
     [Range(0.05f, 1f)]
     [SerializeField] private float weaponSellbackMultiplier = 0.55f;
+    [NonSerialized] private bool runtimeInventoriesDirty = true;
 
     public IReadOnlyList<MerchantDefinition> Merchants => merchants;
 
@@ -182,6 +183,8 @@ public class PrototypeMerchantCatalog : ScriptableObject
             source.ClearRuntimeOffers();
             merchants.Add(source);
         }
+
+        runtimeInventoriesDirty = true;
     }
 
     public void EnsureRuntimeInventories()
@@ -200,11 +203,13 @@ public class PrototypeMerchantCatalog : ScriptableObject
                 continue;
             }
 
-            if (!merchant.HasRuntimeOffers)
+            if (runtimeInventoriesDirty || !merchant.HasRuntimeOffers)
             {
                 RegenerateMerchantInventory(merchant);
             }
         }
+
+        runtimeInventoriesDirty = false;
     }
 
     public void RegenerateRuntimeInventories()
@@ -223,6 +228,8 @@ public class PrototypeMerchantCatalog : ScriptableObject
                 RegenerateMerchantInventory(merchant);
             }
         }
+
+        runtimeInventoriesDirty = false;
     }
 
     public void RegenerateMerchantInventory(MerchantDefinition merchant)
@@ -348,6 +355,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
     private void OnValidate()
     {
         EnsureSanitized();
+        InvalidateRuntimeInventories();
     }
 
     private void EnsureSanitized()
@@ -377,8 +385,20 @@ public class PrototypeMerchantCatalog : ScriptableObject
                 merchants.RemoveAt(index);
                 continue;
             }
+        }
+    }
 
-            merchant.ClearRuntimeOffers();
+    private void InvalidateRuntimeInventories()
+    {
+        runtimeInventoriesDirty = true;
+        if (merchants == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < merchants.Count; index++)
+        {
+            merchants[index]?.ClearRuntimeOffers();
         }
     }
 

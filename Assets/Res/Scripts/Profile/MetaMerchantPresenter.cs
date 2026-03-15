@@ -16,7 +16,6 @@ public sealed class MetaMerchantPresenter
     public void DrawMerchantsPage()
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
-        merchantCatalog?.EnsureRuntimeInventories();
         if (merchantCatalog == null || merchantCatalog.Merchants == null || merchantCatalog.Merchants.Count == 0)
         {
             Rect emptyRect = new Rect(292f, 140f, Mathf.Max(560f, Screen.width - 336f), 220f);
