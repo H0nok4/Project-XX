@@ -357,7 +357,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             case "swap":
                 return "替换";
             default:
-                return LocalizeActionVerb(verb);
+                return verb.Trim();
         }
     }
 

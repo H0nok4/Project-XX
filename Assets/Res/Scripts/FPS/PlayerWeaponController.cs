@@ -74,6 +74,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private bool useHostSettings = true;
+    [SerializeField] private float feedbackLifetime = 1.6f;
 
     [Header("References")]
     [SerializeField] private Camera viewCamera;
@@ -101,6 +102,7 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private PlayerSkillManager skillManager;
+    private PlayerProgressionRuntime progressionRuntime;
     private readonly WeaponRuntime primaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Primary };
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
@@ -113,11 +115,14 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeWeaponDefinition meleeViewModelSource;
     private float hitMarkerTimer;
     private float characterDamageMultiplier = 1f;
+    private float feedbackTimer;
+    private string feedbackMessage = string.Empty;
 
     public bool ShowHitMarker => hitMarkerTimer > 0f;
     public PrototypeWeaponDefinition EquippedPrimaryWeapon => primaryRuntime.Definition;
     public PrototypeWeaponDefinition EquippedSecondaryWeapon => secondaryRuntime.Definition;
     public PrototypeWeaponDefinition EquippedMeleeWeapon => meleeRuntime.Definition;
+    public string FeedbackMessage => feedbackMessage;
 
     private void Awake()
     {
@@ -141,6 +146,7 @@ public class PlayerWeaponController : MonoBehaviour
         playerVitals = vitals;
         inventory = inventoryContainer;
         skillManager = GetComponent<PlayerSkillManager>();
+        progressionRuntime = GetComponent<PlayerProgressionRuntime>();
         skillManager?.SetPlayerDependencies(playerVitals, this);
     }
 
@@ -206,6 +212,21 @@ public class PlayerWeaponController : MonoBehaviour
         if (hitMarkerTimer > 0f)
         {
             hitMarkerTimer -= deltaTime;
+        }
+    }
+
+    public void TickFeedback(float deltaTime)
+    {
+        if (feedbackTimer <= 0f)
+        {
+            return;
+        }
+
+        feedbackTimer -= Mathf.Max(0f, deltaTime);
+        if (feedbackTimer <= 0f)
+        {
+            feedbackTimer = 0f;
+            feedbackMessage = string.Empty;
         }
     }
 
@@ -355,23 +376,39 @@ public class PlayerWeaponController : MonoBehaviour
             return inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone());
         }
 
-        WeaponRuntime runtime = GetWeaponRuntime(ChoosePickupSlot(weaponInstance.WeaponDefinition));
-        if (runtime == null)
-        {
-            return false;
-        }
+        PrototypeWeaponDefinition weaponDefinition = weaponInstance.WeaponDefinition;
+        bool levelRestricted = !CanEquipWeaponAtCurrentLevel(weaponDefinition);
 
-        if (!runtime.IsConfigured)
+        switch (GetLootedWeaponAction(weaponDefinition))
         {
-            return TryForceEquipWeapon(weaponInstance, out droppedWeapon);
-        }
+            case LootedWeaponAction.Equip:
+            case LootedWeaponAction.Swap:
+                return TryForceEquipWeapon(weaponInstance, out droppedWeapon);
+            case LootedWeaponAction.StoreInBackpack:
+                if (inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone()))
+                {
+                    if (levelRestricted)
+                    {
+                        SetFeedback($"等级不足，{weaponInstance.DisplayName} 已放入背包。需要等级 {weaponDefinition.RequiredLevel}。");
+                    }
 
-        if (inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone()))
-        {
-            return true;
-        }
+                    return true;
+                }
 
-        return TryForceEquipWeapon(weaponInstance, out droppedWeapon);
+                if (levelRestricted)
+                {
+                    SetFeedback($"需要等级 {weaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}，且背包空间不足。");
+                }
+                else
+                {
+                    SetFeedback($"背包空间不足，无法收纳 {weaponInstance.DisplayName}。");
+                }
+
+                return false;
+            default:
+                SetFeedback($"无法拾取 {weaponInstance.DisplayName}。");
+                return false;
+        }
     }
 
     public bool TryEquipLootedWeapon(WeaponInstance weaponInstance, out WeaponInstance droppedWeapon)
@@ -391,6 +428,12 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (itemInstance.WeaponDefinition.IsThrowableWeapon)
         {
+            return false;
+        }
+
+        if (!CanEquipWeaponAtCurrentLevel(itemInstance.WeaponDefinition))
+        {
+            SetFeedback($"需要等级 {itemInstance.WeaponDefinition.RequiredLevel} 才能装备 {itemInstance.DisplayName}。");
             return false;
         }
 
@@ -1387,6 +1430,7 @@ public class PlayerWeaponController : MonoBehaviour
         meleeImpactForce = Mathf.Max(meleeImpactForce, 0f);
         meleeStaminaCost = Mathf.Max(0f, meleeStaminaCost);
         impactMarkerLifetime = Mathf.Max(impactMarkerLifetime, 0.05f);
+        feedbackLifetime = Mathf.Max(0.25f, feedbackLifetime);
         firearmNoiseRadius = Mathf.Max(0f, firearmNoiseRadius);
         meleeNoiseRadius = Mathf.Max(0f, meleeNoiseRadius);
         if (shootMask.value == 0 || shootMask.value == ~0)
@@ -1412,11 +1456,16 @@ public class PlayerWeaponController : MonoBehaviour
             skillManager = GetComponent<PlayerSkillManager>();
         }
 
+        if (progressionRuntime == null)
+        {
+            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
+        }
+
     }
 
     private void EnsureDependencies()
     {
-        if (playerVitals == null || inventory == null || skillManager == null)
+        if (playerVitals == null || inventory == null || skillManager == null || progressionRuntime == null)
         {
             ResolveReferences();
         }
@@ -1443,6 +1492,11 @@ public class PlayerWeaponController : MonoBehaviour
             return LootedWeaponAction.Invalid;
         }
 
+        if (!CanEquipWeaponAtCurrentLevel(weaponDefinition))
+        {
+            return LootedWeaponAction.StoreInBackpack;
+        }
+
         if (!runtime.IsConfigured)
         {
             return LootedWeaponAction.Equip;
@@ -1464,6 +1518,23 @@ public class PlayerWeaponController : MonoBehaviour
                 1f,
                 null,
                 ItemRarity.Common));
+    }
+
+    private bool CanEquipWeaponAtCurrentLevel(PrototypeWeaponDefinition weaponDefinition)
+    {
+        return weaponDefinition == null || GetCurrentPlayerLevel() >= weaponDefinition.RequiredLevel;
+    }
+
+    private int GetCurrentPlayerLevel()
+    {
+        EnsureDependencies();
+        return progressionRuntime != null ? progressionRuntime.PlayerLevel : 1;
+    }
+
+    private void SetFeedback(string message)
+    {
+        feedbackMessage = message ?? string.Empty;
+        feedbackTimer = string.IsNullOrWhiteSpace(feedbackMessage) ? 0f : feedbackLifetime;
     }
 
     private bool TryForceEquipWeapon(ItemInstance weaponInstance, out ItemInstance droppedWeapon)

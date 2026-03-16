@@ -231,6 +231,7 @@ public class PrototypeFpsController : MonoBehaviour
             }
 
             weaponController?.TickVisuals(Time.deltaTime);
+            weaponController?.TickFeedback(Time.deltaTime);
             medicalController?.TickFeedback(Time.deltaTime);
             throwableController?.TickFeedback(Time.deltaTime);
             progressionRuntime?.TickFeedback(Time.deltaTime);
@@ -259,6 +260,7 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         weaponController?.TickVisuals(Time.deltaTime);
+        weaponController?.TickFeedback(Time.deltaTime);
         medicalController?.TickFeedback(Time.deltaTime);
         throwableController?.TickFeedback(Time.deltaTime);
         progressionRuntime?.TickFeedback(Time.deltaTime);
@@ -678,6 +680,13 @@ public class PrototypeFpsController : MonoBehaviour
         {
             builder.Append("\n");
             builder.Append(feedbackMessage);
+        }
+
+        string weaponFeedback = weaponController != null ? weaponController.FeedbackMessage : string.Empty;
+        if (!string.IsNullOrWhiteSpace(weaponFeedback))
+        {
+            builder.Append("\n");
+            builder.Append(weaponFeedback);
         }
 
         string throwableSummary = throwableController != null ? throwableController.BuildHudSummary() : string.Empty;
