@@ -102,7 +102,6 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private PlayerSkillManager skillManager;
-    private PlayerProgressionRuntime progressionRuntime;
     private readonly WeaponRuntime primaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Primary };
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
@@ -146,7 +145,6 @@ public class PlayerWeaponController : MonoBehaviour
         playerVitals = vitals;
         inventory = inventoryContainer;
         skillManager = GetComponent<PlayerSkillManager>();
-        progressionRuntime = GetComponent<PlayerProgressionRuntime>();
         skillManager?.SetPlayerDependencies(playerVitals, this);
     }
 
@@ -377,7 +375,6 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         PrototypeWeaponDefinition weaponDefinition = weaponInstance.WeaponDefinition;
-        bool levelRestricted = !CanEquipWeaponAtCurrentLevel(weaponDefinition);
 
         switch (GetLootedWeaponAction(weaponDefinition))
         {
@@ -387,23 +384,10 @@ public class PlayerWeaponController : MonoBehaviour
             case LootedWeaponAction.StoreInBackpack:
                 if (inventory != null && inventory.TryAddItemInstance(weaponInstance.Clone()))
                 {
-                    if (levelRestricted)
-                    {
-                        SetFeedback($"等级不足，{weaponInstance.DisplayName} 已放入背包。需要等级 {weaponDefinition.RequiredLevel}。");
-                    }
-
                     return true;
                 }
 
-                if (levelRestricted)
-                {
-                    SetFeedback($"需要等级 {weaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}，且背包空间不足。");
-                }
-                else
-                {
-                    SetFeedback($"背包空间不足，无法收纳 {weaponInstance.DisplayName}。");
-                }
-
+                SetFeedback($"背包空间不足，无法收纳 {weaponInstance.DisplayName}。");
                 return false;
             default:
                 SetFeedback($"无法拾取 {weaponInstance.DisplayName}。");
@@ -428,12 +412,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (itemInstance.WeaponDefinition.IsThrowableWeapon)
         {
-            return false;
-        }
-
-        if (!CanEquipWeaponAtCurrentLevel(itemInstance.WeaponDefinition))
-        {
-            SetFeedback($"需要等级 {itemInstance.WeaponDefinition.RequiredLevel} 才能装备 {itemInstance.DisplayName}。");
             return false;
         }
 
@@ -1456,16 +1434,11 @@ public class PlayerWeaponController : MonoBehaviour
             skillManager = GetComponent<PlayerSkillManager>();
         }
 
-        if (progressionRuntime == null)
-        {
-            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
-        }
-
     }
 
     private void EnsureDependencies()
     {
-        if (playerVitals == null || inventory == null || skillManager == null || progressionRuntime == null)
+        if (playerVitals == null || inventory == null || skillManager == null)
         {
             ResolveReferences();
         }
@@ -1492,11 +1465,6 @@ public class PlayerWeaponController : MonoBehaviour
             return LootedWeaponAction.Invalid;
         }
 
-        if (!CanEquipWeaponAtCurrentLevel(weaponDefinition))
-        {
-            return LootedWeaponAction.StoreInBackpack;
-        }
-
         if (!runtime.IsConfigured)
         {
             return LootedWeaponAction.Equip;
@@ -1518,17 +1486,6 @@ public class PlayerWeaponController : MonoBehaviour
                 1f,
                 null,
                 ItemRarity.Common));
-    }
-
-    private bool CanEquipWeaponAtCurrentLevel(PrototypeWeaponDefinition weaponDefinition)
-    {
-        return weaponDefinition == null || GetCurrentPlayerLevel() >= weaponDefinition.RequiredLevel;
-    }
-
-    private int GetCurrentPlayerLevel()
-    {
-        EnsureDependencies();
-        return progressionRuntime != null ? progressionRuntime.PlayerLevel : 1;
     }
 
     private void SetFeedback(string message)

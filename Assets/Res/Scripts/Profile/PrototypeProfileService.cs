@@ -4,6 +4,8 @@ using UnityEngine;
 
 public static class PrototypeProfileService
 {
+    private const string CashBundleItemId = "cash_bundle";
+
     [Serializable]
     public sealed class ItemStackRecord
     {
@@ -19,6 +21,7 @@ public static class PrototypeProfileService
         public int version = ProfileSchemaVersion.CurrentLegacyVersion;
         public WorldStateData worldState = new WorldStateData();
         public PlayerProgressionData progression = new PlayerProgressionData();
+        public int funds;
         public List<SavedItemInstanceDto> stashItemInstances = new List<SavedItemInstanceDto>();
         public List<SavedItemInstanceDto> raidBackpackItemInstances = new List<SavedItemInstanceDto>();
         public List<SavedItemInstanceDto> secureContainerItemInstances = new List<SavedItemInstanceDto>();
@@ -667,6 +670,12 @@ public static class PrototypeProfileService
                 continue;
             }
 
+            if (IsCashBundleItemId(item.Definition.ItemId))
+            {
+                AddFunds(profile, item.Quantity);
+                continue;
+            }
+
             AddRecordQuantity(profile.stashItems, item.Definition.ItemId, item.Quantity);
         }
     }
@@ -680,6 +689,7 @@ public static class PrototypeProfileService
             version = ProfileSchemaVersion.CurrentLegacyVersion,
             worldState = new WorldStateData(),
             progression = new PlayerProgressionData(),
+            funds = 0,
             specialEquipmentItemInstances = CreateInventoryWeaponInstanceDtosFromPresets(catalog != null ? catalog.DefaultSpecialEquipmentWeapons : null),
             stashItems = CreateRecordsFromPresets(catalog != null ? catalog.DefaultStashItems : null),
             loadoutItems = new List<ItemStackRecord>(),
@@ -701,6 +711,7 @@ public static class PrototypeProfileService
             profile.raidBackpackItems,
             catalog);
         ApplyInstanceMigration(profile, catalog);
+        MigrateStashCurrencyToFunds(profile);
         return profile;
     }
 
@@ -875,6 +886,7 @@ public static class PrototypeProfileService
         profile.specialEquipmentItems ??= new List<ItemStackRecord>();
         profile.equippedArmorItems ??= new List<ItemStackRecord>();
         profile.stashWeaponIds ??= new List<string>();
+        profile.funds = Mathf.Max(0, profile.funds);
 
         profile.worldState.worldStateVersion = Mathf.Max(
             profile.worldState.worldStateVersion,
@@ -890,6 +902,7 @@ public static class PrototypeProfileService
             MergeLegacyBackpackWeaponInstances(profile);
         }
 
+        MigrateStashCurrencyToFunds(profile);
         profile.stashItemInstances = SanitizeItemInstanceRecords(profile.stashItemInstances, catalog);
         profile.raidBackpackItemInstances = SanitizeItemInstanceRecords(profile.raidBackpackItemInstances, catalog);
         profile.secureContainerItemInstances = SanitizeItemInstanceRecords(profile.secureContainerItemInstances, catalog);
@@ -912,6 +925,122 @@ public static class PrototypeProfileService
         profile.equippedMeleeWeaponId = SanitizeWeaponId(profile.equippedMeleeWeaponId, catalog);
         profile.loadoutItems = new List<ItemStackRecord>();
         profile.extractedItems = new List<ItemStackRecord>();
+    }
+
+    private static void MigrateStashCurrencyToFunds(ProfileData profile)
+    {
+        if (profile == null)
+        {
+            return;
+        }
+
+        profile.funds = Mathf.Max(0, profile.funds);
+
+        int cashFromInstances = CountCashItemInstances(profile.stashItemInstances);
+        int cashFromRecords = CountCashRecords(profile.stashItems);
+        AddFunds(profile, Mathf.Max(cashFromInstances, cashFromRecords));
+
+        RemoveCashItemInstances(profile.stashItemInstances);
+        RemoveCashRecords(profile.stashItems);
+    }
+
+    private static int CountCashRecords(List<ItemStackRecord> records)
+    {
+        if (records == null)
+        {
+            return 0;
+        }
+
+        int total = 0;
+        for (int index = 0; index < records.Count; index++)
+        {
+            ItemStackRecord record = records[index];
+            if (record == null || record.quantity <= 0 || !IsCashBundleItemId(record.itemId))
+            {
+                continue;
+            }
+
+            total += record.quantity;
+        }
+
+        return total;
+    }
+
+    private static int CountCashItemInstances(List<SavedItemInstanceDto> records)
+    {
+        if (records == null)
+        {
+            return 0;
+        }
+
+        int total = 0;
+        for (int index = 0; index < records.Count; index++)
+        {
+            SavedItemInstanceDto record = records[index];
+            if (record == null || record.quantity <= 0 || !IsCashBundleItemId(record.itemId))
+            {
+                continue;
+            }
+
+            total += record.quantity;
+        }
+
+        return total;
+    }
+
+    private static void RemoveCashRecords(List<ItemStackRecord> records)
+    {
+        if (records == null)
+        {
+            return;
+        }
+
+        for (int index = records.Count - 1; index >= 0; index--)
+        {
+            ItemStackRecord record = records[index];
+            if (record == null || !IsCashBundleItemId(record.itemId))
+            {
+                continue;
+            }
+
+            records.RemoveAt(index);
+        }
+    }
+
+    private static void RemoveCashItemInstances(List<SavedItemInstanceDto> records)
+    {
+        if (records == null)
+        {
+            return;
+        }
+
+        for (int index = records.Count - 1; index >= 0; index--)
+        {
+            SavedItemInstanceDto record = records[index];
+            if (record == null || !IsCashBundleItemId(record.itemId))
+            {
+                continue;
+            }
+
+            records.RemoveAt(index);
+        }
+    }
+
+    private static bool IsCashBundleItemId(string itemId)
+    {
+        return !string.IsNullOrWhiteSpace(itemId)
+            && string.Equals(itemId.Trim(), CashBundleItemId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AddFunds(ProfileData profile, int amount)
+    {
+        if (profile == null || amount <= 0)
+        {
+            return;
+        }
+
+        long updatedFunds = (long)Mathf.Max(0, profile.funds) + amount;
+        profile.funds = updatedFunds > int.MaxValue ? int.MaxValue : (int)updatedFunds;
     }
 
     private static void SplitRecordsForRiskLoadout(

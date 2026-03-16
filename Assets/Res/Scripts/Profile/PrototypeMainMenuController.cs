@@ -201,6 +201,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal Color BackpackColor => backpackColor;
     internal Color LockerColor => lockerColor;
     internal Color ProtectedColor => protectedColor;
+    internal string CurrencyLabel => "现金";
 
     internal string FeedbackMessage => feedbackMessage;
     internal float FeedbackUntilTime => feedbackUntilTime;
@@ -353,14 +354,15 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal int GetAvailableFunds()
     {
-        return cashDefinition != null && stashInventory != null ? stashInventory.CountItem(cashDefinition) : 0;
+        return profile != null ? Mathf.Max(0, profile.funds) : 0;
     }
 
     internal string GetCurrencyLabel()
     {
-        return cashDefinition != null && !string.IsNullOrWhiteSpace(cashDefinition.DisplayName)
+        return "现金"; /*
             ? cashDefinition.DisplayName
             : "现金";
+        */
     }
 
     internal string BuildPlayerProgressionSummaryText()
@@ -390,19 +392,19 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal bool CanReceiveFunds(int amount)
     {
-        return amount > 0
-            && cashDefinition != null
-            && stashInventory != null
-            && stashInventory.GetAddableQuantity(cashDefinition, amount) >= amount;
+        return amount > 0 && profile != null;
     }
 
     internal bool TryAddFunds(int amount)
     {
-        return amount > 0
-            && cashDefinition != null
-            && stashInventory != null
-            && stashInventory.TryAddItem(cashDefinition, amount, out int addedQuantity)
-            && addedQuantity >= amount;
+        if (amount <= 0 || profile == null)
+        {
+            return false;
+        }
+
+        long updatedFunds = (long)Mathf.Max(0, profile.funds) + amount;
+        profile.funds = updatedFunds > int.MaxValue ? int.MaxValue : (int)updatedFunds;
+        return true;
     }
 
     internal bool TrySpendFunds(int amount, string failureMessage)
@@ -412,23 +414,13 @@ public class PrototypeMainMenuController : MonoBehaviour
             return true;
         }
 
-        if (cashDefinition == null || stashInventory == null || stashInventory.CountItem(cashDefinition) < amount)
+        if (profile == null || GetAvailableFunds() < amount)
         {
             SetFeedback(failureMessage);
             return false;
         }
 
-        if (!stashInventory.TryRemoveItem(cashDefinition, amount, out int removedQuantity) || removedQuantity < amount)
-        {
-            if (removedQuantity > 0)
-            {
-                stashInventory.TryAddItem(cashDefinition, removedQuantity, out _);
-            }
-
-            SetFeedback(failureMessage);
-            return false;
-        }
-
+        profile.funds -= amount;
         return true;
     }
 
@@ -738,6 +730,8 @@ public class PrototypeMainMenuController : MonoBehaviour
             profile = new PrototypeProfileService.ProfileData();
         }
 
+        DepositStashCurrencyIntoFunds();
+
         profile.stashItemInstances = PrototypeProfileService.CaptureInventoryInstances(stashInventory);
         profile.raidBackpackItemInstances = PrototypeProfileService.CaptureInventoryInstances(raidBackpackInventory);
         profile.secureContainerItemInstances = PrototypeProfileService.CaptureInventoryInstances(secureContainerInventory);
@@ -762,6 +756,34 @@ public class PrototypeMainMenuController : MonoBehaviour
         profile.extractedItems.Clear();
         PrototypeProfileService.SaveProfile(profile, itemCatalog);
         RequestUiRefresh();
+    }
+
+    private void DepositStashCurrencyIntoFunds()
+    {
+        if (profile == null || stashInventory == null || cashDefinition == null)
+        {
+            return;
+        }
+
+        for (int index = stashInventory.Items.Count - 1; index >= 0; index--)
+        {
+            ItemInstance item = stashInventory.Items[index];
+            if (item == null || !item.IsDefined() || item.Definition != cashDefinition)
+            {
+                continue;
+            }
+
+            int quantity = item.Quantity;
+            if (!stashInventory.TryExtractItem(index, quantity, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsDefined())
+            {
+                continue;
+            }
+
+            if (!TryAddFunds(extractedItem.Quantity))
+            {
+                stashInventory.TryAddItemInstance(extractedItem);
+            }
+        }
     }
 
     internal void ResetProfile()

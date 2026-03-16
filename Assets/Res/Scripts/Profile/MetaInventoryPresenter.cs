@@ -95,7 +95,7 @@ public sealed class MetaInventoryPresenter
                         GUIUtility.ExitGUI();
                     }
 
-                    if (host.CashDefinition != null && item.Definition != host.CashDefinition && GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(56f)))
+                    if (GUILayout.Button("出售", host.ButtonStyle, GUILayout.Width(56f)))
                     {
                         SellItemFromInventory(stashInventory, index, item.Quantity, "已出售物品");
                         GUIUtility.ExitGUI();
@@ -412,6 +412,12 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
+        if (destination == host.StashInventory && IsCurrencyItem(item))
+        {
+            DepositCurrencyToFunds(source, itemIndex, quantity, failureMessage);
+            return;
+        }
+
         if (!source.TryTransferItemTo(destination, itemIndex, quantity, out int movedQuantity) || movedQuantity <= 0)
         {
             host.SetFeedback(failureMessage);
@@ -432,12 +438,6 @@ public sealed class MetaInventoryPresenter
         ItemInstance item = source.Items[itemIndex];
         if (item == null || !(item.Definition is ArmorDefinition armorDefinition))
         {
-            return;
-        }
-
-        if (host.PlayerLevel < armorDefinition.RequiredLevel)
-        {
-            host.SetFeedback($"需要等级 {armorDefinition.RequiredLevel} 才能装备 {armorDefinition.DisplayNameWithLevel}。");
             return;
         }
 
@@ -522,11 +522,32 @@ public sealed class MetaInventoryPresenter
         }
 
         bool movedAnything = false;
+        bool movedToStorage = false;
+        int depositedFunds = 0;
         for (int index = host.RaidBackpackInventory.Items.Count - 1; index >= 0; index--)
         {
             ItemInstance item = host.RaidBackpackInventory.Items[index];
             if (item == null || !item.IsDefined())
             {
+                continue;
+            }
+
+            if (IsCurrencyItem(item))
+            {
+                int quantity = item.Quantity;
+                if (!host.RaidBackpackInventory.TryExtractItem(index, quantity, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsDefined())
+                {
+                    continue;
+                }
+
+                if (!host.TryAddFunds(extractedItem.Quantity))
+                {
+                    host.RaidBackpackInventory.TryAddItemInstance(extractedItem);
+                    continue;
+                }
+
+                depositedFunds += extractedItem.Quantity;
+                movedAnything = true;
                 continue;
             }
 
@@ -546,12 +567,14 @@ public sealed class MetaInventoryPresenter
 
                 host.WeaponLocker.Add(weaponInstance);
                 movedAnything = true;
+                movedToStorage = true;
                 continue;
             }
 
             if (host.RaidBackpackInventory.TryTransferItemTo(host.StashInventory, index, item.Quantity, out _))
             {
                 movedAnything = true;
+                movedToStorage = true;
             }
         }
 
@@ -560,7 +583,19 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.SetFeedback("已将战局背包内容全部存入仓库。");
+        if (movedToStorage && depositedFunds > 0)
+        {
+            host.SetFeedback($"已将战局背包内容全部存入仓库，并自动入账 {depositedFunds} {host.GetCurrencyLabel()}。");
+        }
+        else if (movedToStorage)
+        {
+            host.SetFeedback("已将战局背包内容全部存入仓库。");
+        }
+        else
+        {
+            host.SetFeedback($"已自动入账 {depositedFunds} {host.GetCurrencyLabel()}。");
+        }
+
         host.AutoSaveIfNeeded();
     }
 
@@ -617,13 +652,6 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        if (host.PlayerLevel < weaponInstance.WeaponDefinition.RequiredLevel)
-        {
-            source.TryAddItemInstance(extractedItem);
-            host.SetFeedback($"需要等级 {weaponInstance.WeaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
-            return;
-        }
-
         ItemInstance replacedWeapon = GetEquippedWeapon(slotType);
         if (replacedWeapon != null && !source.TryAddItemInstance(replacedWeapon.Clone()))
         {
@@ -658,12 +686,6 @@ public sealed class MetaInventoryPresenter
             host.SetFeedback(expectsMelee
                 ? "只有近战武器可以装备到近战槽。"
                 : "近战武器必须装备到近战槽。");
-            return;
-        }
-
-        if (host.PlayerLevel < weaponInstance.WeaponDefinition.RequiredLevel)
-        {
-            host.SetFeedback($"需要等级 {weaponInstance.WeaponDefinition.RequiredLevel} 才能装备 {weaponInstance.DisplayName}。");
             return;
         }
 
@@ -731,6 +753,33 @@ public sealed class MetaInventoryPresenter
         return PrototypeMainMenuController.BuildItemInstanceDetail(item);
     }
 
+    private bool IsCurrencyItem(ItemInstance item)
+    {
+        return item != null
+            && item.IsDefined()
+            && host.CashDefinition != null
+            && item.Definition == host.CashDefinition;
+    }
+
+    private void DepositCurrencyToFunds(InventoryContainer source, int itemIndex, int quantity, string failureMessage)
+    {
+        if (!source.TryExtractItem(itemIndex, quantity, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsDefined())
+        {
+            host.SetFeedback(failureMessage);
+            return;
+        }
+
+        if (!host.TryAddFunds(extractedItem.Quantity))
+        {
+            source.TryAddItemInstance(extractedItem);
+            host.SetFeedback("无法将这笔现金存入账户。");
+            return;
+        }
+
+        host.SetFeedback($"已入账 {extractedItem.Quantity} {host.GetCurrencyLabel()}。");
+        host.AutoSaveIfNeeded();
+    }
+
     internal void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
@@ -740,7 +789,7 @@ public sealed class MetaInventoryPresenter
         }
 
         ItemInstance item = source.Items[itemIndex];
-        if (item == null || !item.IsDefined() || item.IsWeapon || item.Definition == null || item.Definition == host.CashDefinition)
+        if (item == null || !item.IsDefined() || item.IsWeapon || item.Definition == null)
         {
             return;
         }
@@ -759,7 +808,7 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             source.TryAddItemInstance(extractedItem);
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
+            host.SetFeedback("无法结算这笔出售收益。");
             return;
         }
 
@@ -778,9 +827,8 @@ public sealed class MetaInventoryPresenter
         ItemInstance weaponInstance = host.WeaponLocker[lockerIndex];
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
         int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
-        if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
+        if (weaponDefinition == null || sellPrice <= 0)
         {
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -788,7 +836,7 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             host.WeaponLocker.Insert(Mathf.Clamp(lockerIndex, 0, host.WeaponLocker.Count), weaponInstance);
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
+            host.SetFeedback("无法结算这笔出售收益。");
             return;
         }
 
@@ -807,9 +855,8 @@ public sealed class MetaInventoryPresenter
         ItemInstance weaponInstance = GetEquippedWeapon(slotType);
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
         int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
-        if (weaponDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
+        if (weaponDefinition == null || sellPrice <= 0)
         {
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -817,7 +864,7 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             SetEquippedWeapon(slotType, weaponInstance);
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
+            host.SetFeedback("无法结算这笔出售收益。");
             return;
         }
 
@@ -836,9 +883,8 @@ public sealed class MetaInventoryPresenter
         ArmorInstance armorInstance = host.EquippedArmor[armorIndex];
         ArmorDefinition armorDefinition = armorInstance != null ? armorInstance.Definition : null;
         int sellPrice = merchantCatalog.GetSellPrice(ItemInstance.Create(armorInstance));
-        if (armorDefinition == null || sellPrice <= 0 || !host.CanReceiveFunds(sellPrice))
+        if (armorDefinition == null || sellPrice <= 0)
         {
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
             return;
         }
 
@@ -846,7 +892,7 @@ public sealed class MetaInventoryPresenter
         if (!host.TryAddFunds(sellPrice))
         {
             host.EquippedArmor.Insert(Mathf.Clamp(armorIndex, 0, host.EquippedArmor.Count), armorInstance);
-            host.SetFeedback("仓库空间不足，无法接收这笔付款。");
+            host.SetFeedback("无法结算这笔出售收益。");
             return;
         }
 
