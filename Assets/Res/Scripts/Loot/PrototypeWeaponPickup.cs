@@ -12,7 +12,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     [SerializeField] private float durability = 1f;
     [SerializeField] private List<ItemAffix> affixes = new List<ItemAffix>();
     [SerializeField] private List<ItemSkill> skills = new List<ItemSkill>();
-    [SerializeField] private string interactionVerb = "Take";
+    [SerializeField] private string interactionVerb = "拿取";
     [SerializeField] private bool destroyWhenCollected = true;
 
     public PrototypeWeaponDefinition WeaponDefinition => weaponDefinition;
@@ -26,7 +26,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
 
     private void OnValidate()
     {
-        interactionVerb = string.IsNullOrWhiteSpace(interactionVerb) ? "Take" : interactionVerb.Trim();
+        interactionVerb = string.IsNullOrWhiteSpace(interactionVerb) ? "拿取" : interactionVerb.Trim();
         if (weaponDefinition != null && !weaponDefinition.IsMeleeWeapon)
         {
             magazineAmmo = Mathf.Clamp(magazineAmmo, 0, weaponDefinition.MagazineSize);
@@ -49,7 +49,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         RefreshVisuals();
     }
 
-    public void Configure(PrototypeWeaponDefinition definition, int loadedAmmo = -1, string verb = "Take")
+    public void Configure(PrototypeWeaponDefinition definition, int loadedAmmo = -1, string verb = "拿取")
     {
         int startingAmmo = definition != null && !definition.IsMeleeWeapon
             ? (loadedAmmo >= 0 ? loadedAmmo : definition.MagazineSize)
@@ -57,7 +57,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         Configure(ItemInstance.Create(definition, startingAmmo, 1f, null, ItemRarity.Common), verb);
     }
 
-    public void Configure(ItemInstance instance, string verb = "Take")
+    public void Configure(ItemInstance instance, string verb = "拿取")
     {
         weaponDefinition = instance != null ? instance.WeaponDefinition : null;
         rarity = instance != null ? instance.Rarity : ItemRarity.Common;
@@ -66,7 +66,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         ItemAffixUtility.SanitizeAffixes(affixes);
         skills = ItemSkillUtility.CloneList(instance != null ? instance.Skills : null);
         ItemSkillUtility.SanitizeSkills(skills);
-        interactionVerb = string.IsNullOrWhiteSpace(verb) ? "Take" : verb.Trim();
+        interactionVerb = string.IsNullOrWhiteSpace(verb) ? "拿取" : verb.Trim();
 
         if (weaponDefinition != null && !weaponDefinition.IsMeleeWeapon)
         {
@@ -82,7 +82,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         RefreshVisuals();
     }
 
-    public void Configure(WeaponInstance instance, string verb = "Take")
+    public void Configure(WeaponInstance instance, string verb = "拿取")
     {
         Configure(ItemInstance.Create(instance), verb);
     }
@@ -91,17 +91,18 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     {
         if (weaponDefinition == null)
         {
-            return "Take Weapon";
+            return "拿取武器";
         }
 
         PrototypeFpsController controller = interactor != null ? interactor.GetComponent<PrototypeFpsController>() : null;
         bool storeInBackpack = controller != null && controller.PickupWouldStoreInBackpack(weaponDefinition);
         string slotLabel = storeInBackpack
-            ? "Backpack"
-            : controller != null ? controller.GetSuggestedPickupSlotLabel(weaponDefinition) : (weaponDefinition.IsMeleeWeapon ? "Melee" : "Primary");
+            ? "背包"
+            : controller != null ? controller.GetSuggestedPickupSlotLabel(weaponDefinition) : (weaponDefinition.IsMeleeWeapon ? "近战" : "主武器");
+        slotLabel = GroundLootItem.LocalizeSlotLabel(slotLabel);
         string actionVerb = storeInBackpack
-            ? "Pack"
-            : controller != null && controller.PickupWouldReplaceEquippedWeapon(weaponDefinition) ? "Swap" : interactionVerb;
+            ? "收纳"
+            : controller != null && controller.PickupWouldReplaceEquippedWeapon(weaponDefinition) ? "替换" : GroundLootItem.LocalizeActionVerb(interactionVerb);
         string displayName = $"{weaponDefinition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(Rarity)}]";
 
         if (weaponDefinition.IsMeleeWeapon)
@@ -156,7 +157,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         Transform dropOrigin,
         PrototypeWeaponDefinition definition,
         int loadedAmmo = -1,
-        string verb = "Take")
+        string verb = "拿取")
     {
         ItemInstance instance = definition != null
             ? ItemInstance.Create(definition, loadedAmmo >= 0 ? loadedAmmo : (definition.IsMeleeWeapon ? 0 : definition.MagazineSize), 1f, null, ItemRarity.Common)
@@ -167,7 +168,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     public static PrototypeWeaponPickup SpawnDroppedWeapon(
         Transform dropOrigin,
         ItemInstance instance,
-        string verb = "Take")
+        string verb = "拿取")
     {
         if (dropOrigin == null || instance == null || !instance.IsWeapon || instance.WeaponDefinition == null)
         {
@@ -195,7 +196,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
         Vector3 worldPosition,
         PrototypeWeaponDefinition definition,
         int loadedAmmo = -1,
-        string verb = "Take",
+        string verb = "拿取",
         Transform parent = null)
     {
         ItemInstance instance = definition != null
@@ -207,7 +208,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     public static PrototypeWeaponPickup SpawnDroppedWeapon(
         Transform dropOrigin,
         WeaponInstance instance,
-        string verb = "Take")
+        string verb = "拿取")
     {
         return SpawnDroppedWeapon(dropOrigin, ItemInstance.Create(instance), verb);
     }
@@ -215,7 +216,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     public static PrototypeWeaponPickup SpawnScenePickup(
         Vector3 worldPosition,
         WeaponInstance instance,
-        string verb = "Take",
+        string verb = "拿取",
         Transform parent = null)
     {
         return SpawnScenePickup(worldPosition, ItemInstance.Create(instance), verb, parent);
@@ -224,7 +225,7 @@ public class PrototypeWeaponPickup : MonoBehaviour, IInteractable
     public static PrototypeWeaponPickup SpawnScenePickup(
         Vector3 worldPosition,
         ItemInstance instance,
-        string verb = "Take",
+        string verb = "拿取",
         Transform parent = null)
     {
         if (instance == null || !instance.IsWeapon || instance.WeaponDefinition == null)

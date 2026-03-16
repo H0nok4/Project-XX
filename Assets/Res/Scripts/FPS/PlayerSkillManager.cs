@@ -7,6 +7,7 @@ public class PlayerSkillManager : MonoBehaviour
 {
     [SerializeField] private PrototypeUnitVitals playerVitals;
     [SerializeField] private PlayerWeaponController weaponController;
+    [SerializeField] private PlayerProgressionRuntime progressionRuntime;
     [SerializeField, HideInInspector] private List<ItemSkill> activeSkills = new List<ItemSkill>();
     [SerializeField, HideInInspector] private float battleFrenzyEndTime;
     [SerializeField, HideInInspector] private float perfectDodgeReadyTime;
@@ -32,10 +33,18 @@ public class PlayerSkillManager : MonoBehaviour
         ResolveReferences();
     }
 
-    public void SetPlayerDependencies(PrototypeUnitVitals vitals, PlayerWeaponController controller)
+    public void SetPlayerDependencies(PrototypeUnitVitals vitals, PlayerWeaponController controller, PlayerProgressionRuntime runtime = null)
     {
         playerVitals = vitals;
         weaponController = controller;
+        if (runtime != null)
+        {
+            progressionRuntime = runtime;
+        }
+        else if (progressionRuntime == null)
+        {
+            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
+        }
     }
 
     public void RefreshFromEquipment()
@@ -137,6 +146,11 @@ public class PlayerSkillManager : MonoBehaviour
         {
             battleFrenzyEndTime = Mathf.Max(battleFrenzyEndTime, Time.time + ItemSkillUtility.BattleFrenzyBuffDuration);
         }
+
+        if (targetVitals != null && playerVitals != null && targetVitals != playerVitals)
+        {
+            progressionRuntime?.HandleTargetKilled(targetVitals.GetComponent<PrototypeBotController>());
+        }
     }
 
     public float GetFireRateMultiplier()
@@ -164,7 +178,7 @@ public class PlayerSkillManager : MonoBehaviour
         var builder = new StringBuilder();
         if (activeSkills != null && activeSkills.Count > 0)
         {
-            builder.Append("Passives ");
+            builder.Append("被动 ");
             builder.Append(activeSkills.Count);
         }
 
@@ -175,7 +189,7 @@ public class PlayerSkillManager : MonoBehaviour
                 builder.Append("  ");
             }
 
-            builder.Append("Frenzy ");
+            builder.Append("狂热 ");
             builder.Append(Mathf.Max(0f, battleFrenzyEndTime - Time.time).ToString("0.0"));
             builder.Append('s');
         }
@@ -187,7 +201,7 @@ public class PlayerSkillManager : MonoBehaviour
                 builder.Append("  ");
             }
 
-            builder.Append("Dodge CD ");
+            builder.Append("闪避冷却 ");
             builder.Append(Mathf.Max(0f, perfectDodgeReadyTime - Time.time).ToString("0.0"));
             builder.Append('s');
         }
@@ -277,6 +291,11 @@ public class PlayerSkillManager : MonoBehaviour
         if (weaponController == null)
         {
             weaponController = GetComponent<PlayerWeaponController>();
+        }
+
+        if (progressionRuntime == null)
+        {
+            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
         }
     }
 }

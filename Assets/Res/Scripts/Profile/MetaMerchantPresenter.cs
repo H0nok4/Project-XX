@@ -56,7 +56,7 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        host.BeginPanel(rect, merchant.DisplayName, accent, $"Lv {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
+        host.BeginPanel(rect, merchant.DisplayName, accent, $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(rect.height - 130f));
 
         bool drewAnyOffer = false;
@@ -98,7 +98,7 @@ public sealed class MetaMerchantPresenter
             GUILayout.Label(detail, host.BodyStyle);
         }
 
-        GUILayout.Label($"价格 {offer.Price}", host.BodyStyle);
+        GUILayout.Label($"价格 {offer.Price} {host.GetCurrencyLabel()}", host.BodyStyle);
         if (GUILayout.Button("购买", host.ButtonStyle, GUILayout.Width(96f)))
         {
             BuyOffer(offer);

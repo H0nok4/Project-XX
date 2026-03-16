@@ -146,6 +146,7 @@ public class PrototypeBotController : MonoBehaviour
     [SerializeField] private int bonusLootRolls;
     [Min(0)]
     [SerializeField] private int bonusLootItemLevel;
+    [SerializeField, HideInInspector] private int enemyLevel = 1;
     [SerializeField] private bool rollCarriedLootOnDeath = true;
     [SerializeField] private bool transferEquippedArmorToCorpse = true;
     [SerializeField] private bool transferMagazineAmmoToCorpse = true;
@@ -184,6 +185,9 @@ public class PrototypeBotController : MonoBehaviour
 
     public Transform CombatTarget => combatTarget;
     public PrototypeEnemyArchetype Archetype => archetype;
+    public int EnemyLevel => Mathf.Max(1, enemyLevel);
+    public bool IsBossProfile => bossLootProfile;
+    public int ExperienceReward => PrototypePlayerProgressionUtility.GetEnemyExperienceReward(EnemyLevel, archetype, bossLootProfile);
 
     private void Awake()
     {
@@ -192,6 +196,7 @@ public class PrototypeBotController : MonoBehaviour
         ResolveReferences();
         RefreshArchetypeDefaults(true);
         EnsureSettings();
+        RefreshEnemyProgression(true);
         InitializeWeaponState();
         desiredRotation = transform.rotation;
         lastKnownTargetPosition = transform.position;
@@ -201,6 +206,7 @@ public class PrototypeBotController : MonoBehaviour
     {
         ResolveReferences();
         EnsureSettings();
+        RefreshEnemyProgression(false);
         PrototypeCombatNoiseSystem.NoiseReported += HandleNoiseReported;
 
         if (vitals != null)
@@ -224,6 +230,7 @@ public class PrototypeBotController : MonoBehaviour
         ResolveReferences();
         RefreshArchetypeDefaults();
         EnsureSettings();
+        RefreshEnemyProgression(false);
     }
 
     public void Configure(
@@ -291,6 +298,7 @@ public class PrototypeBotController : MonoBehaviour
         EnsureSettings();
         InitializeWeaponState();
         ResolveReferences();
+        RefreshEnemyProgression(true);
     }
 
     public void SetCarriedLootTable(LootTableDefinition lootTable)
@@ -304,6 +312,7 @@ public class PrototypeBotController : MonoBehaviour
         bonusLootRarityBias = Mathf.Clamp(rarityBias, 0, 3);
         bonusLootRolls = Mathf.Max(0, bonusRollsOverride);
         bonusLootItemLevel = Mathf.Max(0, itemLevelBonus);
+        RefreshEnemyProgression(false);
     }
 
     private void Update()
@@ -877,17 +886,19 @@ public class PrototypeBotController : MonoBehaviour
     private PrototypeUnitVitals.DamageInfo BuildFirearmDamageInfo(PrototypeWeaponDefinition weaponDefinition)
     {
         AmmoDefinition ammo = weaponDefinition != null ? weaponDefinition.AmmoDefinition : null;
-        float directDamage = ammo != null ? ammo.DirectDamage : fallbackDamage;
+        float weaponDamage = weaponDefinition != null ? weaponDefinition.FirearmDamage : Mathf.Max(1f, fallbackDamage);
+        float directDamage = Mathf.Max(1f, weaponDamage * (ammo != null ? ammo.DamageMultiplier : 1f));
         float armorDamage = ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, directDamage * 0.5f);
         float rarityMultiplier = GetPrimaryWeaponStatMultiplier();
         float damageMultiplier = Mathf.Max(0.1f, primaryWeaponAffixSummary.DamageMultiplier);
+        float enemyDamageMultiplier = PrototypePlayerProgressionUtility.GetEnemyDamageMultiplier(EnemyLevel, bossLootProfile);
         float penetrationPower = (ammo != null ? ammo.PenetrationPower : weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier;
 
         return new PrototypeUnitVitals.DamageInfo
         {
-            damage = Mathf.Max(1f, directDamage * rarityMultiplier * damageMultiplier),
+            damage = Mathf.Max(1f, directDamage * rarityMultiplier * damageMultiplier * enemyDamageMultiplier),
             penetrationPower = Mathf.Max(0f, penetrationPower + primaryWeaponAffixSummary.ArmorPenetrationBonus),
-            armorDamage = Mathf.Max(1f, armorDamage * rarityMultiplier * damageMultiplier),
+            armorDamage = Mathf.Max(1f, armorDamage * rarityMultiplier * damageMultiplier * enemyDamageMultiplier),
             lightBleedChance = ammo != null ? ammo.LightBleedChance : weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.08f,
             heavyBleedChance = ammo != null ? ammo.HeavyBleedChance : weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.02f,
             fractureChance = ammo != null ? ammo.FractureChance : weaponDefinition != null ? weaponDefinition.FractureChance : 0.04f,
@@ -903,17 +914,18 @@ public class PrototypeBotController : MonoBehaviour
     {
         float rarityMultiplier = GetPrimaryWeaponStatMultiplier();
         float damageMultiplier = Mathf.Max(0.1f, primaryWeaponAffixSummary.DamageMultiplier);
+        float enemyDamageMultiplier = PrototypePlayerProgressionUtility.GetEnemyDamageMultiplier(EnemyLevel, bossLootProfile);
         float penetrationPower = weaponDefinition != null ? weaponDefinition.PenetrationPower : 4f;
 
         return new PrototypeUnitVitals.DamageInfo
         {
             damage = weaponDefinition != null
-                ? Mathf.Max(1f, weaponDefinition.MeleeDamage * rarityMultiplier * damageMultiplier)
-                : Mathf.Max(8f, fallbackDamage),
+                ? Mathf.Max(1f, weaponDefinition.MeleeDamage * rarityMultiplier * damageMultiplier * enemyDamageMultiplier)
+                : Mathf.Max(8f, fallbackDamage * enemyDamageMultiplier),
             penetrationPower = Mathf.Max(0f, penetrationPower * rarityMultiplier + primaryWeaponAffixSummary.ArmorPenetrationBonus),
             armorDamage = weaponDefinition != null
-                ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.25f * rarityMultiplier * damageMultiplier)
-                : 6f,
+                ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.25f * rarityMultiplier * damageMultiplier * enemyDamageMultiplier)
+                : Mathf.Max(6f, 6f * enemyDamageMultiplier),
             lightBleedChance = weaponDefinition != null ? weaponDefinition.LightBleedChance : 0.3f,
             heavyBleedChance = weaponDefinition != null ? weaponDefinition.HeavyBleedChance : 0.06f,
             fractureChance = weaponDefinition != null ? weaponDefinition.FractureChance : 0.08f,
@@ -1547,7 +1559,7 @@ public class PrototypeBotController : MonoBehaviour
     private string BuildCorpseLootLabel()
     {
         string baseLabel = string.IsNullOrWhiteSpace(corpseInteractionLabel) ? "Search Corpse" : corpseInteractionLabel.Trim();
-        return $"{gameObject.name} - {baseLabel}";
+        return $"Lv {EnemyLevel} {gameObject.name} - {baseLabel}";
     }
 
     private LootTableDefinition.LootGenerationContext ResolveLootGenerationContext()
@@ -1562,6 +1574,45 @@ public class PrototypeBotController : MonoBehaviour
         }
 
         return context.WithBonuses(bonusLootItemLevel, bonusLootRarityBias, bonusLootRolls);
+    }
+
+    private void RefreshEnemyProgression(bool resetHealth)
+    {
+        enemyLevel = ResolveEnemyLevel();
+        if (vitals == null)
+        {
+            return;
+        }
+
+        float baseVitalHealth = 0f;
+        IReadOnlyList<PrototypeUnitVitals.PartState> bodyPartStates = vitals.BodyParts;
+        if (bodyPartStates != null)
+        {
+            for (int index = 0; index < bodyPartStates.Count; index++)
+            {
+                PrototypeUnitVitals.PartState state = bodyPartStates[index];
+                if (state != null && state.contributesToUnitHealth)
+                {
+                    baseVitalHealth += Mathf.Max(1f, state.baseMaxHealth);
+                }
+            }
+        }
+
+        if (baseVitalHealth <= 0f)
+        {
+            baseVitalHealth = Mathf.Max(1f, vitals.TotalMaxHealth);
+        }
+
+        float healthMultiplier = PrototypePlayerProgressionUtility.GetEnemyHealthMultiplier(EnemyLevel, bossLootProfile);
+        float bonusHealth = Mathf.Max(0f, baseVitalHealth * (healthMultiplier - 1f));
+        vitals.ConfigureCharacterBonuses(bonusHealth, 0f, 1f, resetHealth);
+    }
+
+    private int ResolveEnemyLevel()
+    {
+        int baseLevel = PrototypePlayerProgressionUtility.GetEnemyBaseLevel(archetype);
+        int bossBonus = bossLootProfile ? 1 : 0;
+        return Mathf.Max(1, baseLevel + Mathf.Max(0, bonusLootItemLevel) + bossBonus);
     }
 
     private float ResolveImpactForce(PrototypeWeaponDefinition weaponDefinition)

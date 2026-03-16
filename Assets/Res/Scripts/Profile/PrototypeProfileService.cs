@@ -879,10 +879,7 @@ public static class PrototypeProfileService
         profile.worldState.worldStateVersion = Mathf.Max(
             profile.worldState.worldStateVersion,
             ProfileSchemaVersion.CurrentWorldStateVersion);
-        profile.progression.progressionDataVersion = Mathf.Max(
-            profile.progression.progressionDataVersion,
-            ProfileSchemaVersion.CurrentProgressionDataVersion);
-        profile.progression.playerLevel = Mathf.Max(1, profile.progression.playerLevel);
+        PrototypePlayerProgressionUtility.Sanitize(profile.progression);
         profile.worldState.unlockedRaidMerchantIds ??= new List<string>();
         profile.worldState.unlockedRaidNpcIds ??= new List<string>();
         profile.worldState.questChainStages ??= new List<WorldStateData.QuestChainStageRecord>();

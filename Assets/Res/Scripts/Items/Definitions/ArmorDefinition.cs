@@ -10,6 +10,8 @@ public class ArmorDefinition : ItemDefinition
     [SerializeField] private int armorClass = 3;
     [Min(1f)]
     [SerializeField] private float maxDurability = 60f;
+    [Min(0f)]
+    [SerializeField] private float bonusHealth = 0f;
     [Range(0f, 1f)]
     [SerializeField] private float bluntDamageMultiplier = 0.18f;
     [Min(0f)]
@@ -21,9 +23,12 @@ public class ArmorDefinition : ItemDefinition
     [Range(0f, 1f)]
     [SerializeField] private float fractureProtection = 0.35f;
 
+    protected override bool SupportsLevelProgression => true;
+
     public IReadOnlyList<string> CoveredPartIds => coveredPartIds;
     public int ArmorClass => Mathf.Max(1, armorClass);
     public float MaxDurability => GetScaledValue(Mathf.Max(1f, maxDurability));
+    public float BonusHealth => GetScaledValue(Mathf.Max(0f, bonusHealth));
     public float BluntDamageMultiplier => Mathf.Clamp01(bluntDamageMultiplier);
     public float BlockedDurabilityLossMultiplier => Mathf.Max(0f, blockedDurabilityLossMultiplier);
     public float PenetratedDurabilityLossMultiplier => Mathf.Max(0f, penetratedDurabilityLossMultiplier);
@@ -37,6 +42,7 @@ public class ArmorDefinition : ItemDefinition
         float weight,
         int armorLevel,
         float durability,
+        float healthBonus,
         float bluntDamage,
         float blockedLoss,
         float penetratedLoss,
@@ -47,6 +53,7 @@ public class ArmorDefinition : ItemDefinition
         Configure(id, nameLabel, itemDescription, 1, weight);
         armorClass = Mathf.Max(1, armorLevel);
         maxDurability = Mathf.Max(1f, durability);
+        bonusHealth = Mathf.Max(0f, healthBonus);
         bluntDamageMultiplier = Mathf.Clamp01(bluntDamage);
         blockedDurabilityLossMultiplier = Mathf.Max(0f, blockedLoss);
         penetratedDurabilityLossMultiplier = Mathf.Max(0f, penetratedLoss);
@@ -54,15 +61,17 @@ public class ArmorDefinition : ItemDefinition
         fractureProtection = Mathf.Clamp01(fractureGuard);
         coveredPartIds = new List<string>();
 
-        if (coverage != null)
+        if (coverage == null)
         {
-            foreach (string coveredPartId in coverage)
+            return;
+        }
+
+        foreach (string coveredPartId in coverage)
+        {
+            string normalizedPartId = NormalizePartId(coveredPartId);
+            if (!string.IsNullOrWhiteSpace(normalizedPartId) && !coveredPartIds.Contains(normalizedPartId))
             {
-                string normalizedPartId = NormalizePartId(coveredPartId);
-                if (!string.IsNullOrWhiteSpace(normalizedPartId) && !coveredPartIds.Contains(normalizedPartId))
-                {
-                    coveredPartIds.Add(normalizedPartId);
-                }
+                coveredPartIds.Add(normalizedPartId);
             }
         }
     }
@@ -86,10 +95,12 @@ public class ArmorDefinition : ItemDefinition
         return false;
     }
 
-    private void OnValidate()
+    protected override void OnValidate()
     {
+        base.OnValidate();
         armorClass = Mathf.Max(1, armorClass);
         maxDurability = Mathf.Max(1f, maxDurability);
+        bonusHealth = Mathf.Max(0f, bonusHealth);
         bluntDamageMultiplier = Mathf.Clamp01(bluntDamageMultiplier);
         blockedDurabilityLossMultiplier = Mathf.Max(0f, blockedDurabilityLossMultiplier);
         penetratedDurabilityLossMultiplier = Mathf.Max(0f, penetratedDurabilityLossMultiplier);

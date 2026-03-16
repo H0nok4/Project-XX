@@ -140,6 +140,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         public float EffectiveFractureProtection => definition != null
             ? Mathf.Clamp01(definition.FractureProtection * Mathf.Lerp(1f, 1.35f, StatMultiplier - 1f))
             : 0f;
+        public float BonusHealth => definition != null ? ItemRarityUtility.ScaleValue(definition.BonusHealth, Rarity) : 0f;
 
         public void ApplyDefinition(
             ArmorDefinition armorDefinition,
@@ -254,6 +255,8 @@ public class PrototypeUnitVitals : MonoBehaviour
         public PrototypeBodyPartType legacyBodyPart = PrototypeBodyPartType.Torso;
         public string partId = string.Empty;
         public string displayName = string.Empty;
+        [Min(1f)] public float baseMaxHealth = 1f;
+        [Min(0f)] public float armorBonusHealth = 0f;
         [Min(1f)] public float maxHealth = 1f;
         [Min(0f)] public float currentHealth = 1f;
         [Min(0f)] public float overflowMultiplier = 1f;
@@ -272,7 +275,9 @@ public class PrototypeUnitVitals : MonoBehaviour
                 ? partId
                 : definition.displayName.Trim();
             legacyBodyPart = MapLegacyBodyPart(partId);
-            maxHealth = Mathf.Max(1f, definition != null ? definition.maxHealth : 1f);
+            baseMaxHealth = Mathf.Max(1f, definition != null ? definition.maxHealth : 1f);
+            armorBonusHealth = 0f;
+            maxHealth = baseMaxHealth;
             currentHealth = Mathf.Clamp(preservedCurrentHealth, 0f, maxHealth);
             overflowMultiplier = Mathf.Max(0f, definition != null ? definition.overflowMultiplier : 0f);
             contributesToUnitHealth = definition != null && definition.contributesToUnitHealth;
@@ -311,7 +316,9 @@ public class PrototypeUnitVitals : MonoBehaviour
 
             partId = NormalizePartId(partId);
             displayName = string.IsNullOrWhiteSpace(displayName) ? partId : displayName.Trim();
-            maxHealth = Mathf.Max(1f, maxHealth);
+            baseMaxHealth = Mathf.Max(1f, baseMaxHealth > HealthEpsilon ? baseMaxHealth : maxHealth);
+            armorBonusHealth = Mathf.Max(0f, armorBonusHealth);
+            maxHealth = Mathf.Max(1f, baseMaxHealth + armorBonusHealth);
             currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
             overflowMultiplier = Mathf.Max(0f, overflowMultiplier);
             blackedFollowUpDamageThreshold = Mathf.Max(0f, blackedFollowUpDamageThreshold);
@@ -409,6 +416,13 @@ public class PrototypeUnitVitals : MonoBehaviour
     [SerializeField] private float staminaRecoveryDelay = 0.45f;
     [Min(0f)]
     [SerializeField] private float exhaustionRecoveryDelay = 1.4f;
+    [Header("Character Bonuses")]
+    [Min(0f)]
+    [SerializeField] private float characterBonusHealth;
+    [Min(0f)]
+    [SerializeField] private float characterBonusStamina;
+    [Min(0.1f)]
+    [SerializeField] private float medicalEffectivenessMultiplier = 1f;
     [Header("Runtime State")]
     [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
@@ -443,9 +457,10 @@ public class PrototypeUnitVitals : MonoBehaviour
     public float MovementPenaltyMultiplier => (statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f) * EquipmentMoveSpeedMultiplier;
     public float EquipmentMoveSpeedMultiplier => equipmentMoveSpeedMultiplier;
     public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
+    public float MedicalEffectivenessMultiplier => Mathf.Max(0.1f, medicalEffectivenessMultiplier);
     public DamageSourceSnapshot LastDamageSource => lastDamageSource;
     public PrototypeUnitVitals LastDamageSourceUnit => lastDamageSourceUnit;
-    public float MaxStamina => Mathf.Max(1f, maxStamina);
+    public float MaxStamina => Mathf.Max(1f, maxStamina + characterBonusStamina);
     public float CurrentStamina => Mathf.Clamp(currentStamina, 0f, MaxStamina);
     public float StaminaNormalized => MaxStamina > HealthEpsilon ? Mathf.Clamp01(CurrentStamina / MaxStamina) : 0f;
     public float StaminaActionThresholdNormalized => Mathf.Clamp01(staminaActionThresholdNormalized);
@@ -541,6 +556,7 @@ public class PrototypeUnitVitals : MonoBehaviour
     {
         armorLoadout = CopyArmorLoadoutDefinitions(armorDefinitions);
         SyncArmorLoadout(armorLoadout, true);
+        SanitizeArmor();
         skillManager?.RefreshFromEquipment();
     }
 
@@ -680,6 +696,14 @@ public class PrototypeUnitVitals : MonoBehaviour
         allowImpactForceWhenAlive = allow;
     }
 
+    public void ConfigureCharacterBonuses(float healthBonus, float staminaBonus, float healingMultiplier, bool resetResourcesToFull = false)
+    {
+        characterBonusHealth = Mathf.Max(0f, healthBonus);
+        characterBonusStamina = Mathf.Max(0f, staminaBonus);
+        medicalEffectivenessMultiplier = Mathf.Max(0.1f, healingMultiplier);
+        EnsureBodyPartSetup(resetResourcesToFull);
+    }
+
     public bool TryUseMedicalItem(MedicalItemDefinition medicalItem)
     {
         if (medicalItem == null)
@@ -706,9 +730,10 @@ public class PrototypeUnitVitals : MonoBehaviour
             used |= statusEffects.RemoveFractures(medicalItem.CuresFractures);
         }
 
-        if (medicalItem.HealAmount > HealthEpsilon)
+        float healingAmount = medicalItem.GetHealingAmount(TotalMaxHealth) * MedicalEffectivenessMultiplier;
+        if (healingAmount > HealthEpsilon)
         {
-            used |= RestoreHealth(medicalItem.HealAmount);
+            used |= RestoreHealth(healingAmount);
         }
 
         if (medicalItem.PainkillerDuration > HealthEpsilon && statusEffects != null)
@@ -1328,6 +1353,86 @@ public class PrototypeUnitVitals : MonoBehaviour
         equippedArmor = updatedArmor;
     }
 
+    private void ApplyArmorHealthBonuses(bool resetHealth)
+    {
+        if (bodyParts == null || bodyParts.Count == 0)
+        {
+            return;
+        }
+
+        var bonusHealthByPartId = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        if (equippedArmor != null)
+        {
+            for (int armorIndex = 0; armorIndex < equippedArmor.Count; armorIndex++)
+            {
+                ArmorState armorState = equippedArmor[armorIndex];
+                if (armorState == null || armorState.definition == null || armorState.BonusHealth <= HealthEpsilon)
+                {
+                    continue;
+                }
+
+                IReadOnlyList<string> coveredPartIds = armorState.definition.CoveredPartIds;
+                if (coveredPartIds == null || coveredPartIds.Count == 0)
+                {
+                    continue;
+                }
+
+                float sharedBonus = armorState.BonusHealth / coveredPartIds.Count;
+                for (int partIndex = 0; partIndex < coveredPartIds.Count; partIndex++)
+                {
+                    string coveredPartId = NormalizePartId(coveredPartIds[partIndex]);
+                    if (string.IsNullOrWhiteSpace(coveredPartId))
+                    {
+                        continue;
+                    }
+
+                    bonusHealthByPartId.TryGetValue(coveredPartId, out float existingBonus);
+                    bonusHealthByPartId[coveredPartId] = existingBonus + sharedBonus;
+                }
+            }
+        }
+
+        int vitalPartCount = 0;
+        for (int partIndex = 0; partIndex < bodyParts.Count; partIndex++)
+        {
+            PartState state = bodyParts[partIndex];
+            if (state != null && state.contributesToUnitHealth)
+            {
+                vitalPartCount++;
+            }
+        }
+
+        float sharedCharacterBonus = vitalPartCount > 0
+            ? Mathf.Max(0f, characterBonusHealth) / vitalPartCount
+            : 0f;
+
+        for (int partIndex = 0; partIndex < bodyParts.Count; partIndex++)
+        {
+            PartState state = bodyParts[partIndex];
+            if (state == null)
+            {
+                continue;
+            }
+
+            string normalizedPartId = NormalizePartId(state.partId);
+            float bonusHealth = 0f;
+            if (!string.IsNullOrWhiteSpace(normalizedPartId))
+            {
+                bonusHealthByPartId.TryGetValue(normalizedPartId, out bonusHealth);
+            }
+
+            if (state.contributesToUnitHealth)
+            {
+                bonusHealth += sharedCharacterBonus;
+            }
+
+            state.baseMaxHealth = Mathf.Max(1f, state.baseMaxHealth > HealthEpsilon ? state.baseMaxHealth : state.maxHealth);
+            state.armorBonusHealth = Mathf.Max(0f, bonusHealth);
+            state.maxHealth = Mathf.Max(1f, state.baseMaxHealth + state.armorBonusHealth);
+            state.currentHealth = resetHealth ? state.maxHealth : Mathf.Clamp(state.currentHealth, 0f, state.maxHealth);
+        }
+    }
+
     private void RecalculateEquipmentModifiers()
     {
         float moveBonus = 0f;
@@ -1475,19 +1580,23 @@ public class PrototypeUnitVitals : MonoBehaviour
                 equippedArmor.RemoveAt(index);
             }
         }
-    
+
+        ApplyArmorHealthBonuses(false);
         RecalculateEquipmentModifiers();
     }
 
     private void SanitizeStamina(bool resetToFull)
     {
         maxStamina = Mathf.Max(1f, maxStamina);
+        characterBonusHealth = Mathf.Max(0f, characterBonusHealth);
+        characterBonusStamina = Mathf.Max(0f, characterBonusStamina);
+        medicalEffectivenessMultiplier = Mathf.Max(0.1f, medicalEffectivenessMultiplier);
         staminaRecoveryPerSecond = Mathf.Max(0f, staminaRecoveryPerSecond);
         staminaActionThresholdNormalized = Mathf.Clamp01(staminaActionThresholdNormalized);
         staminaRecoveryDelay = Mathf.Max(0f, staminaRecoveryDelay);
         exhaustionRecoveryDelay = Mathf.Max(0f, exhaustionRecoveryDelay);
         staminaRecoveryBlockedTimer = Mathf.Max(0f, staminaRecoveryBlockedTimer);
-        currentStamina = resetToFull ? maxStamina : Mathf.Clamp(currentStamina, 0f, maxStamina);
+        currentStamina = resetToFull ? MaxStamina : Mathf.Clamp(currentStamina, 0f, MaxStamina);
     }
 
     private void ResetStaminaToFull()
@@ -1626,6 +1735,8 @@ public class PrototypeUnitVitals : MonoBehaviour
             legacyBodyPart = MapLegacyBodyPart(partId),
             partId = NormalizePartId(partId),
             displayName = displayName,
+            baseMaxHealth = maxHealth,
+            armorBonusHealth = 0f,
             maxHealth = maxHealth,
             currentHealth = maxHealth,
             overflowMultiplier = overflowMultiplier,

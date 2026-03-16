@@ -493,24 +493,26 @@ public class PrototypeMerchantCatalog : ScriptableObject
             return 1f;
         }
 
-        float basePrice = Mathf.Max(1f, definition.UnitWeight * 10f + definition.ItemLevel * 1.5f);
+        float levelValue = definition.HasLevelProgression ? definition.ItemLevel * 1.5f : 0f;
+        float basePrice = Mathf.Max(1f, definition.UnitWeight * 10f + levelValue);
         if (definition is PrototypeWeaponDefinition weaponDefinition)
         {
             return weaponDefinition.IsMeleeWeapon
                 ? Mathf.Max(10f, basePrice + weaponDefinition.MeleeDamage * 0.18f + weaponDefinition.PenetrationPower * 0.12f)
-                : Mathf.Max(16f, basePrice + weaponDefinition.EffectiveRange * 0.08f + weaponDefinition.PenetrationPower * 0.18f + weaponDefinition.RoundsPerMinute * 0.01f);
+                : Mathf.Max(16f, basePrice + weaponDefinition.FirearmDamage * 0.12f + weaponDefinition.EffectiveRange * 0.08f + weaponDefinition.PenetrationPower * 0.18f + weaponDefinition.RoundsPerMinute * 0.01f);
         }
 
         if (definition is ArmorDefinition armorDefinition)
         {
-            return Mathf.Max(12f, basePrice + armorDefinition.ArmorClass * 4f + armorDefinition.MaxDurability * 0.12f);
+            return Mathf.Max(12f, basePrice + armorDefinition.ArmorClass * 4f + armorDefinition.MaxDurability * 0.12f + armorDefinition.BonusHealth * 0.25f);
         }
 
         if (definition is MedicalItemDefinition medicalDefinition)
         {
+            float healingValue = medicalDefinition.GetHealingAmount(320f);
             return Mathf.Max(4f,
                 basePrice
-                + medicalDefinition.HealAmount * 0.08f
+                + healingValue * 0.08f
                 + medicalDefinition.RemovesLightBleeds * 1.5f
                 + medicalDefinition.RemovesHeavyBleeds * 2.5f
                 + medicalDefinition.CuresFractures * 3f
@@ -519,7 +521,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
 
         if (definition is AmmoDefinition ammoDefinition)
         {
-            return Mathf.Max(1f, basePrice + ammoDefinition.DirectDamage * 0.12f + ammoDefinition.PenetrationPower * 0.08f + ammoDefinition.ArmorDamage * 0.05f);
+            return Mathf.Max(1f, basePrice + ammoDefinition.DamageMultiplier * 12f + ammoDefinition.PenetrationPower * 0.08f + ammoDefinition.ArmorDamage * 0.05f);
         }
 
         return basePrice;
@@ -534,10 +536,10 @@ public class PrototypeMerchantCatalog : ScriptableObject
 
         ItemDefinitionBase definition = instance.DefinitionBase;
         float computedPrice = Mathf.Max(1f, baseReferencePrice);
-        int itemLevel = definition != null ? definition.ItemLevel : 1;
         bool isGear = instance.IsWeapon || instance.IsArmor;
+        int itemLevel = definition != null && definition.HasLevelProgression ? definition.ItemLevel : ItemDefinition.MinItemLevel;
 
-        computedPrice *= 1f + Mathf.Max(0, itemLevel - 1) * (isGear ? 0.08f : 0.04f);
+        computedPrice *= 1f + Mathf.Max(0, itemLevel - 1) * (isGear ? 0.08f : 0f);
         if (isGear)
         {
             computedPrice *= GetRarityPriceMultiplier(instance.Rarity);

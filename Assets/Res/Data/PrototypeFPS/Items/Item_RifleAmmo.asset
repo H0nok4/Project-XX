@@ -18,9 +18,9 @@ MonoBehaviour:
   maxStackSize: 90
   unitWeight: 0.02
   icon: {fileID: 0}
-  itemLevel: 8
-  requiredLevel: 6
-  directDamage: 33
+  itemLevel: 1
+  requiredLevel: 1
+  damageMultiplier: 0.35
   impactForce: 18
   penetrationPower: 30
   armorDamage: 24

@@ -115,16 +115,16 @@ public class PlayerInventoryWindowController : MonoBehaviour
         GUI.Box(panelRect, string.Empty, windowStyle);
 
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
-        GUILayout.Label("Raid Backpack", windowStyle);
+        GUILayout.Label("战局背包", windowStyle);
         GUILayout.Label(
-            $"Backpack {inventory.OccupiedSlots}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\nSecure {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  Special {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\nPress Tab or Esc to close. Only raid backpack contents can be dropped.",
+            $"背包 {inventory.OccupiedSlots}/{inventory.MaxSlots}  重量 {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\n安全箱 {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  特殊栏 {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\n按 Tab 或 Esc 关闭。只有战局背包里的物品可以丢弃。",
             windowStyle);
 
         GUILayout.Space(6f);
 
         if (inventory.IsEmpty)
         {
-            GUILayout.Label("Backpack is empty.", windowStyle);
+            GUILayout.Label("背包为空。", windowStyle);
         }
         else
         {
@@ -142,19 +142,19 @@ public class PlayerInventoryWindowController : MonoBehaviour
                 GUILayout.Label(GetInventoryEntryDetail(item), windowStyle);
                 GUILayout.BeginHorizontal();
 
-                if (item.IsWeapon && GUILayout.Button("Equip", buttonStyle, GUILayout.Width(100f)))
+                if (item.IsWeapon && GUILayout.Button("装备", buttonStyle, GUILayout.Width(100f)))
                 {
                     EquipWeaponFromInventory(index);
                     GUIUtility.ExitGUI();
                 }
 
-                if (item.Quantity > 1 && GUILayout.Button("Drop 1", buttonStyle, GUILayout.Width(100f)))
+                if (item.Quantity > 1 && GUILayout.Button("丢 1 个", buttonStyle, GUILayout.Width(100f)))
                 {
                     DropItem(index, 1);
                     GUIUtility.ExitGUI();
                 }
 
-                if (GUILayout.Button(item.Quantity > 1 ? "Drop Stack" : "Drop", buttonStyle, GUILayout.Width(120f)))
+                if (GUILayout.Button(item.Quantity > 1 ? "整组丢弃" : "丢弃", buttonStyle, GUILayout.Width(120f)))
                 {
                     DropItem(index, item.Quantity);
                     GUIUtility.ExitGUI();
@@ -167,11 +167,11 @@ public class PlayerInventoryWindowController : MonoBehaviour
             GUILayout.EndScrollView();
         }
 
-        DrawProtectedSection("Secure Container", secureInventory);
-        DrawProtectedSection("Special Equipment", specialInventory);
+        DrawProtectedSection("安全箱", secureInventory);
+        DrawProtectedSection("特殊装备", specialInventory);
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Close", buttonStyle, GUILayout.Width(120f)))
+        if (GUILayout.Button("关闭", buttonStyle, GUILayout.Width(120f)))
         {
             Close();
             GUIUtility.ExitGUI();
@@ -265,13 +265,13 @@ public class PlayerInventoryWindowController : MonoBehaviour
         GUILayout.Label(title, windowStyle);
         if (inventory == null)
         {
-            GUILayout.Label("Unavailable.", windowStyle);
+            GUILayout.Label("不可用。", windowStyle);
             return;
         }
 
         if (inventory.IsEmpty)
         {
-            GUILayout.Label("Empty.", windowStyle);
+            GUILayout.Label("为空。", windowStyle);
             return;
         }
 
@@ -292,47 +292,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
     private static string GetInventoryEntryDetail(ItemInstance item)
     {
-        if (item == null)
-        {
-            return string.Empty;
-        }
-
-        string detail;
-        if (item.IsWeapon && item.WeaponDefinition != null)
-        {
-            if (item.WeaponDefinition.IsThrowableWeapon)
-            {
-                detail = $"Throwable  Fuse {item.WeaponDefinition.FuseSeconds:0.0}s  Radius {item.WeaponDefinition.ExplosionRadius:0.0}m  Weight {item.TotalWeight:0.00}";
-            }
-            else
-            {
-                detail = item.WeaponDefinition.IsMeleeWeapon
-                    ? $"Melee  Weight {item.TotalWeight:0.00}"
-                    : $"Ammo {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  Weight {item.TotalWeight:0.00}";
-            }
-        }
-        else if (item.IsArmor)
-        {
-            detail = $"Durability {item.CurrentDurability:0.0}  Weight {item.TotalWeight:0.00}";
-        }
-        else
-        {
-            detail = $"Weight {item.TotalWeight:0.00}";
-        }
-
-        string affixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
-        if (!string.IsNullOrWhiteSpace(affixSummary))
-        {
-            detail = string.IsNullOrWhiteSpace(detail) ? affixSummary : $"{detail}\n{affixSummary}";
-        }
-
-        string skillSummary = ItemSkillUtility.BuildSkillSummaryRich(item.Skills);
-        if (!string.IsNullOrWhiteSpace(skillSummary))
-        {
-            detail = string.IsNullOrWhiteSpace(detail) ? skillSummary : $"{detail}\n{skillSummary}";
-        }
-
-        return detail;
+        return PrototypeMainMenuController.BuildItemInstanceDetail(item);
     }
 
     private static int GetStackCount(InventoryContainer inventory)

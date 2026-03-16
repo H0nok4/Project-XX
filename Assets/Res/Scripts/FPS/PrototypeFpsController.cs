@@ -41,6 +41,7 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
+    [SerializeField] private PlayerProgressionRuntime progressionRuntime;
 
     private PrototypeFpsMovementModule movementModule;
     private PrototypeFpsInput fpsInput;
@@ -83,8 +84,14 @@ public class PrototypeFpsController : MonoBehaviour
         medicalController = GetOrCreateMedicalController();
         throwableController = GetOrCreateThrowableController();
         skillManager = GetOrCreateSkillManager();
+        progressionRuntime = GetOrCreateProgressionRuntime();
 
         ApplyControllerSettings();
+
+        if (progressionRuntime != null)
+        {
+            progressionRuntime.SetPlayerDependencies(playerVitals, weaponController, skillManager);
+        }
 
         if (weaponController != null)
         {
@@ -94,7 +101,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (skillManager != null)
         {
-            skillManager.SetPlayerDependencies(playerVitals, weaponController);
+            skillManager.SetPlayerDependencies(playerVitals, weaponController, progressionRuntime);
             skillManager.RefreshFromEquipment();
         }
 
@@ -190,6 +197,24 @@ public class PrototypeFpsController : MonoBehaviour
         return ItemInstance.Create(GetMeleeWeaponInstance());
     }
 
+    public void ConfigurePlayerProgression(PlayerProgressionData progressionData)
+    {
+        progressionRuntime = GetOrCreateProgressionRuntime();
+        progressionRuntime?.SetPlayerDependencies(playerVitals, weaponController, skillManager);
+        progressionRuntime?.Configure(progressionData);
+        skillManager?.SetPlayerDependencies(playerVitals, weaponController, progressionRuntime);
+    }
+
+    public void CopyPlayerProgressionTo(PlayerProgressionData target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        progressionRuntime?.ExportTo(target);
+    }
+
     private void Update()
     {
         if (fpsInput == null || !fpsInput.IsReady || viewCamera == null)
@@ -208,6 +233,7 @@ public class PrototypeFpsController : MonoBehaviour
             weaponController?.TickVisuals(Time.deltaTime);
             medicalController?.TickFeedback(Time.deltaTime);
             throwableController?.TickFeedback(Time.deltaTime);
+            progressionRuntime?.TickFeedback(Time.deltaTime);
             return;
         }
 
@@ -235,6 +261,7 @@ public class PrototypeFpsController : MonoBehaviour
         weaponController?.TickVisuals(Time.deltaTime);
         medicalController?.TickFeedback(Time.deltaTime);
         throwableController?.TickFeedback(Time.deltaTime);
+        progressionRuntime?.TickFeedback(Time.deltaTime);
     }
 
     private void HandleLook()
@@ -472,6 +499,18 @@ public class PrototypeFpsController : MonoBehaviour
         return manager;
     }
 
+    private PlayerProgressionRuntime GetOrCreateProgressionRuntime()
+    {
+        PlayerProgressionRuntime runtime = progressionRuntime != null ? progressionRuntime : GetComponent<PlayerProgressionRuntime>();
+        if (runtime == null)
+        {
+            runtime = gameObject.AddComponent<PlayerProgressionRuntime>();
+        }
+
+        progressionRuntime = runtime;
+        return runtime;
+    }
+
     private void OnGUI()
     {
         if (!showHud)
@@ -489,7 +528,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         GUI.Label(
             new Rect(18f, 100f, 380f, 280f),
-            "Move\nLook\nAttack\nThrow G\nInteract\nInventory\nEquip 1 / 2 / 3\nReload\nToggle Fire Mode\nQuick Heal 4\nStop Bleed 5\nSplint 6\nPainkiller 7\nJump\nSprint Shift\nToggle Crouch C\nAdjust Pace LCtrl + Wheel\nToggle Cursor",
+            "移动 WASD\n观察 鼠标\n攻击 左键\n投掷 G\n交互 E\n背包 Tab\n切枪 1 / 2 / 3\n换弹 R\n切换射击模式 B\n快速治疗 4\n止血 5\n夹板 6\n止痛 7\n跳跃 Space\n冲刺 Shift\n切换蹲伏 C\n步速 LeftCtrl + 滚轮\n切换鼠标 Esc",
             hudStyle);
 
         if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
@@ -505,49 +544,92 @@ public class PrototypeFpsController : MonoBehaviour
         {
             float cooldownRemaining = Mathf.Max(0f, hudState.NextAttackTime - Time.time);
             stateLine = cooldownRemaining > 0f
-                ? $"Cooldown {cooldownRemaining:0.00}s"
-                : "Ready";
+                ? $"冷却 {cooldownRemaining:0.00}s"
+                : "就绪";
         }
         else if (hudState.IsReloading)
         {
-            stateLine = $"Reloading {Mathf.Max(0f, hudState.ReloadEndTime - Time.time):0.0}s";
+            stateLine = $"换弹 {Mathf.Max(0f, hudState.ReloadEndTime - Time.time):0.0}s";
         }
         else
         {
-            stateLine = $"{hudState.FireMode}  {hudState.MagazineAmmo}/{hudState.Definition.MagazineSize}  Reserve {hudState.ReserveAmmo}";
+            stateLine = $"{GetFireModeLabel(hudState.FireMode)}  弹匣 {hudState.MagazineAmmo}/{hudState.Definition.MagazineSize}  备弹 {hudState.ReserveAmmo}";
         }
 
+        string statsLine = BuildWeaponStatsText(hudState);
+
         DrawStaminaBar(new Rect(18f, 394f, 280f, 24f));
-        GUI.Box(new Rect(Screen.width - 370f, 18f, 340f, 172f), $"{weaponLine}\n{stateLine}\n{BuildCombatStatusText()}", hudStyle);
+        GUI.Box(
+            new Rect(Screen.width - 394f, 18f, 364f, 236f),
+            $"{weaponLine}\n{stateLine}\n{statsLine}\n{BuildCombatStatusText()}",
+            hudStyle);
+    }
+
+    private static string BuildWeaponStatsText(PlayerWeaponController.WeaponHudState hudState)
+    {
+        PrototypeWeaponDefinition definition = hudState.Definition;
+        if (definition == null)
+        {
+            return string.Empty;
+        }
+
+        if (definition.IsThrowableWeapon)
+        {
+            return $"爆炸 {definition.ExplosionDamage:0}  半径 {definition.ExplosionRadius:0.0}m";
+        }
+
+        if (definition.IsMeleeWeapon)
+        {
+            return $"伤害 {definition.MeleeDamage:0}  穿深 {definition.PenetrationPower:0}";
+        }
+
+        AmmoDefinition ammoDefinition = definition.AmmoDefinition;
+        float ammoMultiplier = ammoDefinition != null ? ammoDefinition.DamageMultiplier : 1f;
+        float finalDamage = definition.FirearmDamage * ammoMultiplier;
+        float penetration = ammoDefinition != null ? ammoDefinition.PenetrationPower : definition.PenetrationPower;
+        return $"伤害 {definition.FirearmDamage:0} x {ammoMultiplier:0.00} = {finalDamage:0}  穿深 {penetration:0}";
+    }
+
+    private static string GetFireModeLabel(PrototypeWeaponFireMode fireMode)
+    {
+        switch (fireMode)
+        {
+            case PrototypeWeaponFireMode.Auto:
+                return "全自动";
+            case PrototypeWeaponFireMode.Burst:
+                return "点射";
+            default:
+                return "半自动";
+        }
     }
 
     private string BuildCombatStatusText()
     {
         if (playerVitals == null)
         {
-            return "No vitals";
+            return "生命系统未就绪";
         }
 
         var builder = new StringBuilder(192);
-        builder.Append("HP ");
+        builder.Append("生命 ");
         builder.Append(Mathf.RoundToInt(playerVitals.TotalCurrentHealth));
         builder.Append('/');
         builder.Append(Mathf.RoundToInt(playerVitals.TotalMaxHealth));
-        builder.Append("\nSTA ");
+        builder.Append("\n体力 ");
         builder.Append(Mathf.RoundToInt(playerVitals.CurrentStamina));
         builder.Append('/');
         builder.Append(Mathf.RoundToInt(playerVitals.MaxStamina));
         if (playerVitals.StaminaRecoveryBlockedRemaining > 0f)
         {
-            builder.Append(playerVitals.IsExhausted ? "  Exhausted " : "  Recover ");
+            builder.Append(playerVitals.IsExhausted ? "  力竭 " : "  恢复 ");
             builder.Append(playerVitals.StaminaRecoveryBlockedRemaining.ToString("0.0"));
             builder.Append('s');
         }
 
-        builder.Append("\nMove ");
+        builder.Append("\n姿态 ");
         bool isSprinting = movementModule != null && movementModule.IsSprinting;
         bool isCrouching = movementModule != null && movementModule.IsCrouching;
-        builder.Append(isSprinting ? "Sprint" : isCrouching ? "Crouch" : "Stand");
+        builder.Append(isSprinting ? "冲刺" : isCrouching ? "蹲伏" : "站立");
         builder.Append(' ');
         builder.Append(Mathf.RoundToInt((movementModule != null ? movementModule.SelectedMovementSpeedRatio : 1f) * 100f));
         builder.Append('%');
@@ -556,39 +638,39 @@ public class PrototypeFpsController : MonoBehaviour
         float torsoArmor = playerVitals.GetArmorDurabilityNormalized("torso");
         if (headArmor > 0f || torsoArmor > 0f)
         {
-            builder.Append("\nArmor H ");
+            builder.Append("\n护甲 头 ");
             builder.Append(Mathf.RoundToInt(headArmor * 100f));
-            builder.Append("%  T ");
+            builder.Append("%  胸 ");
             builder.Append(Mathf.RoundToInt(torsoArmor * 100f));
             builder.Append('%');
         }
 
-        builder.Append("\nStatus ");
+        builder.Append("\n状态 ");
         if (playerVitals.HasHeavyBleed)
         {
-            builder.Append("HeavyBleed ");
+            builder.Append("重出血 ");
         }
 
         if (playerVitals.HasLightBleed)
         {
-            builder.Append("LightBleed ");
+            builder.Append("轻出血 ");
         }
 
         if (playerVitals.HasFracture)
         {
-            builder.Append("Fracture ");
+            builder.Append("骨折 ");
         }
 
         if (playerVitals.IsPainkillerActive)
         {
-            builder.Append("PK ");
+            builder.Append("止痛 ");
             builder.Append(playerVitals.PainkillerRemaining.ToString("0"));
             builder.Append('s');
         }
 
         if (!playerVitals.HasAnyBleed && !playerVitals.HasFracture && !playerVitals.IsPainkillerActive)
         {
-            builder.Append("Clean");
+            builder.Append("正常");
         }
 
         string feedbackMessage = medicalController != null ? medicalController.FeedbackMessage : string.Empty;
@@ -610,6 +692,20 @@ public class PrototypeFpsController : MonoBehaviour
         {
             builder.Append("\n");
             builder.Append(throwableFeedback);
+        }
+
+        string progressionSummary = progressionRuntime != null ? progressionRuntime.BuildHudSummary() : string.Empty;
+        if (!string.IsNullOrWhiteSpace(progressionSummary))
+        {
+            builder.Append("\n");
+            builder.Append(progressionSummary);
+        }
+
+        string progressionFeedback = progressionRuntime != null ? progressionRuntime.FeedbackMessage : string.Empty;
+        if (!string.IsNullOrWhiteSpace(progressionFeedback))
+        {
+            builder.Append("\n");
+            builder.Append(progressionFeedback);
         }
 
         string skillSummary = skillManager != null ? skillManager.BuildHudSummary() : string.Empty;
@@ -648,9 +744,9 @@ public class PrototypeFpsController : MonoBehaviour
 
         string label = recoveryBlocked
             ? playerVitals.IsExhausted
-                ? $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  Exhausted {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-                : $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  Recover {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-            : $"Stamina {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
+                ? $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  力竭 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
+                : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  恢复 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
+            : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
         GUI.Label(rect, label, barLabelStyle);
     }
 
@@ -693,7 +789,9 @@ public class PrototypeFpsController : MonoBehaviour
     {
         Cursor.lockState = shouldLock ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !shouldLock;
-    }    private void OnValidate()
+    }
+
+    private void OnValidate()
     {
         EnsureCombatSettings();
 
@@ -756,6 +854,11 @@ public class PrototypeFpsController : MonoBehaviour
             skillManager = GetComponent<PlayerSkillManager>();
         }
 
+        if (progressionRuntime == null)
+        {
+            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
+        }
+
 #if UNITY_EDITOR
         if (!Application.isPlaying && movementModule == null)
         {
@@ -781,6 +884,13 @@ public class PrototypeFpsController : MonoBehaviour
         if (!Application.isPlaying && skillManager == null)
         {
             skillManager = gameObject.AddComponent<PlayerSkillManager>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && progressionRuntime == null)
+        {
+            progressionRuntime = gameObject.AddComponent<PlayerProgressionRuntime>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }

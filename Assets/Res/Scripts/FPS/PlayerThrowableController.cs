@@ -83,13 +83,13 @@ public class PlayerThrowableController : MonoBehaviour
         EnsureReferences();
         if (!TryFindThrowable(out _, out _, out ItemInstance throwableItem, out int availableCount))
         {
-            return "Throwable None [G]";
+            return "投掷物 无 [G]";
         }
 
-        string baseLabel = $"Throwable {throwableItem.DisplayName} x{Mathf.Max(1, availableCount)} [G]";
+        string baseLabel = $"投掷物 {throwableItem.DisplayName} x{Mathf.Max(1, availableCount)} [G]";
         float cooldownRemaining = Mathf.Max(0f, nextThrowableUseTime - Time.time);
         return cooldownRemaining > 0f
-            ? $"{baseLabel} Cooldown {cooldownRemaining:0.0}s"
+            ? $"{baseLabel}  冷却 {cooldownRemaining:0.0}s"
             : baseLabel;
     }
 
@@ -100,14 +100,14 @@ public class PlayerThrowableController : MonoBehaviour
             || throwableItem == null
             || throwableItem.WeaponDefinition == null)
         {
-            SetFeedback("No throwable available");
+            SetFeedback("没有可用投掷物");
             return false;
         }
 
         PrototypeWeaponDefinition weaponDefinition = throwableItem.WeaponDefinition;
         if (!weaponDefinition.IsThrowableWeapon)
         {
-            SetFeedback("Throwable configuration invalid");
+            SetFeedback("投掷物配置无效");
             return false;
         }
 
@@ -115,19 +115,19 @@ public class PlayerThrowableController : MonoBehaviour
             && (!playerVitals.CanStartStaminaAction(weaponDefinition.ThrowStaminaCost)
                 || !playerVitals.TryConsumeStamina(weaponDefinition.ThrowStaminaCost)))
         {
-            SetFeedback("Not enough stamina");
+            SetFeedback("体力不足");
             return false;
         }
 
         if (!sourceInventory.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null)
         {
-            SetFeedback("Throwable sync failed");
+            SetFeedback("投掷物同步失败");
             return false;
         }
 
         LaunchThrowable(extractedItem);
         nextThrowableUseTime = Time.time + weaponDefinition.ThrowableCooldown;
-        SetFeedback($"Threw {weaponDefinition.DisplayName}");
+        SetFeedback($"已投掷 {weaponDefinition.DisplayName}");
         return true;
     }
 
@@ -208,7 +208,7 @@ public class PlayerThrowableController : MonoBehaviour
             canApplyAfflictions = true,
             sourceUnit = playerVitals,
             sourceDisplayName = gameObject.name,
-            sourceEffectDisplayName = isCrit ? "Critical Explosion" : "Explosion"
+            sourceEffectDisplayName = isCrit ? "暴击爆炸" : "爆炸"
         };
     }
 

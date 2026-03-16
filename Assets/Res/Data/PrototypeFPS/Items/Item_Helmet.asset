@@ -24,6 +24,7 @@ MonoBehaviour:
   - head
   armorClass: 4
   maxDurability: 38
+  bonusHealth: 6
   bluntDamageMultiplier: 0.16
   blockedDurabilityLossMultiplier: 0.85
   penetratedDurabilityLossMultiplier: 1.15

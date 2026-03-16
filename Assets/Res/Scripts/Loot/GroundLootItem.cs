@@ -4,7 +4,7 @@ using UnityEngine;
 public class GroundLootItem : MonoBehaviour, IInteractable
 {
     [SerializeField] private ItemInstance itemInstance;
-    [SerializeField] private string interactionVerb = "Pick Up";
+    [SerializeField] private string interactionVerb = "拾取";
     [SerializeField] private bool destroyWhenCollected = true;
 
     public ItemDefinitionBase DefinitionBase => itemInstance != null ? itemInstance.DefinitionBase : null;
@@ -46,7 +46,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
     {
         if (itemInstance == null || !itemInstance.IsDefined())
         {
-            return "Pick Up Item";
+            return "拾取物品";
         }
 
         if (itemInstance.IsWeapon && itemInstance.WeaponDefinition != null)
@@ -55,7 +55,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         }
 
         string itemName = itemInstance.DisplayName;
-        return $"{interactionVerb} {itemName} x{Quantity}";
+        return $"{LocalizeActionVerb(interactionVerb)} {itemName} x{Quantity}";
     }
 
     public bool CanInteract(PlayerInteractor interactor)
@@ -249,10 +249,10 @@ public class GroundLootItem : MonoBehaviour, IInteractable
     {
         if (!string.IsNullOrWhiteSpace(verb))
         {
-            return verb.Trim();
+            return LocalizeActionVerb(verb);
         }
 
-        return instance != null && instance.IsWeapon ? "Take" : "Pick Up";
+        return instance != null && instance.IsWeapon ? "拿取" : "拾取";
     }
 
     private bool TryCollectWeapon(PlayerInteractor interactor)
@@ -312,21 +312,22 @@ public class GroundLootItem : MonoBehaviour, IInteractable
         {
             InventoryContainer specialInventory = interactor != null ? interactor.SpecialInventory : null;
             bool goesToSpecial = specialInventory != null && specialInventory.CanAccept(itemInstance != null ? itemInstance.Clone() : ItemInstance.Create(weaponDefinition, 1));
-            return $"Pack {(goesToSpecial ? "Special" : "Backpack")}: {displayName}";
+            return $"收纳 {LocalizeSlotLabel(goesToSpecial ? "Special" : "Backpack")}: {displayName}";
         }
 
         PrototypeFpsController controller = interactor != null ? interactor.GetComponent<PrototypeFpsController>() : null;
         bool storeInBackpack = controller != null && controller.PickupWouldStoreInBackpack(weaponDefinition);
         string slotLabel = storeInBackpack
-            ? "Backpack"
+            ? "背包"
             : controller != null
                 ? controller.GetSuggestedPickupSlotLabel(weaponDefinition)
-                : (weaponDefinition.IsMeleeWeapon ? "Melee" : "Primary");
+                : (weaponDefinition.IsMeleeWeapon ? "近战" : "主武器");
+        slotLabel = LocalizeSlotLabel(slotLabel);
         string actionVerb = storeInBackpack
-            ? "Pack"
+            ? "收纳"
             : controller != null && controller.PickupWouldReplaceEquippedWeapon(weaponDefinition)
-                ? "Swap"
-                : interactionVerb;
+                ? "替换"
+                : LocalizeActionVerb(interactionVerb);
 
         if (weaponDefinition.IsMeleeWeapon)
         {
@@ -335,6 +336,53 @@ public class GroundLootItem : MonoBehaviour, IInteractable
 
         int loadedAmmo = itemInstance != null ? itemInstance.MagazineAmmo : 0;
         return $"{actionVerb} {slotLabel}: {displayName} [{loadedAmmo}/{weaponDefinition.MagazineSize}]";
+    }
+
+    public static string LocalizeActionVerb(string verb)
+    {
+        if (string.IsNullOrWhiteSpace(verb))
+        {
+            return "拿取";
+        }
+
+        switch (verb.Trim().ToLowerInvariant())
+        {
+            case "take":
+                return "拿取";
+            case "pick up":
+            case "pickup":
+                return "拾取";
+            case "pack":
+                return "收纳";
+            case "swap":
+                return "替换";
+            default:
+                return LocalizeActionVerb(verb);
+        }
+    }
+
+    public static string LocalizeSlotLabel(string slotLabel)
+    {
+        if (string.IsNullOrWhiteSpace(slotLabel))
+        {
+            return string.Empty;
+        }
+
+        switch (slotLabel.Trim().ToLowerInvariant())
+        {
+            case "backpack":
+                return "背包";
+            case "special":
+                return "特殊栏";
+            case "primary":
+                return "主武器";
+            case "secondary":
+                return "副武器";
+            case "melee":
+                return "近战";
+            default:
+                return slotLabel.Trim();
+        }
     }
 
     private void HandleCollected()

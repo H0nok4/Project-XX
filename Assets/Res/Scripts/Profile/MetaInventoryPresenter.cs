@@ -221,17 +221,7 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(weapon.RichDisplayName, host.BodyStyle);
-                GUILayout.Label(weapon.WeaponDefinition.IsMeleeWeapon ? "近战" : "枪械", host.BodyStyle);
-                string lockerAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(weapon.Affixes);
-                if (!string.IsNullOrWhiteSpace(lockerAffixSummary))
-                {
-                    GUILayout.Label(lockerAffixSummary, host.BodyStyle);
-                }
-                string lockerSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(weapon.Skills);
-                if (!string.IsNullOrWhiteSpace(lockerSkillSummary))
-                {
-                    GUILayout.Label(lockerSkillSummary, host.BodyStyle);
-                }
+                GUILayout.Label(PrototypeMainMenuController.BuildItemInstanceDetail(weapon), host.BodyStyle);
                 if (weapon.WeaponDefinition.IsMeleeWeapon)
                 {
                     GUILayout.BeginHorizontal();
@@ -312,18 +302,7 @@ public sealed class MetaInventoryPresenter
 
                 GUILayout.BeginVertical(host.ListStyle);
                 GUILayout.Label(armorInstance.RichDisplayName, host.BodyStyle);
-                GUILayout.Label($"耐久 {armorInstance.CurrentDurability:0}/{armorInstance.MaxDurability:0}", host.BodyStyle);
-                GUILayout.Label($"覆盖部位 {string.Join(", ", armorDefinition.CoveredPartIds)}", host.BodyStyle);
-                string armorAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(armorInstance.Affixes);
-                if (!string.IsNullOrWhiteSpace(armorAffixSummary))
-                {
-                    GUILayout.Label(armorAffixSummary, host.BodyStyle);
-                }
-                string armorSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(armorInstance.Skills);
-                if (!string.IsNullOrWhiteSpace(armorSkillSummary))
-                {
-                    GUILayout.Label(armorSkillSummary, host.BodyStyle);
-                }
+                GUILayout.Label(PrototypeMainMenuController.BuildItemInstanceDetail(ItemInstance.Create(armorInstance)), host.BodyStyle);
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("入库", host.ButtonStyle, GUILayout.Width(72f)))
                 {
@@ -392,17 +371,7 @@ public sealed class MetaInventoryPresenter
         GUILayout.Label($"{label}：{(weaponInstance != null ? weaponInstance.RichDisplayName : "空")}", host.BodyStyle);
         if (weaponInstance != null)
         {
-            string slotAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(weaponInstance.Affixes);
-            if (!string.IsNullOrWhiteSpace(slotAffixSummary))
-            {
-                GUILayout.Label(slotAffixSummary, host.BodyStyle);
-            }
-
-            string slotSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(weaponInstance.Skills);
-            if (!string.IsNullOrWhiteSpace(slotSkillSummary))
-            {
-                GUILayout.Label(slotSkillSummary, host.BodyStyle);
-            }
+            GUILayout.Label(PrototypeMainMenuController.BuildItemInstanceDetail(weaponInstance), host.BodyStyle);
         }
         if (protectedOnDeath)
         {

@@ -122,21 +122,21 @@ public class LootContainerWindowController : MonoBehaviour
         GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
         GUILayout.Label($"{openContainer.ContainerLabel}", windowStyle);
         GUILayout.Label(
-            $"Loot {lootInventory.Items.Count}/{lootInventory.MaxSlots}  Weapons {(corpseLoot != null ? corpseLoot.Weapons.Count : 0)}\nBackpack {playerInventory.OccupiedSlots}/{playerInventory.MaxSlots}  Weight {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
+            $"战利品 {lootInventory.Items.Count}/{lootInventory.MaxSlots}  武器 {(corpseLoot != null ? corpseLoot.Weapons.Count : 0)}\n背包 {playerInventory.OccupiedSlots}/{playerInventory.MaxSlots}  重量 {playerInventory.CurrentWeight:0.0}/{playerInventory.MaxWeight:0.0}",
             windowStyle);
 
         GUILayout.Space(6f);
 
         if (lootInventory.IsEmpty && (corpseLoot == null || !corpseLoot.HasWeapons))
         {
-            GUILayout.Label("Container is empty.", windowStyle);
+            GUILayout.Label("容器为空。", windowStyle);
         }
         else
         {
             scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(220f));
             if (corpseLoot != null && corpseLoot.HasWeapons)
             {
-                GUILayout.Label("Weapons", windowStyle);
+                GUILayout.Label("武器", windowStyle);
                 for (int index = 0; index < corpseLoot.Weapons.Count; index++)
                 {
                     PrototypeCorpseLoot.WeaponEntry entry = corpseLoot.GetWeaponEntry(index);
@@ -147,10 +147,10 @@ public class LootContainerWindowController : MonoBehaviour
 
                     PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
                     string buttonLabel = controller != null && controller.PickupWouldStoreInBackpack(entry.WeaponDefinition)
-                        ? "Pack"
+                        ? "收纳"
                         : controller != null && controller.PickupWouldReplaceEquippedWeapon(entry.WeaponDefinition)
-                            ? "Swap"
-                            : "Take";
+                            ? "替换"
+                            : "拿取";
                     ItemInstance previewInstance = entry.CreateInstance();
                     string weaponLabel = previewInstance != null ? previewInstance.RichDisplayName : entry.WeaponDefinition.DisplayNameWithLevel;
                     string weaponText = entry.WeaponDefinition.IsMeleeWeapon
@@ -168,28 +168,19 @@ public class LootContainerWindowController : MonoBehaviour
 
                     GUILayout.EndHorizontal();
 
-                    string weaponAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(entry.Affixes);
-                    if (!string.IsNullOrWhiteSpace(weaponAffixSummary))
+                    string weaponDetail = PrototypeMainMenuController.BuildItemInstanceDetail(previewInstance);
+                    if (!string.IsNullOrWhiteSpace(weaponDetail))
                     {
                         GUILayout.BeginHorizontal();
                         GUILayout.Space(16f);
-                        GUILayout.Label(weaponAffixSummary, windowStyle);
-                        GUILayout.EndHorizontal();
-                    }
-
-                    string weaponSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(entry.Skills);
-                    if (!string.IsNullOrWhiteSpace(weaponSkillSummary))
-                    {
-                        GUILayout.BeginHorizontal();
-                        GUILayout.Space(16f);
-                        GUILayout.Label(weaponSkillSummary, windowStyle);
+                        GUILayout.Label(weaponDetail, windowStyle);
                         GUILayout.EndHorizontal();
                     }
                     GUILayout.EndVertical();
                 }
 
                 GUILayout.Space(8f);
-                GUILayout.Label("Items", windowStyle);
+                GUILayout.Label("物品", windowStyle);
             }
 
             for (int index = 0; index < lootInventory.Items.Count; index++)
@@ -204,7 +195,7 @@ public class LootContainerWindowController : MonoBehaviour
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"{item.RichDisplayName} x{item.Quantity}", windowStyle, GUILayout.Width(320f));
 
-                if (GUILayout.Button("Take", buttonStyle, GUILayout.Width(90f)))
+                if (GUILayout.Button("拿取", buttonStyle, GUILayout.Width(90f)))
                 {
                     lootInventory.TryTransferItemTo(playerInventory, index, item.Quantity, out _);
                     GUIUtility.ExitGUI();
@@ -212,21 +203,12 @@ public class LootContainerWindowController : MonoBehaviour
 
                 GUILayout.EndHorizontal();
 
-                string itemAffixSummary = ItemAffixUtility.BuildAffixSummaryRich(item.Affixes);
-                if (!string.IsNullOrWhiteSpace(itemAffixSummary))
+                string itemDetail = PrototypeMainMenuController.BuildItemInstanceDetail(item);
+                if (!string.IsNullOrWhiteSpace(itemDetail))
                 {
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(16f);
-                    GUILayout.Label(itemAffixSummary, windowStyle);
-                    GUILayout.EndHorizontal();
-                }
-
-                string itemSkillSummary = ItemSkillUtility.BuildSkillSummaryRich(item.Skills);
-                if (!string.IsNullOrWhiteSpace(itemSkillSummary))
-                {
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(16f);
-                    GUILayout.Label(itemSkillSummary, windowStyle);
+                    GUILayout.Label(itemDetail, windowStyle);
                     GUILayout.EndHorizontal();
                 }
 
@@ -237,14 +219,14 @@ public class LootContainerWindowController : MonoBehaviour
         }
 
         GUILayout.BeginHorizontal();
-        string takeAllLabel = corpseLoot != null && corpseLoot.HasWeapons ? "Take All Items" : "Take All";
+        string takeAllLabel = corpseLoot != null && corpseLoot.HasWeapons ? "全部拿取" : "全部拿走";
         if (GUILayout.Button(takeAllLabel, buttonStyle, GUILayout.Width(120f)))
         {
             TakeAll();
             GUIUtility.ExitGUI();
         }
 
-        if (GUILayout.Button("Close", buttonStyle, GUILayout.Width(120f)))
+        if (GUILayout.Button("关闭", buttonStyle, GUILayout.Width(120f)))
         {
             Close();
             GUIUtility.ExitGUI();

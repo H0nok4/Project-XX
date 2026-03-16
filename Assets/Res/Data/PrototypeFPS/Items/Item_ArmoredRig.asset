@@ -24,6 +24,7 @@ MonoBehaviour:
   - torso
   armorClass: 4
   maxDurability: 72
+  bonusHealth: 20
   bluntDamageMultiplier: 0.22
   blockedDurabilityLossMultiplier: 1.05
   penetratedDurabilityLossMultiplier: 1.3

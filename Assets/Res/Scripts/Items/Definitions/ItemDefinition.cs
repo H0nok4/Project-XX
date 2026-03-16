@@ -21,15 +21,18 @@ public class ItemDefinition : ItemDefinitionBase
     [Range(MinItemLevel, MaxItemLevel)]
     [SerializeField] private int requiredLevel = MinItemLevel;
 
+    protected virtual bool SupportsLevelProgression => false;
+
     public override string ItemId => string.IsNullOrWhiteSpace(itemId) ? name : itemId.Trim();
     public override string DisplayName => string.IsNullOrWhiteSpace(displayName) ? ItemId : displayName.Trim();
-    public override string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
+    public override bool HasLevelProgression => SupportsLevelProgression;
+    public override string DisplayNameWithLevel => HasLevelProgression ? $"{DisplayName} (Lv {ItemLevel})" : DisplayName;
     public override string Description => description ?? string.Empty;
     public override int MaxStackSize => Mathf.Max(1, maxStackSize);
     public override float UnitWeight => Mathf.Max(0f, unitWeight);
     public override Sprite Icon => icon;
-    public override int ItemLevel => Mathf.Clamp(itemLevel, MinItemLevel, MaxItemLevel);
-    public override int RequiredLevel => Mathf.Clamp(requiredLevel, MinItemLevel, MaxItemLevel);
+    public override int ItemLevel => SupportsLevelProgression ? Mathf.Clamp(itemLevel, MinItemLevel, MaxItemLevel) : MinItemLevel;
+    public override int RequiredLevel => SupportsLevelProgression ? Mathf.Clamp(requiredLevel, MinItemLevel, MaxItemLevel) : MinItemLevel;
 
     public void Configure(
         string id,
@@ -47,8 +50,7 @@ public class ItemDefinition : ItemDefinitionBase
         maxStackSize = Mathf.Max(1, stackSize);
         unitWeight = Mathf.Max(0f, weight);
         icon = itemIcon;
-        itemLevel = Mathf.Clamp(level, MinItemLevel, MaxItemLevel);
-        requiredLevel = Mathf.Clamp(required, MinItemLevel, MaxItemLevel);
+        ApplyProgression(level, required);
     }
 
     public float GetScaledValue(float baseValue)
@@ -58,8 +60,7 @@ public class ItemDefinition : ItemDefinitionBase
 
     public void SetProgression(int level, int required = MinItemLevel)
     {
-        itemLevel = Mathf.Clamp(level, MinItemLevel, MaxItemLevel);
-        requiredLevel = Mathf.Clamp(required, MinItemLevel, MaxItemLevel);
+        ApplyProgression(level, required);
     }
 
     public static float GetScaledValue(float baseValue, int level)
@@ -68,14 +69,26 @@ public class ItemDefinition : ItemDefinitionBase
         return baseValue * (1f + (clampedLevel - MinItemLevel) * 0.1f);
     }
 
-    private void OnValidate()
+    protected virtual void OnValidate()
     {
         itemId = string.IsNullOrWhiteSpace(itemId) ? name : itemId.Trim();
         displayName = string.IsNullOrWhiteSpace(displayName) ? itemId : displayName.Trim();
         maxStackSize = Mathf.Max(1, maxStackSize);
         unitWeight = Mathf.Max(0f, unitWeight);
-        itemLevel = Mathf.Clamp(itemLevel, MinItemLevel, MaxItemLevel);
-        requiredLevel = Mathf.Clamp(requiredLevel, MinItemLevel, MaxItemLevel);
+        ApplyProgression(itemLevel, requiredLevel);
+    }
+
+    private void ApplyProgression(int level, int required)
+    {
+        if (!SupportsLevelProgression)
+        {
+            itemLevel = MinItemLevel;
+            requiredLevel = MinItemLevel;
+            return;
+        }
+
+        itemLevel = Mathf.Clamp(level, MinItemLevel, MaxItemLevel);
+        requiredLevel = Mathf.Clamp(required, MinItemLevel, MaxItemLevel);
     }
 }
 

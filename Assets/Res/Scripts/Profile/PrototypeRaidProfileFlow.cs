@@ -135,6 +135,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
                 PrototypeProfileService.ResolveWeaponInstance(
                     profile != null ? profile.equippedMeleeWeaponInstance : null,
                     itemCatalog));
+            fpsController.ConfigurePlayerProgression(profile != null ? profile.progression : null);
         }
 
         loadoutApplied = true;
@@ -158,6 +159,19 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
         PrototypeProfileService.ProfileData latestProfile = PrototypeProfileService.LoadProfile(itemCatalog)
             ?? PrototypeProfileService.CreateDefaultProfile(itemCatalog);
+        latestProfile.progression ??= new PlayerProgressionData();
+        if (fpsController != null)
+        {
+            fpsController.CopyPlayerProgressionTo(latestProfile.progression);
+        }
+        else if (profile != null && profile.progression != null)
+        {
+            latestProfile.progression.progressionDataVersion = profile.progression.progressionDataVersion;
+            latestProfile.progression.playerLevel = profile.progression.playerLevel;
+            latestProfile.progression.currentExperience = profile.progression.currentExperience;
+            latestProfile.progression.lifetimeExperience = profile.progression.lifetimeExperience;
+            latestProfile.progression.killCount = profile.progression.killCount;
+        }
         InventoryContainer secureContainer = playerInteractor != null ? playerInteractor.SecureInventory : null;
         InventoryContainer specialEquipment = playerInteractor != null ? playerInteractor.SpecialInventory : null;
         ItemInstance currentPrimaryWeapon = fpsController != null

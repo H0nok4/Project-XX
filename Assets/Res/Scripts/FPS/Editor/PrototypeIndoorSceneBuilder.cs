@@ -102,20 +102,21 @@ public static class PrototypeIndoorSceneBuilder
         GameObject meleeWeaponViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(MeleeWeaponViewPrefabPath);
         PrototypeUnitDefinition humanoidDefinition = CreateOrUpdateHumanoidDefinition(HumanoidDefinitionPath);
         ItemDefinition cashItem = CreateOrUpdateItemDefinition(CashItemPath, "cash_bundle", "现金捆", "轻便值钱的战利品，适合快速带离战局。", 10, 0.2f);
-        MedicalItemDefinition medkitItem = CreateOrUpdateMedicalDefinition(MedkitItemPath, "field_medkit", "战地医疗包", "紧凑型急救包，适合在战局内持续治疗。", 2, 0.8f, 48f, 1, 0, 0, 0f);
+        MedicalItemDefinition medkitItem = CreateOrUpdateMedicalDefinition(MedkitItemPath, "field_medkit", "战地医疗包", "紧凑型急救包，适合在战局内持续治疗。", 2, 0.8f, 0f, 1, 0, 0, 0f, 0.18f);
         MedicalItemDefinition bandageItem = CreateOrUpdateMedicalDefinition(BandageItemPath, "bandage_roll", "绷带卷", "可快速止住轻度流血。", 4, 0.12f, 8f, 2, 0, 0, 0f);
         MedicalItemDefinition tourniquetItem = CreateOrUpdateMedicalDefinition(TourniquetItemPath, "tourniquet", "止血带", "用于紧急控制重度流血。", 2, 0.18f, 0f, 0, 1, 0, 0f);
         MedicalItemDefinition splintItem = CreateOrUpdateMedicalDefinition(SplintItemPath, "field_splint", "战地夹板", "用于固定骨折部位，恢复基本行动能力。", 2, 0.22f, 0f, 0, 0, 1, 0f);
         MedicalItemDefinition painkillerItem = CreateOrUpdateMedicalDefinition(PainkillerItemPath, "painkillers", "止痛药", "可在短时间内压制骨折带来的行动惩罚。", 2, 0.1f, 0f, 0, 0, 0, 75f);
-        AmmoDefinition rifleAmmoItem = CreateOrUpdateAmmoDefinition(RifleAmmoItemPath, "rifle_ammo", "5.56 FMJ", "Balanced rifle rounds with decent armor penetration.", 90, 0.02f, 33f, 18f, 30f, 24f, 0.14f, 0.05f, 0.1f);
-        AmmoDefinition pistolAmmoItem = CreateOrUpdateAmmoDefinition(PistolAmmoItemPath, "pistol_ammo", "9mm JHP", "Soft pistol rounds with lower penetration but stronger flesh damage.", 60, 0.015f, 27f, 12f, 12f, 10f, 0.24f, 0.08f, 0.14f);
-        ArmorDefinition helmetArmor = CreateOrUpdateArmorDefinition(HelmetArmorPath, "helmet_alpha", "原型头盔", "提供基础头部防护，适合穿透与护甲测试。", 1.6f, 4, 38f, 0.16f, 0.85f, 1.15f, 0.55f, 0.2f, HeadPartId);
-        ArmorDefinition vestArmor = CreateOrUpdateArmorDefinition(VestArmorPath, "armored_rig", "原型防弹胸挂", "覆盖躯干的护甲，用更高重量换取更好的生存能力。", 8.2f, 4, 72f, 0.22f, 1.05f, 1.3f, 0.4f, 0.55f, TorsoPartId);
+        AmmoDefinition rifleAmmoItem = CreateOrUpdateAmmoDefinition(RifleAmmoItemPath, "rifle_ammo", "5.56 FMJ", "Balanced rifle rounds with decent armor penetration.", 90, 0.02f, 0.35f, 18f, 30f, 24f, 0.14f, 0.05f, 0.1f);
+        AmmoDefinition pistolAmmoItem = CreateOrUpdateAmmoDefinition(PistolAmmoItemPath, "pistol_ammo", "9mm JHP", "Soft pistol rounds with lower penetration but stronger flesh damage.", 60, 0.015f, 0.32f, 12f, 12f, 10f, 0.24f, 0.08f, 0.14f);
+        ArmorDefinition helmetArmor = CreateOrUpdateArmorDefinition(HelmetArmorPath, "helmet_alpha", "原型头盔", "提供基础头部防护，适合穿透与护甲测试。", 1.6f, 4, 38f, 6f, 0.16f, 0.85f, 1.15f, 0.55f, 0.2f, HeadPartId);
+        ArmorDefinition vestArmor = CreateOrUpdateArmorDefinition(VestArmorPath, "armored_rig", "原型防弹胸挂", "覆盖躯干的护甲，用更高重量换取更好的生存能力。", 8.2f, 4, 72f, 20f, 0.22f, 1.05f, 1.3f, 0.4f, 0.55f, TorsoPartId);
         PrototypeWeaponDefinition carbineWeapon = CreateOrUpdateFirearmDefinition(
             CarbineWeaponPath,
             "carbine_alpha",
             "AR-4 卡宾枪",
             "一把易于控制的主武器，支持全自动与点射模式。",
+            95f,
             rifleAmmoItem,
             30,
             720f,
@@ -132,6 +133,7 @@ public static class PrototypeIndoorSceneBuilder
             "sidearm_9mm",
             "VX-9 手枪",
             "一把可靠的半自动备用手枪。",
+            85f,
             pistolAmmoItem,
             15,
             360f,
@@ -167,14 +169,6 @@ public static class PrototypeIndoorSceneBuilder
             14f,
             32f);
 
-        cashItem.SetProgression(1, 1);
-        medkitItem.SetProgression(5, 3);
-        bandageItem.SetProgression(2, 1);
-        tourniquetItem.SetProgression(4, 2);
-        splintItem.SetProgression(4, 2);
-        painkillerItem.SetProgression(3, 2);
-        rifleAmmoItem.SetProgression(8, 6);
-        pistolAmmoItem.SetProgression(5, 3);
         helmetArmor.SetProgression(6, 4);
         vestArmor.SetProgression(9, 6);
         carbineWeapon.SetProgression(9, 7);
@@ -673,7 +667,8 @@ public static class PrototypeIndoorSceneBuilder
         int removesLightBleeds,
         int removesHeavyBleeds,
         int curesFractures,
-        float painkillerDuration)
+        float painkillerDuration,
+        float healPercent = 0f)
     {
         Object existingAsset = AssetDatabase.LoadMainAssetAtPath(assetPath);
         if (existingAsset != null && !(existingAsset is MedicalItemDefinition))
@@ -698,7 +693,8 @@ public static class PrototypeIndoorSceneBuilder
             removesLightBleeds,
             removesHeavyBleeds,
             curesFractures,
-            painkillerDuration);
+            painkillerDuration,
+            healPercent);
         EditorUtility.SetDirty(definition);
         return definition;
     }
@@ -711,6 +707,7 @@ public static class PrototypeIndoorSceneBuilder
         float weight,
         int armorClass,
         float durability,
+        float bonusHealth,
         float bluntDamageMultiplier,
         float blockedLossMultiplier,
         float penetratedLossMultiplier,
@@ -738,6 +735,7 @@ public static class PrototypeIndoorSceneBuilder
             weight,
             armorClass,
             durability,
+            bonusHealth,
             bluntDamageMultiplier,
             blockedLossMultiplier,
             penetratedLossMultiplier,
@@ -753,6 +751,7 @@ public static class PrototypeIndoorSceneBuilder
         string weaponId,
         string displayName,
         string description,
+        float damage,
         AmmoDefinition ammoDefinition,
         int magazineSize,
         float roundsPerMinute,
@@ -775,6 +774,7 @@ public static class PrototypeIndoorSceneBuilder
             weaponId,
             displayName,
             description,
+            damage,
             ammoDefinition,
             magazineSize,
             roundsPerMinute,

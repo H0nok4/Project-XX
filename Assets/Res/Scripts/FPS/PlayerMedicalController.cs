@@ -96,22 +96,23 @@ public class PlayerMedicalController : MonoBehaviour
         bool needsHealing = playerVitals.TotalCurrentHealth < playerVitals.TotalMaxHealth - 0.5f;
         if (!needsHealing && !playerVitals.HasAnyBleed && !playerVitals.HasFracture)
         {
-            SetMedicalFeedback("No treatment needed");
+            SetMedicalFeedback("当前无需治疗");
             return false;
         }
 
         return TryUseMedicalItem(
-            medical => medical.HealAmount > 0f
+            medical => medical.HasHealing
                 || (playerVitals.HasHeavyBleed && medical.RemovesHeavyBleeds > 0)
                 || (playerVitals.HasLightBleed && medical.RemovesLightBleeds > 0)
                 || (playerVitals.HasFracture && medical.CuresFractures > 0)
                 || medical.PainkillerDuration > 0f,
             medical =>
             {
-                float score = medical.HealAmount * 0.6f;
+                float healingValue = GetHealingValue(medical);
+                float score = healingValue * 0.6f;
                 if (needsHealing)
                 {
-                    score += medical.HealAmount;
+                    score += healingValue;
                 }
 
                 if (playerVitals.HasHeavyBleed)
@@ -132,14 +133,14 @@ public class PlayerMedicalController : MonoBehaviour
                 score += medical.PainkillerDuration * 0.5f;
                 return score;
             },
-            "No treatment item available");
+            "没有可用治疗物品");
     }
 
     private bool TryUseBleedTreatment()
     {
         if (!playerVitals.HasAnyBleed)
         {
-            SetMedicalFeedback("No bleeding");
+            SetMedicalFeedback("当前没有出血");
             return false;
         }
 
@@ -160,38 +161,43 @@ public class PlayerMedicalController : MonoBehaviour
                     score += medical.RemovesHeavyBleeds * 80f;
                 }
 
-                score += medical.HealAmount * 0.1f;
+                score += GetHealingValue(medical) * 0.1f;
                 return score;
             },
-            "No bleed item available");
+            "没有止血物品");
     }
 
     private bool TryUseSplint()
     {
         if (!playerVitals.HasFracture)
         {
-            SetMedicalFeedback("No fracture");
+            SetMedicalFeedback("当前没有骨折");
             return false;
         }
 
         return TryUseMedicalItem(
             medical => medical.CuresFractures > 0,
             medical => medical.CuresFractures * 100f + medical.PainkillerDuration * 0.1f,
-            "No splint available");
+            "没有夹板");
     }
 
     private bool TryUsePainkiller()
     {
         if (playerVitals.IsPainkillerActive && playerVitals.PainkillerRemaining > 8f)
         {
-            SetMedicalFeedback("Painkiller active");
+            SetMedicalFeedback("止痛效果仍在持续");
             return false;
         }
 
         return TryUseMedicalItem(
             medical => medical.PainkillerDuration > 0f,
-            medical => medical.PainkillerDuration + medical.HealAmount * 0.1f,
-            "No painkiller available");
+            medical => medical.PainkillerDuration + GetHealingValue(medical) * 0.1f,
+            "没有止痛药");
+    }
+
+    private float GetHealingValue(MedicalItemDefinition medical)
+    {
+        return medical != null && playerVitals != null ? medical.GetHealingAmount(playerVitals.TotalMaxHealth) * playerVitals.MedicalEffectivenessMultiplier : 0f;
     }
 
     private bool TryUseMedicalItem(
@@ -208,18 +214,18 @@ public class PlayerMedicalController : MonoBehaviour
 
         if (!playerVitals.TryUseMedicalItem(bestMedicalItem))
         {
-            SetMedicalFeedback("Treatment not needed");
+            SetMedicalFeedback("当前无需使用该治疗物品");
             return false;
         }
 
         if (!inventory.TryRemoveItem(bestMedicalItem, 1, out int removedQuantity) || removedQuantity <= 0)
         {
-            SetMedicalFeedback("Treatment sync failed");
+            SetMedicalFeedback("治疗物品同步失败");
             return false;
         }
 
         nextMedicalUseTime = Time.time + medicalUseCooldown;
-        SetMedicalFeedback($"Used {bestMedicalItem.DisplayName}");
+        SetMedicalFeedback($"已使用 {bestMedicalItem.DisplayName}");
         return true;
     }
 

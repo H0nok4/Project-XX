@@ -18,7 +18,7 @@ MonoBehaviour:
   maxStackSize: 4
   unitWeight: 0.12
   icon: {fileID: 0}
-  itemLevel: 2
+  itemLevel: 1
   requiredLevel: 1
   healAmount: 8
   removesLightBleeds: 2

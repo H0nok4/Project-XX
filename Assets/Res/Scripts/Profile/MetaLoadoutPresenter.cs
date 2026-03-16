@@ -24,6 +24,8 @@ public sealed class MetaLoadoutPresenter
         GUILayout.Space(8f);
         GUILayout.Label($"等级：{host.PlayerLevel}", host.BodyStyle);
         GUILayout.Space(8f);
+        DrawPlayerProgressionPanel();
+        GUILayout.Space(8f);
         GUILayout.Label(BuildSummaryText(), host.BodyStyle);
 
         GUILayout.FlexibleSpace();
@@ -49,6 +51,8 @@ public sealed class MetaLoadoutPresenter
 
         float summaryHeight = Mathf.Clamp(panelRect.height - 300f, 96f, 260f);
         homeSummaryScroll = GUILayout.BeginScrollView(homeSummaryScroll, GUILayout.Height(summaryHeight));
+        DrawPlayerProgressionPanel();
+        GUILayout.Space(10f);
         GUILayout.Label(BuildHomePageSummaryText(), host.BodyStyle);
         GUILayout.EndScrollView();
 
@@ -100,6 +104,17 @@ public sealed class MetaLoadoutPresenter
         }
 
         GUILayout.EndHorizontal();
+    }
+
+    private void DrawPlayerProgressionPanel()
+    {
+        GUILayout.Label("Character Growth", host.SectionStyle);
+        GUILayout.Space(6f);
+        GUILayout.Label(host.BuildPlayerProgressionSummaryText(), host.BodyStyle);
+        GUILayout.Space(8f);
+        GUILayout.Label("Attributes", host.SectionStyle);
+        GUILayout.Space(6f);
+        GUILayout.Label(host.BuildPlayerAttributeSummaryText(), host.BodyStyle);
     }
 
     private void DrawActionButtons()

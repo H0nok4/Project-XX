@@ -18,9 +18,10 @@ MonoBehaviour:
   maxStackSize: 2
   unitWeight: 0.8
   icon: {fileID: 0}
-  itemLevel: 5
-  requiredLevel: 3
-  healAmount: 48
+  itemLevel: 1
+  requiredLevel: 1
+  healAmount: 0
+  healPercent: 0.18
   removesLightBleeds: 1
   removesHeavyBleeds: 0
   curesFractures: 0

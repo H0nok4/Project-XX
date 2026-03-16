@@ -112,6 +112,7 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeWeaponDefinition secondaryViewModelSource;
     private PrototypeWeaponDefinition meleeViewModelSource;
     private float hitMarkerTimer;
+    private float characterDamageMultiplier = 1f;
 
     public bool ShowHitMarker => hitMarkerTimer > 0f;
     public PrototypeWeaponDefinition EquippedPrimaryWeapon => primaryRuntime.Definition;
@@ -193,6 +194,11 @@ public class PlayerWeaponController : MonoBehaviour
     {
         ConfigureRuntimeWeapons();
         skillManager?.RefreshFromEquipment();
+    }
+
+    public void SetCharacterDamageMultiplier(float damageMultiplier)
+    {
+        characterDamageMultiplier = Mathf.Max(0.1f, damageMultiplier);
     }
 
     public void TickVisuals(float deltaTime)
@@ -291,7 +297,7 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weaponDefinition != null && weaponDefinition.IsThrowableWeapon)
         {
-            return "Special";
+            return "特殊栏";
         }
 
         return GetSlotDisplayName(ChoosePickupSlot(weaponDefinition));
@@ -586,7 +592,7 @@ public class PlayerWeaponController : MonoBehaviour
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
 
         AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
-        float shotDamage = ammo != null ? ammo.DirectDamage : baseDamage;
+        float shotDamage = GetFirearmBaseDamage(runtime, ammo);
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
         float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
         float shotRange = baseRange * runtime.RangeMultiplier;
@@ -680,11 +686,19 @@ public class PlayerWeaponController : MonoBehaviour
         return false;
     }
 
+    private float GetFirearmBaseDamage(WeaponRuntime runtime, AmmoDefinition ammo)
+    {
+        PrototypeWeaponDefinition weaponDefinition = runtime != null ? runtime.Definition : null;
+        float weaponDamage = weaponDefinition != null ? weaponDefinition.FirearmDamage : Mathf.Max(1f, baseDamage);
+        float ammoDamageMultiplier = ammo != null ? ammo.DamageMultiplier : 1f;
+        return Mathf.Max(1f, weaponDamage * ammoDamageMultiplier);
+    }
+
     private PrototypeUnitVitals.DamageInfo BuildFirearmDamageInfo(WeaponRuntime runtime, float defaultDamage, AmmoDefinition ammo)
     {
         float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
         float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
-        float damage = Mathf.Max(1f, defaultDamage * rarityMultiplier * affixDamageMultiplier);
+        float damage = Mathf.Max(1f, defaultDamage * rarityMultiplier * affixDamageMultiplier * characterDamageMultiplier);
         float armorDamage = (ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, defaultDamage * 0.5f)) * rarityMultiplier * affixDamageMultiplier;
         float penetrationPower = (ammo != null ? ammo.PenetrationPower : runtime.Definition.PenetrationPower) * rarityMultiplier;
         float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
@@ -710,7 +724,7 @@ public class PlayerWeaponController : MonoBehaviour
             canApplyAfflictions = true,
             sourceUnit = playerVitals,
             sourceDisplayName = gameObject.name,
-            sourceEffectDisplayName = isCrit ? "Critical" : string.Empty
+            sourceEffectDisplayName = isCrit ? "暴击" : string.Empty
         };
     }
 
@@ -719,7 +733,7 @@ public class PlayerWeaponController : MonoBehaviour
         PrototypeWeaponDefinition weaponDefinition = runtime != null ? runtime.Definition : null;
         float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
         float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
-        float damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier * affixDamageMultiplier;
+        float damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier * affixDamageMultiplier * characterDamageMultiplier;
         float armorDamage = (weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.28f) : 6f) * rarityMultiplier * affixDamageMultiplier;
         float penetrationPower = (weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier;
         float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
@@ -745,7 +759,7 @@ public class PlayerWeaponController : MonoBehaviour
             canApplyAfflictions = true,
             sourceUnit = playerVitals,
             sourceDisplayName = gameObject.name,
-            sourceEffectDisplayName = isCrit ? "Critical" : string.Empty
+            sourceEffectDisplayName = isCrit ? "暴击" : string.Empty
         };
     }
 
@@ -1060,13 +1074,13 @@ public class PlayerWeaponController : MonoBehaviour
         switch (slot)
         {
             case WeaponSlot.Primary:
-                return "Primary";
+                return "主武器";
 
             case WeaponSlot.Secondary:
-                return "Secondary";
+                return "副武器";
 
             default:
-                return "Melee";
+                return "近战";
         }
     }
 

@@ -4,7 +4,8 @@ public abstract class ItemDefinitionBase : ScriptableObject
 {
     public abstract string ItemId { get; }
     public abstract string DisplayName { get; }
-    public virtual string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
+    public abstract bool HasLevelProgression { get; }
+    public virtual string DisplayNameWithLevel => HasLevelProgression ? $"{DisplayName} (Lv {ItemLevel})" : DisplayName;
     public virtual string Description => string.Empty;
     public virtual Sprite Icon => null;
     public abstract float UnitWeight { get; }

@@ -6,6 +6,7 @@ using UnityEngine;
 public class PrototypeTargetHealthBar : MonoBehaviour
 {
     [SerializeField] private PrototypeUnitVitals vitals;
+    [SerializeField] private PrototypeBotController botController;
     [SerializeField] private Transform anchor;
     [SerializeField] private string anchorPartId = string.Empty;
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 0.34f, 0f);
@@ -15,6 +16,9 @@ public class PrototypeTargetHealthBar : MonoBehaviour
     [SerializeField] private Color backgroundColor = new Color(0.12f, 0.12f, 0.12f, 0.9f);
     [SerializeField] private Color lowHealthColor = new Color(0.84f, 0.18f, 0.17f, 1f);
     [SerializeField] private Color highHealthColor = new Color(0.18f, 0.85f, 0.31f, 1f);
+    [SerializeField] private Color levelTextColor = new Color(1f, 1f, 1f, 0.96f);
+
+    private static GUIStyle levelLabelStyle;
 
     private static Texture2D pixelTexture;
 
@@ -86,6 +90,17 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         Rect outerRect = new Rect(screenPosition.x - width * 0.5f, top - height * 0.5f, width, height);
         Rect innerRect = new Rect(outerRect.x + 1f, outerRect.y + 1f, outerRect.width - 2f, outerRect.height - 2f);
 
+        string levelLabel = BuildLevelLabel();
+        if (!string.IsNullOrWhiteSpace(levelLabel))
+        {
+            EnsureStyles();
+            Rect labelRect = new Rect(outerRect.x - 18f, outerRect.y - 18f, outerRect.width + 36f, 16f);
+            Color previousColor = GUI.color;
+            GUI.color = levelTextColor;
+            GUI.Label(labelRect, levelLabel, levelLabelStyle);
+            GUI.color = previousColor;
+        }
+
         DrawRect(outerRect, borderColor);
         DrawRect(innerRect, backgroundColor);
 
@@ -105,6 +120,11 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         if (vitals == null)
         {
             vitals = GetComponent<PrototypeUnitVitals>();
+        }
+
+        if (botController == null)
+        {
+            botController = GetComponent<PrototypeBotController>();
         }
 
         anchorPartId = NormalizePartId(anchorPartId);
@@ -151,6 +171,32 @@ public class PrototypeTargetHealthBar : MonoBehaviour
     {
         barSize.x = Mathf.Max(barSize.x, 16f);
         barSize.y = Mathf.Max(barSize.y, 4f);
+    }
+
+    private static void EnsureStyles()
+    {
+        if (levelLabelStyle == null)
+        {
+            levelLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 11,
+                fontStyle = FontStyle.Bold
+            };
+            levelLabelStyle.normal.textColor = Color.white;
+        }
+    }
+
+    private string BuildLevelLabel()
+    {
+        if (botController == null)
+        {
+            return string.Empty;
+        }
+
+        return botController.IsBossProfile
+            ? $"Boss Lv {botController.EnemyLevel}"
+            : $"Lv {botController.EnemyLevel}";
     }
 
     private static void DrawRect(Rect rect, Color color)

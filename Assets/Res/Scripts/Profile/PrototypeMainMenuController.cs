@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -107,6 +108,16 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal int PlayerLevel => profile != null && profile.progression != null
         ? Mathf.Max(1, profile.progression.playerLevel)
         : 1;
+    internal int PlayerCurrentExperience => profile != null && profile.progression != null
+        ? Mathf.Max(0, profile.progression.currentExperience)
+        : 0;
+    internal int PlayerExperienceToNextLevel => PrototypePlayerProgressionUtility.GetExperienceToNextLevel(PlayerLevel);
+    internal int PlayerLifetimeExperience => profile != null && profile.progression != null
+        ? Mathf.Max(0, profile.progression.lifetimeExperience)
+        : 0;
+    internal int PlayerKillCount => profile != null && profile.progression != null
+        ? Mathf.Max(0, profile.progression.killCount)
+        : 0;
     internal PrototypeItemCatalog ItemCatalog => itemCatalog;
     internal PrototypeMerchantCatalog MerchantCatalog => merchantCatalog;
     internal ItemDefinition CashDefinition => cashDefinition;
@@ -257,6 +268,31 @@ public class PrototypeMainMenuController : MonoBehaviour
         return cashDefinition != null && !string.IsNullOrWhiteSpace(cashDefinition.DisplayName)
             ? cashDefinition.DisplayName
             : "现金";
+    }
+
+    internal string BuildPlayerProgressionSummaryText()
+    {
+        return $"Level: {PlayerLevel}\nXP: {PlayerCurrentExperience}/{PlayerExperienceToNextLevel}\nLifetime XP: {PlayerLifetimeExperience}  Kills: {PlayerKillCount}";
+    }
+
+    internal string BuildPlayerAttributeSummaryText()
+    {
+        int level = PlayerLevel;
+        int vitality = PrototypePlayerProgressionUtility.GetVitality(level);
+        int endurance = PrototypePlayerProgressionUtility.GetEndurance(level);
+        int combat = PrototypePlayerProgressionUtility.GetCombat(level);
+        int medicine = PrototypePlayerProgressionUtility.GetMedicine(level);
+        float bonusHealth = PrototypePlayerProgressionUtility.GetHealthBonus(level);
+        float bonusStamina = PrototypePlayerProgressionUtility.GetStaminaBonus(level);
+        float damageBonusPercent = (PrototypePlayerProgressionUtility.GetDamageMultiplier(level) - 1f) * 100f;
+        float healingBonusPercent = (PrototypePlayerProgressionUtility.GetHealingMultiplier(level) - 1f) * 100f;
+
+        var builder = new StringBuilder(160);
+        builder.Append($"Vitality {vitality}  Endurance {endurance}\n");
+        builder.Append($"Combat {combat}  Medicine {medicine}\n");
+        builder.Append($"Health +{Mathf.RoundToInt(bonusHealth)}  Stamina +{Mathf.RoundToInt(bonusStamina)}\n");
+        builder.Append($"Damage +{damageBonusPercent:0.#}%  Healing +{healingBonusPercent:0.#}%");
+        return builder.ToString();
     }
 
     internal bool CanReceiveFunds(int amount)
@@ -424,13 +460,19 @@ public class PrototypeMainMenuController : MonoBehaviour
         string detail;
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
-            detail = item.WeaponDefinition.IsMeleeWeapon
-                ? $"近战  重量 {item.TotalWeight:0.00}"
-                : $"弹药 {item.MagazineAmmo}/{item.WeaponDefinition.MagazineSize}  重量 {item.TotalWeight:0.00}";
+            detail = BuildWeaponDetail(item, item.WeaponDefinition);
         }
-        else if (item.IsArmor)
+        else if (item.Definition is ArmorDefinition armorDefinition)
         {
-            detail = $"耐久 {item.CurrentDurability:0.0}  重量 {item.TotalWeight:0.00}";
+            detail = BuildArmorDetail(item, armorDefinition);
+        }
+        else if (item.Definition is MedicalItemDefinition medicalDefinition)
+        {
+            detail = BuildMedicalDetail(item, medicalDefinition);
+        }
+        else if (item.Definition is AmmoDefinition ammoDefinition)
+        {
+            detail = BuildAmmoDetail(item, ammoDefinition);
         }
         else
         {
@@ -452,6 +494,107 @@ public class PrototypeMainMenuController : MonoBehaviour
         return detail;
     }
 
+    private static string BuildWeaponDetail(ItemInstance item, PrototypeWeaponDefinition weaponDefinition)
+    {
+        if (item == null || weaponDefinition == null)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>();
+        if (weaponDefinition.IsThrowableWeapon)
+        {
+            parts.Add("投掷");
+            parts.Add($"爆炸 {weaponDefinition.ExplosionDamage:0}");
+            parts.Add($"半径 {weaponDefinition.ExplosionRadius:0.0}m");
+        }
+        else if (weaponDefinition.IsMeleeWeapon)
+        {
+            parts.Add("近战");
+            parts.Add($"伤害 {weaponDefinition.MeleeDamage:0}");
+            parts.Add($"穿深 {weaponDefinition.PenetrationPower:0}");
+        }
+        else
+        {
+            AmmoDefinition ammoDefinition = weaponDefinition.AmmoDefinition;
+            float ammoMultiplier = ammoDefinition != null ? ammoDefinition.DamageMultiplier : 1f;
+            float finalDamage = weaponDefinition.FirearmDamage * ammoMultiplier;
+            float penetration = ammoDefinition != null ? ammoDefinition.PenetrationPower : weaponDefinition.PenetrationPower;
+            parts.Add($"弹药 {item.MagazineAmmo}/{weaponDefinition.MagazineSize}");
+            parts.Add($"武器伤害 {weaponDefinition.FirearmDamage:0}");
+            parts.Add($"子弹倍率 {ammoMultiplier:0.00}x");
+            parts.Add($"最终伤害 {finalDamage:0}");
+            parts.Add($"穿深 {penetration:0}");
+        }
+
+        parts.Add($"重量 {item.TotalWeight:0.00}");
+        return string.Join("  ", parts);
+    }
+
+    private static string BuildArmorDetail(ItemInstance item, ArmorDefinition armorDefinition)
+    {
+        var parts = new List<string>
+        {
+            $"耐久 {item.CurrentDurability:0.0}/{armorDefinition.MaxDurability:0.0}",
+            $"额外生命 +{armorDefinition.BonusHealth:0}"
+        };
+
+        if (armorDefinition.CoveredPartIds != null && armorDefinition.CoveredPartIds.Count > 0)
+        {
+            parts.Add($"覆盖 {string.Join("/", armorDefinition.CoveredPartIds)}");
+        }
+
+        parts.Add($"重量 {item.TotalWeight:0.00}");
+        return string.Join("  ", parts);
+    }
+
+    private static string BuildMedicalDetail(ItemInstance item, MedicalItemDefinition medicalDefinition)
+    {
+        var parts = new List<string>();
+        if (medicalDefinition.HealAmount > 0f)
+        {
+            parts.Add($"治疗 {medicalDefinition.HealAmount:0}");
+        }
+
+        if (medicalDefinition.HealPercent > 0f)
+        {
+            parts.Add($"治疗 {medicalDefinition.HealPercent * 100f:0}%最大生命");
+        }
+
+        if (medicalDefinition.RemovesLightBleeds > 0)
+        {
+            parts.Add($"止轻出血 x{medicalDefinition.RemovesLightBleeds}");
+        }
+
+        if (medicalDefinition.RemovesHeavyBleeds > 0)
+        {
+            parts.Add($"止重出血 x{medicalDefinition.RemovesHeavyBleeds}");
+        }
+
+        if (medicalDefinition.CuresFractures > 0)
+        {
+            parts.Add($"治骨折 x{medicalDefinition.CuresFractures}");
+        }
+
+        if (medicalDefinition.PainkillerDuration > 0f)
+        {
+            parts.Add($"止痛 {medicalDefinition.PainkillerDuration:0}s");
+        }
+
+        parts.Add($"重量 {item.TotalWeight:0.00}");
+        return string.Join("  ", parts);
+    }
+
+    private static string BuildAmmoDetail(ItemInstance item, AmmoDefinition ammoDefinition)
+    {
+        return string.Join("  ", new[]
+        {
+            $"伤害倍率 {ammoDefinition.DamageMultiplier:0.00}x",
+            $"穿深 {ammoDefinition.PenetrationPower:0}",
+            $"护甲伤害 {ammoDefinition.ArmorDamage:0}",
+            $"重量 {item.TotalWeight:0.00}"
+        });
+    }
     private void ResolveCatalog()
     {
         if (itemCatalog == null)

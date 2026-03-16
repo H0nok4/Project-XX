@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Prototype/Raid/Ammo Definition", fileName = "AmmoDefinition")]
 public class AmmoDefinition : ItemDefinition
 {
     [Header("Ballistics")]
-    [SerializeField] private float directDamage = 24f;
+    [FormerlySerializedAs("directDamage")]
+    [SerializeField] private float damageMultiplier = 0.35f;
     [SerializeField] private float impactForce = 16f;
     [SerializeField] private float penetrationPower = 24f;
     [SerializeField] private float armorDamage = 18f;
@@ -15,7 +17,8 @@ public class AmmoDefinition : ItemDefinition
     [Range(0f, 1f)]
     [SerializeField] private float fractureChance = 0.08f;
 
-    public float DirectDamage => Mathf.Max(1f, directDamage);
+    public float DamageMultiplier => NormalizeDamageMultiplier(damageMultiplier);
+    public float DirectDamage => DamageMultiplier;
     public float ImpactForce => Mathf.Max(0f, impactForce);
     public float PenetrationPower => Mathf.Max(0f, penetrationPower);
     public float ArmorDamage => Mathf.Max(0f, armorDamage);
@@ -29,7 +32,7 @@ public class AmmoDefinition : ItemDefinition
         string itemDescription,
         int stackSize,
         float weight,
-        float damage,
+        float damageRatio,
         float force,
         float penetration,
         float armorDamageValue,
@@ -39,7 +42,7 @@ public class AmmoDefinition : ItemDefinition
         Sprite itemIcon = null)
     {
         Configure(id, nameLabel, itemDescription, stackSize, weight, itemIcon);
-        directDamage = Mathf.Max(1f, damage);
+        damageMultiplier = NormalizeDamageMultiplier(damageRatio);
         impactForce = Mathf.Max(0f, force);
         penetrationPower = Mathf.Max(0f, penetration);
         armorDamage = Mathf.Max(0f, armorDamageValue);
@@ -48,14 +51,25 @@ public class AmmoDefinition : ItemDefinition
         fractureChance = Mathf.Clamp01(fracture);
     }
 
-    private void OnValidate()
+    protected override void OnValidate()
     {
-        directDamage = Mathf.Max(1f, directDamage);
+        base.OnValidate();
+        damageMultiplier = NormalizeDamageMultiplier(damageMultiplier);
         impactForce = Mathf.Max(0f, impactForce);
         penetrationPower = Mathf.Max(0f, penetrationPower);
         armorDamage = Mathf.Max(0f, armorDamage);
         lightBleedChance = Mathf.Clamp01(lightBleedChance);
         heavyBleedChance = Mathf.Clamp01(heavyBleedChance);
         fractureChance = Mathf.Clamp01(fractureChance);
+    }
+
+    private static float NormalizeDamageMultiplier(float rawMultiplier)
+    {
+        if (rawMultiplier <= 0f)
+        {
+            return 0f;
+        }
+
+        return rawMultiplier > 5f ? rawMultiplier * 0.01f : rawMultiplier;
     }
 }

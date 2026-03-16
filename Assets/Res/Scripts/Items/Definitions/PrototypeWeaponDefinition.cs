@@ -20,6 +20,8 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     [FormerlySerializedAs("meleeWeapon")]
     [SerializeField] private bool legacyMeleeWeapon;
     [SerializeField] private AmmoDefinition ammoDefinition;
+    [Min(1f)]
+    [SerializeField] private float firearmDamage = 100f;
     [Min(1)]
     [SerializeField] private int magazineSize = 30;
     [Min(0.05f)]
@@ -72,6 +74,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public override string ItemId => WeaponId;
     public string WeaponId => string.IsNullOrWhiteSpace(weaponId) ? name : weaponId.Trim();
     public override string DisplayName => string.IsNullOrWhiteSpace(displayName) ? WeaponId : displayName.Trim();
+    public override bool HasLevelProgression => true;
     public override string DisplayNameWithLevel => $"{DisplayName} (Lv {ItemLevel})";
     public override string Description => description ?? string.Empty;
     public override float UnitWeight => Mathf.Max(0f, unitWeight);
@@ -97,6 +100,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public float LightBleedChance => Mathf.Clamp01(lightBleedChance);
     public float HeavyBleedChance => Mathf.Clamp01(heavyBleedChance);
     public float FractureChance => Mathf.Clamp01(fractureChance);
+    public float FirearmDamage => ItemDefinition.GetScaledValue(Mathf.Max(1f, firearmDamage), ItemLevel);
     public float PenetrationPower => ItemDefinition.GetScaledValue(Mathf.Max(0f, penetrationPower), ItemLevel);
     public float MeleeDamage => ItemDefinition.GetScaledValue(Mathf.Max(1f, meleeDamage), ItemLevel);
     public float MeleeRange => Mathf.Max(0.5f, meleeRange);
@@ -136,6 +140,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         string id,
         string nameLabel,
         string weaponDescription,
+        float damage,
         AmmoDefinition ammo,
         int magSize,
         float rpm,
@@ -153,6 +158,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         weaponBehavior = PrototypeWeaponBehaviorType.Firearm;
         legacyMeleeWeapon = false;
         ammoDefinition = ammo;
+        firearmDamage = Mathf.Max(1f, damage);
         magazineSize = Mathf.Max(1, magSize);
         roundsPerMinute = Mathf.Max(30f, rpm);
         reloadDuration = Mathf.Max(0.05f, reloadSeconds);
@@ -281,6 +287,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         lightBleedChance = Mathf.Clamp01(lightBleedChance);
         heavyBleedChance = Mathf.Clamp01(heavyBleedChance);
         fractureChance = Mathf.Clamp01(fractureChance);
+        firearmDamage = Mathf.Max(1f, firearmDamage);
         penetrationPower = Mathf.Max(0f, penetrationPower);
         meleeDamage = Mathf.Max(1f, meleeDamage);
         meleeRange = Mathf.Max(0.5f, meleeRange);

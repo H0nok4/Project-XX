@@ -20,6 +20,7 @@ MonoBehaviour:
   meleeWeapon: 0
   firstPersonViewPrefab: {fileID: 3114500565288879406, guid: 4bfbe4ab8fbb9c24aa2b854d56ea4306, type: 3}
   ammoDefinition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
+  firearmDamage: 95
   magazineSize: 30
   reloadDuration: 2.1
   roundsPerMinute: 720
