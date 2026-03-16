@@ -29,6 +29,7 @@ public static class PrototypeProfileService
         public List<SavedArmorInstanceDto> equippedArmorInstances = new List<SavedArmorInstanceDto>();
         public List<SavedItemInstanceDto> stashWeaponInstances = new List<SavedItemInstanceDto>();
         public List<SavedItemInstanceDto> raidBackpackWeaponInstances = new List<SavedItemInstanceDto>();
+        public SavedItemInstanceDto equippedSecureContainerInstance;
         public SavedItemInstanceDto equippedPrimaryWeaponInstance;
         public SavedItemInstanceDto equippedSecondaryWeaponInstance;
         public SavedItemInstanceDto equippedMeleeWeaponInstance;
@@ -268,6 +269,16 @@ public static class PrototypeProfileService
         }
 
         return records;
+    }
+
+    public static ItemInstance ResolveItemInstance(SavedItemInstanceDto record, PrototypeItemCatalog catalog)
+    {
+        return TryCreateInventoryItemInstance(record, catalog, out ItemInstance instance) ? instance : null;
+    }
+
+    public static SavedItemInstanceDto CaptureItemInstance(ItemInstance item)
+    {
+        return CreateInventoryItemInstanceRecord(item);
     }
 
     private static bool TryCreateInventoryItemInstance(
@@ -700,6 +711,7 @@ public static class PrototypeProfileService
             equippedArmorItems = new List<ItemStackRecord>(),
             stashWeaponIds = CreateWeaponIdsFromPresets(catalog != null ? catalog.DefaultStashWeapons : null),
             raidBackpackWeaponInstances = new List<SavedItemInstanceDto>(),
+            equippedSecureContainerInstance = CaptureItemInstance(PrototypeRaidInventoryRules.CreateDefaultSecureContainerInstance(catalog)),
             equippedPrimaryWeaponId = catalog != null && catalog.DefaultPrimaryWeapon != null ? catalog.DefaultPrimaryWeapon.WeaponId : string.Empty,
             equippedSecondaryWeaponId = catalog != null && catalog.DefaultSecondaryWeapon != null ? catalog.DefaultSecondaryWeapon.WeaponId : string.Empty,
             equippedMeleeWeaponId = catalog != null && catalog.DefaultMeleeWeapon != null ? catalog.DefaultMeleeWeapon.WeaponId : string.Empty
@@ -910,9 +922,18 @@ public static class PrototypeProfileService
         profile.equippedArmorInstances = SanitizeArmorInstanceRecords(profile.equippedArmorInstances, catalog);
         profile.stashWeaponInstances = SanitizeWeaponInstanceRecords(profile.stashWeaponInstances, catalog);
         profile.raidBackpackWeaponInstances = SanitizeWeaponInstanceRecords(profile.raidBackpackWeaponInstances, catalog);
+        profile.equippedSecureContainerInstance = SanitizeGenericItemInstance(
+            profile.equippedSecureContainerInstance,
+            catalog,
+            PrototypeRaidInventoryRules.IsSecureContainerItem);
         profile.equippedPrimaryWeaponInstance = SanitizeWeaponInstance(profile.equippedPrimaryWeaponInstance, catalog);
         profile.equippedSecondaryWeaponInstance = SanitizeWeaponInstance(profile.equippedSecondaryWeaponInstance, catalog);
         profile.equippedMeleeWeaponInstance = SanitizeWeaponInstance(profile.equippedMeleeWeaponInstance, catalog);
+
+        if (profile.equippedSecureContainerInstance == null)
+        {
+            profile.equippedSecureContainerInstance = CaptureItemInstance(PrototypeRaidInventoryRules.CreateDefaultSecureContainerInstance(catalog));
+        }
 
         profile.stashItems = SanitizeRecords(profile.stashItems, catalog);
         profile.raidBackpackItems = SanitizeRecords(profile.raidBackpackItems, catalog);
@@ -1479,6 +1500,25 @@ public static class PrototypeProfileService
             affixes = affixes,
             skills = skills
         };
+    }
+
+    private static SavedItemInstanceDto SanitizeGenericItemInstance(
+        SavedItemInstanceDto record,
+        PrototypeItemCatalog catalog,
+        Predicate<ItemInstance> predicate = null)
+    {
+        ItemInstance instance = ResolveItemInstance(record, catalog);
+        if (instance == null)
+        {
+            return null;
+        }
+
+        if (predicate != null && !predicate(instance))
+        {
+            return null;
+        }
+
+        return CaptureItemInstance(instance);
     }
 
     private static List<SavedItemInstanceDto> CreateItemInstanceDtosFromRecords(

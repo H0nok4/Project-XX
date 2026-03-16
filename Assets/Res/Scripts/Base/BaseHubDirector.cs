@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum BaseHubInteractionKind
 {
@@ -23,12 +24,14 @@ public class BaseHubDirector : MonoBehaviour
     [SerializeField] private Transform respawnArrivalPoint;
 
     private bool uiOpen;
-    private GUIStyle titleStyle;
-    private GUIStyle bodyStyle;
+    private RectTransform overlayRoot;
+    private Text overlayTitleText;
+    private Text overlayBodyText;
 
     private void Awake()
     {
         ResolveReferences();
+        EnsureOverlayUi();
         if (menuController != null)
         {
             menuController.HideUi();
@@ -45,6 +48,7 @@ public class BaseHubDirector : MonoBehaviour
 
     private void Update()
     {
+        UpdateOverlayUi();
         if (!uiOpen || fpsInput == null)
         {
             return;
@@ -64,25 +68,8 @@ public class BaseHubDirector : MonoBehaviour
             return;
         }
 
+        PrototypeUiToolkit.SetVisible(overlayRoot, false);
         SetUiFocus(false);
-    }
-
-    private void OnGUI()
-    {
-        if (!showOverlayHint || uiOpen)
-        {
-            return;
-        }
-
-        EnsureStyles();
-        Rect panelRect = new Rect(28f, 28f, Mathf.Min(520f, Screen.width - 56f), 120f);
-        GUI.Box(panelRect, string.Empty);
-
-        GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
-        GUILayout.Label(hubTitle, titleStyle);
-        GUILayout.Space(4f);
-        GUILayout.Label(hubHint, bodyStyle);
-        GUILayout.EndArea();
     }
 
     public void OpenInteraction(BaseHubInteractionKind interactionKind)
@@ -225,26 +212,72 @@ public class BaseHubDirector : MonoBehaviour
         }
     }
 
-    private void EnsureStyles()
+    private void EnsureOverlayUi()
     {
-        if (titleStyle == null)
+        if (overlayRoot != null)
         {
-            titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 20,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white }
-            };
+            return;
         }
 
-        if (bodyStyle == null)
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        RectTransform layerRoot = manager.GetLayerRoot(PrototypeUiLayer.Overlay);
+        overlayRoot = PrototypeUiToolkit.CreatePanel(layerRoot, "BaseHubHint", new Color(0.08f, 0.1f, 0.14f, 0.92f), new RectOffset(16, 16, 14, 14), 6f);
+        PrototypeUiToolkit.SetAnchor(overlayRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -28f), new Vector2(520f, 120f));
+
+        overlayTitleText = PrototypeUiToolkit.CreateText(
+            overlayRoot,
+            manager.RuntimeFont,
+            hubTitle,
+            20,
+            FontStyle.Bold,
+            Color.white,
+            TextAnchor.UpperLeft);
+        overlayBodyText = PrototypeUiToolkit.CreateText(
+            overlayRoot,
+            manager.RuntimeFont,
+            hubHint,
+            13,
+            FontStyle.Normal,
+            new Color(0.92f, 0.94f, 0.98f, 1f),
+            TextAnchor.UpperLeft);
+        PrototypeUiToolkit.SetVisible(overlayRoot, false);
+    }
+
+    private void UpdateOverlayUi()
+    {
+        if (overlayRoot == null)
         {
-            bodyStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13,
-                wordWrap = true,
-                normal = { textColor = new Color(0.92f, 0.94f, 0.98f, 1f) }
-            };
+            EnsureOverlayUi();
+        }
+
+        bool visible = showOverlayHint && !uiOpen;
+        PrototypeUiToolkit.SetVisible(overlayRoot, visible);
+        if (!visible)
+        {
+            return;
+        }
+
+        if (overlayTitleText != null)
+        {
+            overlayTitleText.text = hubTitle ?? string.Empty;
+        }
+
+        if (overlayBodyText != null)
+        {
+            overlayBodyText.text = hubHint ?? string.Empty;
+        }
+
+        if (overlayRoot != null)
+        {
+            overlayRoot.sizeDelta = new Vector2(Mathf.Min(520f, Screen.width - 56f), 120f);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (overlayRoot != null)
+        {
+            Destroy(overlayRoot.gameObject);
         }
     }
 }

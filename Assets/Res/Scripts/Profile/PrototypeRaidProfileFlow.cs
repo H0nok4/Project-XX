@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class PrototypeRaidProfileFlow : MonoBehaviour
@@ -10,6 +11,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     [SerializeField] private PlayerInteractor playerInteractor;
     [SerializeField] private PrototypeFpsController fpsController;
     [SerializeField] private PrototypeUnitVitals playerVitals;
+    [SerializeField] private PrototypeRaidEquipmentController raidEquipmentController;
     [FormerlySerializedAs("mainMenuSceneName")]
     [SerializeField] private string fallbackMetaSceneName = "MainMenu";
     [SerializeField] private bool showReturnButton = true;
@@ -21,13 +23,15 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     private PrototypeProfileService.ProfileData profile;
     private bool loadoutApplied;
     private bool resultSaved;
-    private GUIStyle buttonStyle;
+    private RectTransform returnButtonRoot;
+    private Button returnButton;
 
     private void Awake()
     {
         ResolveReferences();
         ResolveCatalog();
         ApplyLoadoutToRaidState();
+        EnsureReturnButtonUi();
     }
 
     private void OnEnable()
@@ -45,6 +49,8 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         {
             raidGameMode.StateChanged -= HandleRaidStateChanged;
         }
+
+        PrototypeUiToolkit.SetVisible(returnButtonRoot, false);
     }
 
     private void OnValidate()
@@ -57,19 +63,9 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         specialEquipmentMaxWeight = Mathf.Max(0f, specialEquipmentMaxWeight);
     }
 
-    private void OnGUI()
+    private void Update()
     {
-        if (!showReturnButton || raidGameMode == null || raidGameMode.IsRunning)
-        {
-            return;
-        }
-
-        EnsureStyles();
-        if (GUI.Button(new Rect(Screen.width - 220f, Screen.height - 76f, 180f, 42f), "Return To Menu", buttonStyle))
-        {
-            PersistRaidOutcomeIfNeeded();
-            MetaEntryRouter.ReturnFromRaid(fallbackMetaSceneName);
-        }
+        UpdateReturnButtonUi();
     }
 
     public void Configure(RaidGameMode gameMode, PlayerInteractor interactor, PrototypeItemCatalog catalog, string menuSceneName)
@@ -138,6 +134,15 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             fpsController.ConfigurePlayerProgression(profile != null ? profile.progression : null);
         }
 
+        if (raidEquipmentController != null)
+        {
+            raidEquipmentController.Configure(
+                itemCatalog,
+                PrototypeProfileService.ResolveItemInstance(
+                    profile != null ? profile.equippedSecureContainerInstance : null,
+                    itemCatalog));
+        }
+
         loadoutApplied = true;
     }
 
@@ -186,6 +191,8 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
         latestProfile.secureContainerItemInstances = PrototypeProfileService.CaptureInventoryInstances(secureContainer);
         latestProfile.specialEquipmentItemInstances = PrototypeProfileService.CaptureInventoryInstances(specialEquipment);
+        latestProfile.equippedSecureContainerInstance = PrototypeProfileService.CaptureItemInstance(
+            raidEquipmentController != null ? raidEquipmentController.EquippedSecureContainerItem : null);
         latestProfile.equippedMeleeWeaponInstance = PrototypeProfileService.CaptureWeaponInstance(currentMeleeWeapon);
 
         latestProfile.secureContainerItems = PrototypeProfileService.CaptureInventory(secureContainer);
@@ -296,16 +303,68 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
                 ? playerInteractor.GetComponent<PrototypeUnitVitals>()
                 : FindFirstObjectByType<PrototypeUnitVitals>();
         }
+
+        if (raidEquipmentController == null)
+        {
+            raidEquipmentController = playerInteractor != null
+                ? playerInteractor.GetComponent<PrototypeRaidEquipmentController>()
+                : FindFirstObjectByType<PrototypeRaidEquipmentController>();
+        }
+
+        if (raidEquipmentController == null && playerInteractor != null && Application.isPlaying)
+        {
+            raidEquipmentController = playerInteractor.gameObject.AddComponent<PrototypeRaidEquipmentController>();
+        }
     }
 
-    private void EnsureStyles()
+    private void EnsureReturnButtonUi()
     {
-        if (buttonStyle == null)
+        if (returnButtonRoot != null)
         {
-            buttonStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 15
-            };
+            return;
+        }
+
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        RectTransform layerRoot = manager.GetLayerRoot(PrototypeUiLayer.Modal);
+        returnButtonRoot = PrototypeUiToolkit.CreateRectTransform("RaidReturnButton", layerRoot);
+        PrototypeUiToolkit.SetAnchor(
+            returnButtonRoot,
+            new Vector2(1f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(-40f, 34f),
+            new Vector2(180f, 42f));
+        returnButton = PrototypeUiToolkit.CreateButton(
+            returnButtonRoot,
+            manager.RuntimeFont,
+            "Return To Menu",
+            HandleReturnToMenu,
+            new Color(0.2f, 0.27f, 0.36f, 0.98f),
+            new Color(0.29f, 0.38f, 0.49f, 1f),
+            new Color(0.16f, 0.22f, 0.3f, 1f),
+            42f);
+        PrototypeUiToolkit.SetStretch(returnButton.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+        PrototypeUiToolkit.SetVisible(returnButtonRoot, false);
+    }
+
+    private void UpdateReturnButtonUi()
+    {
+        EnsureReturnButtonUi();
+        bool visible = showReturnButton && raidGameMode != null && !raidGameMode.IsRunning;
+        PrototypeUiToolkit.SetVisible(returnButtonRoot, visible);
+    }
+
+    private void HandleReturnToMenu()
+    {
+        PersistRaidOutcomeIfNeeded();
+        MetaEntryRouter.ReturnFromRaid(fallbackMetaSceneName);
+    }
+
+    private void OnDestroy()
+    {
+        if (returnButtonRoot != null)
+        {
+            Destroy(returnButtonRoot.gameObject);
         }
     }
 }

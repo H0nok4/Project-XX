@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeUnitVitals))]
@@ -18,14 +19,15 @@ public class PrototypeTargetHealthBar : MonoBehaviour
     [SerializeField] private Color highHealthColor = new Color(0.18f, 0.85f, 0.31f, 1f);
     [SerializeField] private Color levelTextColor = new Color(1f, 1f, 1f, 0.96f);
 
-    private static GUIStyle levelLabelStyle;
-
-    private static Texture2D pixelTexture;
+    private RectTransform uiRoot;
+    private Text levelLabelText;
+    private Image fillImage;
 
     private void Awake()
     {
         ResolveReferences();
         ClampSettings();
+        EnsureUi();
     }
 
     private void Reset()
@@ -54,65 +56,9 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         ClampSettings();
     }
 
-    private void OnGUI()
+    private void LateUpdate()
     {
-        if (Event.current.type != EventType.Repaint || vitals == null)
-        {
-            return;
-        }
-
-        if (anchor == null)
-        {
-            anchor = ResolveAnchorTransform();
-        }
-
-        if (!showWhenDead && vitals.IsDead)
-        {
-            return;
-        }
-
-        Camera renderCamera = Camera.main;
-        if (renderCamera == null)
-        {
-            return;
-        }
-
-        Transform targetAnchor = anchor != null ? anchor : transform;
-        Vector3 screenPosition = renderCamera.WorldToScreenPoint(targetAnchor.position + worldOffset);
-        if (screenPosition.z <= 0f)
-        {
-            return;
-        }
-
-        float width = barSize.x;
-        float height = barSize.y;
-        float top = Screen.height - screenPosition.y;
-        Rect outerRect = new Rect(screenPosition.x - width * 0.5f, top - height * 0.5f, width, height);
-        Rect innerRect = new Rect(outerRect.x + 1f, outerRect.y + 1f, outerRect.width - 2f, outerRect.height - 2f);
-
-        string levelLabel = BuildLevelLabel();
-        if (!string.IsNullOrWhiteSpace(levelLabel))
-        {
-            EnsureStyles();
-            Rect labelRect = new Rect(outerRect.x - 18f, outerRect.y - 18f, outerRect.width + 36f, 16f);
-            Color previousColor = GUI.color;
-            GUI.color = levelTextColor;
-            GUI.Label(labelRect, levelLabel, levelLabelStyle);
-            GUI.color = previousColor;
-        }
-
-        DrawRect(outerRect, borderColor);
-        DrawRect(innerRect, backgroundColor);
-
-        float fillAmount = vitals.TotalHealthNormalized;
-        if (fillAmount <= 0f)
-        {
-            return;
-        }
-
-        Rect fillRect = new Rect(innerRect.x, innerRect.y, innerRect.width * fillAmount, innerRect.height);
-        Color fillColor = Color.Lerp(lowHealthColor, highHealthColor, fillAmount);
-        DrawRect(fillRect, fillColor);
+        UpdateHealthBarUi();
     }
 
     private void ResolveReferences()
@@ -173,18 +119,93 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         barSize.y = Mathf.Max(barSize.y, 4f);
     }
 
-    private static void EnsureStyles()
+    private void EnsureUi()
     {
-        if (levelLabelStyle == null)
+        if (uiRoot != null)
         {
-            levelLabelStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 11,
-                fontStyle = FontStyle.Bold
-            };
-            levelLabelStyle.normal.textColor = Color.white;
+            return;
         }
+
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        uiRoot = PrototypeUiToolkit.CreateRectTransform($"{name}_HealthBar", manager.GetLayerRoot(PrototypeUiLayer.World));
+        PrototypeUiToolkit.SetAnchor(uiRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(barSize.x + 24f, barSize.y + 24f));
+
+        levelLabelText = PrototypeUiToolkit.CreateText(uiRoot, manager.RuntimeFont, string.Empty, 11, FontStyle.Bold, levelTextColor, TextAnchor.MiddleCenter);
+        PrototypeUiToolkit.SetAnchor(levelLabelText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(barSize.x + 36f, 16f));
+
+        Image borderImage = PrototypeUiToolkit.CreateImage(uiRoot, "Border", borderColor);
+        PrototypeUiToolkit.SetAnchor(borderImage.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 0f), barSize);
+
+        Image backgroundImage = PrototypeUiToolkit.CreateImage(borderImage.transform, "Background", backgroundColor);
+        PrototypeUiToolkit.SetStretch(backgroundImage.rectTransform, 1f, 1f, 1f, 1f);
+
+        fillImage = PrototypeUiToolkit.CreateImage(backgroundImage.transform, "Fill", highHealthColor);
+        fillImage.rectTransform.anchorMin = new Vector2(0f, 0f);
+        fillImage.rectTransform.anchorMax = new Vector2(0f, 1f);
+        fillImage.rectTransform.pivot = new Vector2(0f, 0.5f);
+        fillImage.rectTransform.offsetMin = Vector2.zero;
+        fillImage.rectTransform.offsetMax = Vector2.zero;
+        PrototypeUiToolkit.SetVisible(uiRoot, false);
+    }
+
+    private void UpdateHealthBarUi()
+    {
+        if (vitals == null)
+        {
+            SetUiVisible(false);
+            return;
+        }
+
+        EnsureUi();
+
+        if (anchor == null)
+        {
+            anchor = ResolveAnchorTransform();
+        }
+
+        if (!showWhenDead && vitals.IsDead)
+        {
+            SetUiVisible(false);
+            return;
+        }
+
+        Camera renderCamera = Camera.main;
+        if (renderCamera == null)
+        {
+            SetUiVisible(false);
+            return;
+        }
+
+        Transform targetAnchor = anchor != null ? anchor : transform;
+        Vector3 screenPosition = renderCamera.WorldToScreenPoint(targetAnchor.position + worldOffset);
+        if (screenPosition.z <= 0f)
+        {
+            SetUiVisible(false);
+            return;
+        }
+
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        PrototypeUiToolkit.SetScreenPosition(manager.CanvasRoot, uiRoot, new Vector2(screenPosition.x, screenPosition.y));
+        uiRoot.sizeDelta = new Vector2(barSize.x + 24f, barSize.y + 24f);
+        SetUiVisible(true);
+
+        string levelLabel = BuildLevelLabel();
+        if (levelLabelText != null)
+        {
+            levelLabelText.text = levelLabel ?? string.Empty;
+            levelLabelText.color = levelTextColor;
+            levelLabelText.gameObject.SetActive(!string.IsNullOrWhiteSpace(levelLabel));
+        }
+
+        if (fillImage == null)
+        {
+            return;
+        }
+
+        float fillAmount = vitals.TotalHealthNormalized;
+        float innerWidth = Mathf.Max(0f, barSize.x - 2f);
+        fillImage.color = Color.Lerp(lowHealthColor, highHealthColor, fillAmount);
+        fillImage.rectTransform.sizeDelta = new Vector2(innerWidth * fillAmount, Mathf.Max(0f, barSize.y - 2f));
     }
 
     private string BuildLevelLabel()
@@ -199,17 +220,17 @@ public class PrototypeTargetHealthBar : MonoBehaviour
             : $"Lv {botController.EnemyLevel}";
     }
 
-    private static void DrawRect(Rect rect, Color color)
+    private void SetUiVisible(bool visible)
     {
-        if (pixelTexture == null)
-        {
-            pixelTexture = Texture2D.whiteTexture;
-        }
+        PrototypeUiToolkit.SetVisible(uiRoot, visible);
+    }
 
-        Color previousColor = GUI.color;
-        GUI.color = color;
-        GUI.DrawTexture(rect, pixelTexture);
-        GUI.color = previousColor;
+    private void OnDestroy()
+    {
+        if (uiRoot != null)
+        {
+            Destroy(uiRoot.gameObject);
+        }
     }
 
     private static string NormalizePartId(string partId)

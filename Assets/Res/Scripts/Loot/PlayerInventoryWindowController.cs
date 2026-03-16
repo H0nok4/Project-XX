@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeFpsInput))]
@@ -9,18 +10,26 @@ public class PlayerInventoryWindowController : MonoBehaviour
     [SerializeField] private PlayerInteractionState interactionState;
     [SerializeField] private LootContainerWindowController lootWindowController;
     [SerializeField] private PrototypeUnitVitals playerVitals;
+    [SerializeField] private PrototypeRaidEquipmentController raidEquipmentController;
 
     private bool isOpen;
-    private Vector2 scrollPosition;
-    private GUIStyle windowStyle;
-    private GUIStyle buttonStyle;
-    private GUIStyle listStyle;
+    private bool contentDirty = true;
+    private bool resetBackpackScroll = true;
+    private bool resetGearScroll = true;
+    private int lastContentHash;
+    private PrototypeUiToolkit.WindowChrome windowChrome;
+    private Text summaryText;
+    private ScrollRect backpackScrollRect;
+    private RectTransform backpackContentRoot;
+    private ScrollRect gearScrollRect;
+    private RectTransform gearContentRoot;
 
     public bool IsOpen => isOpen;
 
     private void Awake()
     {
         ResolveReferences();
+        EnsureWindowUi();
     }
 
     private void OnEnable()
@@ -31,9 +40,18 @@ public class PlayerInventoryWindowController : MonoBehaviour
             playerVitals.Died += HandlePlayerDied;
         }
 
+        if (raidEquipmentController != null)
+        {
+            raidEquipmentController.Changed += MarkDirty;
+        }
+
         if (IsPlayerDead())
         {
             Close();
+        }
+        else
+        {
+            UpdateWindowVisibility();
         }
     }
 
@@ -44,7 +62,13 @@ public class PlayerInventoryWindowController : MonoBehaviour
             playerVitals.Died -= HandlePlayerDied;
         }
 
+        if (raidEquipmentController != null)
+        {
+            raidEquipmentController.Changed -= MarkDirty;
+        }
+
         Close();
+        UpdateWindowVisibility();
     }
 
     private void OnValidate()
@@ -80,111 +104,23 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
         if (!IsOpen)
         {
+            UpdateWindowVisibility();
             return;
         }
 
         if (fpsInput != null && fpsInput.ToggleCursorPressedThisFrame)
         {
             Close();
-        }
-    }
-
-    private void OnGUI()
-    {
-        if (IsPlayerDead())
-        {
-            if (IsOpen)
-            {
-                Close();
-            }
-
             return;
         }
 
-        if (!IsOpen || interactor == null || interactor.PrimaryInventory == null)
-        {
-            return;
-        }
-
-        EnsureStyles();
-
-        InventoryContainer inventory = interactor.PrimaryInventory;
-        InventoryContainer secureInventory = interactor.SecureInventory;
-        InventoryContainer specialInventory = interactor.SpecialInventory;
-        Rect panelRect = new Rect(Screen.width * 0.5f - 340f, Screen.height * 0.5f - 220f, 680f, 440f);
-        GUI.Box(panelRect, string.Empty, windowStyle);
-
-        GUILayout.BeginArea(new Rect(panelRect.x + 14f, panelRect.y + 12f, panelRect.width - 28f, panelRect.height - 24f));
-        GUILayout.Label("战局背包", windowStyle);
-        GUILayout.Label(
-            $"背包 {inventory.OccupiedSlots}/{inventory.MaxSlots}  重量 {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}\n安全箱 {GetStackCount(secureInventory)}/{GetMaxSlots(secureInventory)}  特殊栏 {GetStackCount(specialInventory)}/{GetMaxSlots(specialInventory)}\n按 Tab 或 Esc 关闭。只有战局背包里的物品可以丢弃。",
-            windowStyle);
-
-        GUILayout.Space(6f);
-
-        if (inventory.IsEmpty)
-        {
-            GUILayout.Label("背包为空。", windowStyle);
-        }
-        else
-        {
-            scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(260f));
-            for (int index = 0; index < inventory.Items.Count; index++)
-            {
-                ItemInstance item = inventory.Items[index];
-                if (item == null || !item.IsDefined())
-                {
-                    continue;
-                }
-
-                GUILayout.BeginVertical(listStyle);
-                GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, windowStyle);
-                GUILayout.Label(GetInventoryEntryDetail(item), windowStyle);
-                GUILayout.BeginHorizontal();
-
-                if (item.IsWeapon && GUILayout.Button("装备", buttonStyle, GUILayout.Width(100f)))
-                {
-                    EquipWeaponFromInventory(index);
-                    GUIUtility.ExitGUI();
-                }
-
-                if (item.Quantity > 1 && GUILayout.Button("丢 1 个", buttonStyle, GUILayout.Width(100f)))
-                {
-                    DropItem(index, 1);
-                    GUIUtility.ExitGUI();
-                }
-
-                if (GUILayout.Button(item.Quantity > 1 ? "整组丢弃" : "丢弃", buttonStyle, GUILayout.Width(120f)))
-                {
-                    DropItem(index, item.Quantity);
-                    GUIUtility.ExitGUI();
-                }
-
-                GUILayout.EndHorizontal();
-                GUILayout.EndVertical();
-            }
-
-            GUILayout.EndScrollView();
-        }
-
-        DrawProtectedSection("安全箱", secureInventory);
-        DrawProtectedSection("特殊装备", specialInventory);
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("关闭", buttonStyle, GUILayout.Width(120f)))
-        {
-            Close();
-            GUIUtility.ExitGUI();
-        }
-
-        GUILayout.EndHorizontal();
-        GUILayout.EndArea();
+        RefreshWindowIfNeeded();
     }
 
     public void Open()
     {
         ResolveReferences();
-        if (interactor == null || interactor.PrimaryInventory == null || IsPlayerDead())
+        if (interactor == null || interactor.PrimaryInventory == null || raidEquipmentController == null || IsPlayerDead())
         {
             return;
         }
@@ -195,8 +131,12 @@ public class PlayerInventoryWindowController : MonoBehaviour
         }
 
         isOpen = true;
-        scrollPosition = Vector2.zero;
+        resetBackpackScroll = true;
+        resetGearScroll = true;
+        MarkDirty();
         SetUiFocus(true);
+        UpdateWindowVisibility();
+        RefreshWindowIfNeeded();
     }
 
     public void Close()
@@ -208,70 +148,191 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
         isOpen = false;
         SetUiFocus(false);
+        UpdateWindowVisibility();
     }
 
-    private void DropItem(int itemIndex, int quantity)
+    private void EnsureWindowUi()
     {
-        if (interactor == null || interactor.PrimaryInventory == null)
+        if (windowChrome?.Root != null)
         {
             return;
         }
 
-        if (!interactor.PrimaryInventory.TryExtractItem(itemIndex, quantity, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsDefined())
-        {
-            return;
-        }
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        windowChrome = PrototypeUiToolkit.CreateWindowChrome(
+            manager.GetLayerRoot(PrototypeUiLayer.Window),
+            manager.RuntimeFont,
+            "PlayerInventoryWindow",
+            "Raid Inventory",
+            "Drag items between your backpack, equipped slots, special equipment, and the secure container.",
+            new Vector2(1280f, 720f));
 
-        Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
-        GroundLootItem.SpawnDroppedItem(dropOrigin, extractedItem);
+        VerticalLayoutGroup bodyLayout = windowChrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        bodyLayout.spacing = 14f;
+        bodyLayout.padding = new RectOffset(0, 0, 0, 0);
+        bodyLayout.childAlignment = TextAnchor.UpperLeft;
+        bodyLayout.childControlWidth = true;
+        bodyLayout.childControlHeight = true;
+        bodyLayout.childForceExpandWidth = true;
+        bodyLayout.childForceExpandHeight = false;
+
+        summaryText = PrototypeUiToolkit.CreateText(
+            windowChrome.BodyRoot,
+            manager.RuntimeFont,
+            string.Empty,
+            14,
+            FontStyle.Normal,
+            new Color(0.92f, 0.94f, 0.98f, 1f),
+            TextAnchor.UpperLeft);
+        summaryText.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+
+        RectTransform contentRow = PrototypeUiToolkit.CreateRectTransform("ContentRow", windowChrome.BodyRoot);
+        HorizontalLayoutGroup contentLayout = contentRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        contentLayout.spacing = 16f;
+        contentLayout.padding = new RectOffset(0, 0, 0, 0);
+        contentLayout.childAlignment = TextAnchor.UpperLeft;
+        contentLayout.childControlWidth = true;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandWidth = true;
+        contentLayout.childForceExpandHeight = true;
+        LayoutElement contentRowLayout = contentRow.gameObject.AddComponent<LayoutElement>();
+        contentRowLayout.flexibleWidth = 1f;
+        contentRowLayout.flexibleHeight = 1f;
+        contentRowLayout.minHeight = 0f;
+
+        RectTransform backpackColumn = CreateColumnRoot(contentRow, 0.56f);
+        backpackScrollRect = PrototypeUiToolkit.CreateScrollView(backpackColumn, out _, out RectTransform backpackContent, true);
+        backpackContentRoot = backpackContent;
+        PrototypeUiToolkit.SetStretch(backpackScrollRect.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+
+        RectTransform gearColumn = CreateColumnRoot(contentRow, 0.44f);
+        gearScrollRect = PrototypeUiToolkit.CreateScrollView(gearColumn, out _, out RectTransform gearContent, true);
+        gearContentRoot = gearContent;
+        PrototypeUiToolkit.SetStretch(gearScrollRect.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+
+        Button closeButton = PrototypeUiToolkit.CreateButton(
+            windowChrome.FooterRoot,
+            manager.RuntimeFont,
+            "Close",
+            Close,
+            new Color(0.2f, 0.27f, 0.36f, 0.98f),
+            new Color(0.29f, 0.38f, 0.49f, 1f),
+            new Color(0.16f, 0.22f, 0.3f, 1f),
+            38f);
+        LayoutElement closeLayout = closeButton.GetComponent<LayoutElement>();
+        closeLayout.preferredWidth = 150f;
+        closeLayout.flexibleWidth = 0f;
+
+        PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
     }
 
-    private void EquipWeaponFromInventory(int itemIndex)
+    private void RefreshWindowIfNeeded()
     {
-        if (interactor == null || interactor.PrimaryInventory == null)
+        EnsureWindowUi();
+        UpdateWindowVisibility();
+        if (!IsOpen || interactor == null || raidEquipmentController == null)
         {
             return;
         }
 
-        PrototypeFpsController controller = interactor.GetComponent<PrototypeFpsController>();
-        if (controller == null)
+        int contentHash = raidEquipmentController.BuildStateHash();
+        if (!contentDirty && contentHash == lastContentHash)
         {
             return;
         }
 
-        if (!interactor.PrimaryInventory.TryExtractItem(itemIndex, 1, out ItemInstance extractedItem) || extractedItem == null || !extractedItem.IsWeapon)
+        float backpackScroll = backpackScrollRect != null ? backpackScrollRect.verticalNormalizedPosition : 1f;
+        float gearScroll = gearScrollRect != null ? gearScrollRect.verticalNormalizedPosition : 1f;
+        lastContentHash = contentHash;
+        contentDirty = false;
+
+        if (summaryText != null)
         {
-            return;
+            summaryText.text = BuildSummaryText();
         }
 
-        if (!controller.TryEquipInventoryWeapon(extractedItem, out ItemInstance overflowWeapon))
+        PrototypeUiToolkit.ClearChildren(backpackContentRoot);
+        PrototypeUiToolkit.ClearChildren(gearContentRoot);
+
+        BuildInventorySection(
+            backpackContentRoot,
+            "Backpack",
+            interactor.PrimaryInventory,
+            "Your raid backpack is empty.",
+            PrototypeRaidDropTarget.ForInventory(interactor.PrimaryInventory),
+            true);
+
+        BuildGearColumn();
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(windowChrome.Panel);
+        if (backpackScrollRect != null)
         {
-            interactor.PrimaryInventory.TryAddItemInstance(extractedItem);
-            return;
+            backpackScrollRect.verticalNormalizedPosition = resetBackpackScroll ? 1f : Mathf.Clamp01(backpackScroll);
         }
 
-        if (overflowWeapon == null)
+        if (gearScrollRect != null)
         {
-            return;
+            gearScrollRect.verticalNormalizedPosition = resetGearScroll ? 1f : Mathf.Clamp01(gearScroll);
         }
 
-        Transform dropOrigin = interactor.InteractionCamera != null ? interactor.InteractionCamera.transform : interactor.transform;
-        GroundLootItem.SpawnDroppedItem(dropOrigin, overflowWeapon);
+        resetBackpackScroll = false;
+        resetGearScroll = false;
     }
 
-    private void DrawProtectedSection(string title, InventoryContainer inventory)
+    private void BuildGearColumn()
     {
-        GUILayout.Space(8f);
-        GUILayout.Label(title, windowStyle);
-        if (inventory == null)
-        {
-            GUILayout.Label("不可用。", windowStyle);
-            return;
-        }
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.PrimaryWeapon, "Drag a firearm here to equip it as your primary weapon.");
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.SecondaryWeapon, "Drag a firearm here to equip it as your secondary weapon.");
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.MeleeWeapon, "Drag a melee weapon here to equip it.");
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.Armor, "Drag torso armor here to equip it.");
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.Helmet, "Drag head armor here to equip it.");
 
-        if (inventory.IsEmpty)
+        BuildInventorySection(
+            gearContentRoot,
+            "Special Equipment",
+            interactor != null ? interactor.SpecialInventory : null,
+            "No special equipment stored here.",
+            PrototypeRaidDropTarget.ForInventory(interactor != null ? interactor.SpecialInventory : null),
+            false);
+
+        BuildSlotCard(gearContentRoot, PrototypeRaidGearSlotType.SecureContainer, "Equip a secure container to unlock its storage capacity.");
+        BuildInventorySection(
+            gearContentRoot,
+            "Secure Storage",
+            interactor != null ? interactor.SecureInventory : null,
+            raidEquipmentController != null && raidEquipmentController.EquippedSecureContainerItem == null
+                ? "No secure container is equipped."
+                : "No items stored in the secure container.",
+            PrototypeRaidDropTarget.ForInventory(interactor != null ? interactor.SecureInventory : null),
+            false);
+    }
+
+    private void BuildInventorySection(
+        RectTransform parent,
+        string title,
+        InventoryContainer inventory,
+        string emptyLabel,
+        PrototypeRaidDropTarget dropTarget,
+        bool allowDropButtons)
+    {
+        RectTransform section = PrototypeUiToolkit.CreatePanel(
+            parent,
+            title.Replace(" ", string.Empty) + "Section",
+            new Color(0.11f, 0.15f, 0.2f, 0.98f),
+            new RectOffset(14, 14, 14, 14),
+            8f);
+        Image background = section.GetComponent<Image>();
+        AddDropZone(section.gameObject, dropTarget, background, new Color(0.11f, 0.15f, 0.2f, 0.98f), new Color(0.17f, 0.24f, 0.33f, 1f));
+
+        PrototypeUiToolkit.CreateText(section, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, title, 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        string sectionSummary = inventory == null
+            ? "Unavailable"
+            : $"Stacks {inventory.OccupiedSlots}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}";
+        PrototypeUiToolkit.CreateText(section, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, sectionSummary, 13, FontStyle.Normal, new Color(0.82f, 0.87f, 0.93f, 1f), TextAnchor.UpperLeft);
+
+        if (inventory == null || inventory.IsEmpty)
         {
-            GUILayout.Label("为空。", windowStyle);
+            PrototypeUiToolkit.CreateText(section, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, emptyLabel, 14, FontStyle.Italic, new Color(0.7f, 0.76f, 0.84f, 1f), TextAnchor.UpperLeft);
             return;
         }
 
@@ -283,26 +344,171 @@ public class PlayerInventoryWindowController : MonoBehaviour
                 continue;
             }
 
-            GUILayout.BeginVertical(listStyle);
-            GUILayout.Label(item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, windowStyle);
-            GUILayout.Label(GetInventoryEntryDetail(item), windowStyle);
-            GUILayout.EndVertical();
+            CreateItemCard(section, item, PrototypeRaidItemLocation.FromInventory(inventory, item), allowDropButtons);
         }
     }
 
-    private static string GetInventoryEntryDetail(ItemInstance item)
+    private void BuildSlotCard(RectTransform parent, PrototypeRaidGearSlotType gearSlot, string emptyLabel)
     {
-        return PrototypeMainMenuController.BuildItemInstanceDetail(item);
+        RectTransform card = PrototypeUiToolkit.CreatePanel(
+            parent,
+            gearSlot + "Slot",
+            new Color(0.15f, 0.2f, 0.27f, 0.96f),
+            new RectOffset(14, 14, 14, 14),
+            6f);
+        Image background = card.GetComponent<Image>();
+        AddDropZone(
+            card.gameObject,
+            PrototypeRaidInventoryRules.IsWeaponSlot(gearSlot)
+                ? PrototypeRaidDropTarget.ForWeaponSlot(gearSlot)
+                : PrototypeRaidInventoryRules.IsArmorSlot(gearSlot)
+                    ? PrototypeRaidDropTarget.ForArmorSlot(gearSlot)
+                    : PrototypeRaidDropTarget.ForSecureContainerGear(),
+            background,
+            new Color(0.15f, 0.2f, 0.27f, 0.96f),
+            new Color(0.22f, 0.3f, 0.4f, 1f));
+
+        PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, PrototypeRaidInventoryRules.GetSlotDisplayName(gearSlot), 17, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+
+        ItemInstance equippedItem = raidEquipmentController != null ? raidEquipmentController.GetSlotItem(gearSlot) : null;
+        if (equippedItem == null)
+        {
+            PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, emptyLabel, 13, FontStyle.Italic, new Color(0.72f, 0.78f, 0.86f, 1f), TextAnchor.UpperLeft);
+            return;
+        }
+
+        PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, equippedItem.RichDisplayName, 15, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, PrototypeMainMenuController.BuildItemInstanceDetail(equippedItem), 13, FontStyle.Normal, new Color(0.9f, 0.93f, 0.97f, 1f), TextAnchor.UpperLeft);
+
+        PrototypeRaidItemLocation source = PrototypeRaidInventoryRules.IsWeaponSlot(gearSlot)
+            ? PrototypeRaidItemLocation.FromWeaponSlot(gearSlot)
+            : PrototypeRaidInventoryRules.IsArmorSlot(gearSlot)
+                ? PrototypeRaidItemLocation.FromArmorSlot(gearSlot)
+                : PrototypeRaidItemLocation.FromSecureContainerGear();
+        AddDragHandle(card.gameObject, source, equippedItem);
+
+        if (gearSlot == PrototypeRaidGearSlotType.SecureContainer
+            && PrototypeRaidInventoryRules.TryGetSecureContainerSpec(equippedItem.DefinitionBase, out PrototypeRaidSecureContainerSpec secureSpec))
+        {
+            PrototypeUiToolkit.CreateText(
+                card,
+                PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont,
+                $"Slots {secureSpec.SlotCount}  Capacity {secureSpec.MaxWeight:0.0}",
+                13,
+                FontStyle.Normal,
+                new Color(0.78f, 0.84f, 0.92f, 1f),
+                TextAnchor.UpperLeft);
+        }
     }
 
-    private static int GetStackCount(InventoryContainer inventory)
+    private void CreateItemCard(RectTransform parent, ItemInstance item, PrototypeRaidItemLocation source, bool allowDropButton)
     {
-        return inventory != null ? inventory.Items.Count : 0;
+        RectTransform card = PrototypeUiToolkit.CreatePanel(
+            parent,
+            "ItemCard",
+            new Color(0.18f, 0.22f, 0.29f, 0.94f),
+            new RectOffset(12, 12, 10, 10),
+            6f);
+        PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, item.Quantity > 1 ? $"{item.RichDisplayName} x{item.Quantity}" : item.RichDisplayName, 16, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        PrototypeUiToolkit.CreateText(card, PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont, PrototypeMainMenuController.BuildItemInstanceDetail(item), 13, FontStyle.Normal, new Color(0.9f, 0.93f, 0.97f, 1f), TextAnchor.UpperLeft);
+        AddDragHandle(card.gameObject, source, item);
+
+        if (!allowDropButton || source == null || source.Kind != PrototypeRaidItemLocationKind.InventoryItem || source.Inventory != interactor?.PrimaryInventory)
+        {
+            return;
+        }
+
+        Button dropButton = PrototypeUiToolkit.CreateButton(
+            card,
+            PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont,
+            "Drop",
+            () =>
+            {
+                if (raidEquipmentController != null && raidEquipmentController.TryDropBackpackItem(item.InstanceId, out _))
+                {
+                    MarkDirty();
+                }
+            },
+            new Color(0.33f, 0.22f, 0.19f, 1f),
+            new Color(0.44f, 0.29f, 0.24f, 1f),
+            new Color(0.26f, 0.17f, 0.15f, 1f),
+            34f);
+        LayoutElement dropLayout = dropButton.GetComponent<LayoutElement>();
+        dropLayout.preferredWidth = 108f;
+        dropLayout.flexibleWidth = 0f;
     }
 
-    private static int GetMaxSlots(InventoryContainer inventory)
+    private void AddDragHandle(GameObject target, PrototypeRaidItemLocation source, ItemInstance item)
     {
-        return inventory != null ? inventory.MaxSlots : 0;
+        if (target == null || source == null || item == null || raidEquipmentController == null)
+        {
+            return;
+        }
+
+        PrototypeRaidDragHandle handle = target.GetComponent<PrototypeRaidDragHandle>();
+        if (handle == null)
+        {
+            handle = target.AddComponent<PrototypeRaidDragHandle>();
+        }
+
+        handle.Configure(new PrototypeRaidDragPayload
+        {
+            Controller = raidEquipmentController,
+            Source = source,
+            Item = item.Clone()
+        });
+    }
+
+    private void AddDropZone(GameObject target, PrototypeRaidDropTarget dropTarget, Image background, Color normalColor, Color highlightColor)
+    {
+        if (target == null || dropTarget == null || raidEquipmentController == null)
+        {
+            return;
+        }
+
+        PrototypeRaidDropZone dropZone = target.GetComponent<PrototypeRaidDropZone>();
+        if (dropZone == null)
+        {
+            dropZone = target.AddComponent<PrototypeRaidDropZone>();
+        }
+
+        dropZone.Configure(dropTarget, MarkDirty, background, normalColor, highlightColor);
+    }
+
+    private string BuildSummaryText()
+    {
+        InventoryContainer backpack = interactor != null ? interactor.PrimaryInventory : null;
+        InventoryContainer secure = interactor != null ? interactor.SecureInventory : null;
+        InventoryContainer special = interactor != null ? interactor.SpecialInventory : null;
+        string status = raidEquipmentController != null ? raidEquipmentController.StatusMessage : string.Empty;
+        string summary =
+            $"Backpack {GetStackCount(backpack)}/{GetMaxSlots(backpack)}  Weight {GetWeight(backpack):0.0}/{GetMaxWeight(backpack):0.0}\n" +
+            $"Secure {GetStackCount(secure)}/{GetMaxSlots(secure)}  Special {GetStackCount(special)}/{GetMaxSlots(special)}\n" +
+            "Drag items between sections. Press Tab or Esc to close.";
+        return string.IsNullOrWhiteSpace(status) ? summary : $"{summary}\n{status}";
+    }
+
+    private static RectTransform CreateColumnRoot(Transform parent, float flexibleWidth)
+    {
+        RectTransform root = PrototypeUiToolkit.CreateRectTransform("Column", parent);
+        Image background = root.gameObject.AddComponent<Image>();
+        background.color = new Color(0.05f, 0.07f, 0.1f, 0.36f);
+        LayoutElement layout = root.gameObject.AddComponent<LayoutElement>();
+        layout.flexibleWidth = flexibleWidth;
+        layout.flexibleHeight = 1f;
+        layout.minHeight = 0f;
+        return root;
+    }
+
+    private void UpdateWindowVisibility()
+    {
+        EnsureWindowUi();
+        PrototypeUiToolkit.SetVisible(windowChrome.Root, IsOpen && !IsPlayerDead());
+    }
+
+    private void MarkDirty()
+    {
+        contentDirty = true;
     }
 
     private void ResolveReferences()
@@ -331,6 +537,31 @@ public class PlayerInventoryWindowController : MonoBehaviour
         {
             playerVitals = GetComponent<PrototypeUnitVitals>();
         }
+
+        if (raidEquipmentController == null)
+        {
+            raidEquipmentController = GetComponent<PrototypeRaidEquipmentController>();
+        }
+    }
+
+    private static int GetStackCount(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.OccupiedSlots : 0;
+    }
+
+    private static int GetMaxSlots(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.MaxSlots : 0;
+    }
+
+    private static float GetWeight(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.CurrentWeight : 0f;
+    }
+
+    private static float GetMaxWeight(InventoryContainer inventory)
+    {
+        return inventory != null ? inventory.MaxWeight : 0f;
     }
 
     private void HandlePlayerDied(PrototypeUnitVitals vitals)
@@ -355,37 +586,11 @@ public class PlayerInventoryWindowController : MonoBehaviour
         Cursor.visible = keepCursorFree;
     }
 
-    private void EnsureStyles()
+    private void OnDestroy()
     {
-        if (windowStyle == null)
+        if (windowChrome?.Root != null)
         {
-            windowStyle = new GUIStyle(GUI.skin.box)
-            {
-                fontSize = 15,
-                alignment = TextAnchor.UpperLeft,
-                wordWrap = true,
-                richText = true,
-                normal = { textColor = Color.white }
-            };
-            windowStyle.padding = new RectOffset(12, 12, 10, 10);
-        }
-
-        if (buttonStyle == null)
-        {
-            buttonStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 14
-            };
-        }
-
-        if (listStyle == null)
-        {
-            listStyle = new GUIStyle(GUI.skin.box)
-            {
-                alignment = TextAnchor.UpperLeft
-            };
-            listStyle.padding = new RectOffset(10, 10, 8, 8);
-            listStyle.margin = new RectOffset(0, 0, 0, 8);
+            Destroy(windowChrome.Root.gameObject);
         }
     }
 }

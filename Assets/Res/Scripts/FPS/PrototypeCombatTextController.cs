@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeUnitVitals))]
@@ -13,6 +14,9 @@ public class PrototypeCombatTextController : MonoBehaviour
         public Color color = Color.white;
         public Vector3 worldPosition;
         public float spawnTime;
+        public RectTransform root;
+        public Text label;
+        public Shadow shadow;
     }
 
     [Header("References")]
@@ -32,12 +36,13 @@ public class PrototypeCombatTextController : MonoBehaviour
     [SerializeField] private Color shadowColor = new Color(0f, 0f, 0f, 0.8f);
 
     private readonly List<ActiveCombatText> activeTexts = new List<ActiveCombatText>();
-    private GUIStyle textStyle;
+    private RectTransform worldLayerRoot;
 
     private void Awake()
     {
         ResolveReferences();
         ClampSettings();
+        EnsureWorldLayerRoot();
     }
 
     private void OnEnable()
@@ -55,6 +60,8 @@ public class PrototypeCombatTextController : MonoBehaviour
         {
             vitals.CombatFeedbackGenerated -= HandleCombatFeedback;
         }
+
+        ClearActiveTexts();
     }
 
     private void OnValidate()
@@ -63,53 +70,9 @@ public class PrototypeCombatTextController : MonoBehaviour
         ClampSettings();
     }
 
-    private void OnGUI()
+    private void LateUpdate()
     {
-        if (Event.current.type != EventType.Repaint || activeTexts.Count == 0)
-        {
-            return;
-        }
-
-        Camera renderCamera = Camera.main;
-        if (renderCamera == null)
-        {
-            return;
-        }
-
-        EnsureTextStyle();
-
-        float currentTime = Time.time;
-        for (int index = activeTexts.Count - 1; index >= 0; index--)
-        {
-            ActiveCombatText entry = activeTexts[index];
-            if (entry == null)
-            {
-                activeTexts.RemoveAt(index);
-                continue;
-            }
-
-            float elapsed = currentTime - entry.spawnTime;
-            if (elapsed >= lifetime)
-            {
-                activeTexts.RemoveAt(index);
-                continue;
-            }
-
-            float normalizedLifetime = Mathf.Clamp01(elapsed / lifetime);
-            Vector3 worldPosition = entry.worldPosition + Vector3.up * (verticalRise * normalizedLifetime);
-            Vector3 screenPosition = renderCamera.WorldToScreenPoint(worldPosition);
-            if (screenPosition.z <= 0f)
-            {
-                continue;
-            }
-
-            Color drawColor = entry.color;
-            drawColor.a *= 1f - normalizedLifetime;
-
-            Rect rect = new Rect(screenPosition.x - 56f, Screen.height - screenPosition.y - 16f, 112f, 32f);
-            DrawLabel(rect, entry.text, shadowColor * new Color(1f, 1f, 1f, drawColor.a), new Vector2(1f, 1f));
-            DrawLabel(rect, entry.text, drawColor, Vector2.zero);
-        }
+        UpdateCombatTextUi();
     }
 
     private void HandleCombatFeedback(PrototypeUnitVitals.CombatFeedback feedback)
@@ -123,13 +86,166 @@ public class PrototypeCombatTextController : MonoBehaviour
             UnityEngine.Random.Range(0f, randomHorizontalOffset),
             0f);
 
-        activeTexts.Add(new ActiveCombatText
+        ActiveCombatText entry = new ActiveCombatText
         {
             text = text,
             color = color,
             worldPosition = worldPosition,
             spawnTime = Time.time
-        });
+        };
+
+        CreateCombatTextUi(entry);
+        activeTexts.Add(entry);
+    }
+
+    private void UpdateCombatTextUi()
+    {
+        if (activeTexts.Count == 0)
+        {
+            return;
+        }
+
+        Camera renderCamera = Camera.main;
+        if (renderCamera == null)
+        {
+            SetAllTextsVisible(false);
+            return;
+        }
+
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        float currentTime = Time.time;
+
+        for (int index = activeTexts.Count - 1; index >= 0; index--)
+        {
+            ActiveCombatText entry = activeTexts[index];
+            if (entry == null)
+            {
+                activeTexts.RemoveAt(index);
+                continue;
+            }
+
+            float elapsed = currentTime - entry.spawnTime;
+            if (elapsed >= lifetime)
+            {
+                DestroyEntry(entry);
+                activeTexts.RemoveAt(index);
+                continue;
+            }
+
+            if (entry.root == null || entry.label == null)
+            {
+                CreateCombatTextUi(entry);
+            }
+
+            float normalizedLifetime = Mathf.Clamp01(elapsed / lifetime);
+            Vector3 worldPosition = entry.worldPosition + Vector3.up * (verticalRise * normalizedLifetime);
+            Vector3 screenPosition = renderCamera.WorldToScreenPoint(worldPosition);
+            if (screenPosition.z <= 0f)
+            {
+                PrototypeUiToolkit.SetVisible(entry.root, false);
+                continue;
+            }
+
+            Color drawColor = entry.color;
+            drawColor.a *= 1f - normalizedLifetime;
+
+            PrototypeUiToolkit.SetVisible(entry.root, true);
+            PrototypeUiToolkit.SetScreenPosition(manager.CanvasRoot, entry.root, new Vector2(screenPosition.x, screenPosition.y));
+            entry.label.text = entry.text;
+            entry.label.fontSize = fontSize;
+            entry.label.color = drawColor;
+
+            if (entry.shadow != null)
+            {
+                Color drawShadow = shadowColor;
+                drawShadow.a *= drawColor.a;
+                entry.shadow.effectColor = drawShadow;
+            }
+        }
+    }
+
+    private void EnsureWorldLayerRoot()
+    {
+        if (worldLayerRoot != null)
+        {
+            return;
+        }
+
+        worldLayerRoot = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.World);
+    }
+
+    private void CreateCombatTextUi(ActiveCombatText entry)
+    {
+        if (entry == null)
+        {
+            return;
+        }
+
+        EnsureWorldLayerRoot();
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+
+        if (entry.root == null)
+        {
+            entry.root = PrototypeUiToolkit.CreateRectTransform("CombatText", worldLayerRoot);
+            PrototypeUiToolkit.SetAnchor(
+                entry.root,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(132f, 40f));
+        }
+
+        if (entry.label == null)
+        {
+            entry.label = PrototypeUiToolkit.CreateText(
+                entry.root,
+                manager.RuntimeFont,
+                entry.text,
+                fontSize,
+                FontStyle.Bold,
+                entry.color,
+                TextAnchor.MiddleCenter,
+                false,
+                false);
+            PrototypeUiToolkit.SetStretch(entry.label.rectTransform, 0f, 0f, 0f, 0f);
+            entry.shadow = entry.label.gameObject.AddComponent<Shadow>();
+            entry.shadow.effectDistance = new Vector2(1f, -1f);
+            entry.shadow.useGraphicAlpha = true;
+        }
+    }
+
+    private void ClearActiveTexts()
+    {
+        for (int index = activeTexts.Count - 1; index >= 0; index--)
+        {
+            DestroyEntry(activeTexts[index]);
+        }
+
+        activeTexts.Clear();
+    }
+
+    private void SetAllTextsVisible(bool visible)
+    {
+        for (int index = 0; index < activeTexts.Count; index++)
+        {
+            ActiveCombatText entry = activeTexts[index];
+            if (entry?.root != null)
+            {
+                PrototypeUiToolkit.SetVisible(entry.root, visible);
+            }
+        }
+    }
+
+    private static void DestroyEntry(ActiveCombatText entry)
+    {
+        if (entry?.root != null)
+        {
+            UnityEngine.Object.Destroy(entry.root.gameObject);
+            entry.root = null;
+            entry.label = null;
+            entry.shadow = null;
+        }
     }
 
     private Vector3 ResolveAnchorWorldPosition(string partId)
@@ -176,29 +292,9 @@ public class PrototypeCombatTextController : MonoBehaviour
         fontSize = Mathf.Clamp(fontSize, 10, 40);
     }
 
-    private void EnsureTextStyle()
+    private void OnDestroy()
     {
-        if (textStyle != null)
-        {
-            textStyle.fontSize = fontSize;
-            return;
-        }
-
-        textStyle = new GUIStyle(GUI.skin.label)
-        {
-            alignment = TextAnchor.MiddleCenter,
-            fontSize = fontSize,
-            fontStyle = FontStyle.Bold
-        };
-    }
-
-    private void DrawLabel(Rect rect, string text, Color color, Vector2 offset)
-    {
-        Rect drawRect = new Rect(rect.x + offset.x, rect.y + offset.y, rect.width, rect.height);
-        Color previousColor = GUI.color;
-        GUI.color = color;
-        GUI.Label(drawRect, text, textStyle);
-        GUI.color = previousColor;
+        ClearActiveTexts();
     }
 
     private static string NormalizePartId(string partId)

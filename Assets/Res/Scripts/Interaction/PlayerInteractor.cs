@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeFpsInput))]
@@ -24,7 +25,9 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private bool autoAddInventoryWindowController = true;
 
     private InteractionQueryResult currentQuery;
-    private GUIStyle promptStyle;
+    private RectTransform promptRoot;
+    private Text promptText;
+    private CanvasGroup promptCanvasGroup;
 
     public InventoryContainer PrimaryInventory => primaryInventory;
     public InventoryContainer SecureInventory => secureInventory;
@@ -37,6 +40,7 @@ public class PlayerInteractor : MonoBehaviour
     {
         ResolveReferences();
         EnsureInventoryWindowController();
+        EnsurePromptUi();
     }
 
     private void Update()
@@ -44,6 +48,7 @@ public class PlayerInteractor : MonoBehaviour
         if (interactionState != null && interactionState.IsUiFocused)
         {
             currentQuery = default;
+            UpdatePromptUi();
             return;
         }
 
@@ -58,6 +63,8 @@ public class PlayerInteractor : MonoBehaviour
                 RefreshInteractionQuery();
             }
         }
+
+        UpdatePromptUi();
     }
 
     private void OnValidate()
@@ -66,40 +73,6 @@ public class PlayerInteractor : MonoBehaviour
         interactDistance = Mathf.Max(0.5f, interactDistance);
         promptSize.x = Mathf.Max(160f, promptSize.x);
         promptSize.y = Mathf.Max(24f, promptSize.y);
-    }
-
-    private void OnGUI()
-    {
-        if (!showPrompt || !currentQuery.HasValue)
-        {
-            return;
-        }
-
-        if (interactionState != null && interactionState.IsUiFocused)
-        {
-            return;
-        }
-
-        IInteractable interactable = currentQuery.Interactable;
-        if (interactable == null || !interactable.CanInteract(this))
-        {
-            return;
-        }
-
-        string prompt = interactable.GetInteractionLabel(this);
-        if (string.IsNullOrWhiteSpace(prompt))
-        {
-            return;
-        }
-
-        string bindingDisplay = fpsInput != null ? fpsInput.GetBindingDisplayString("Interact") : string.Empty;
-        string promptPrefix = string.IsNullOrWhiteSpace(bindingDisplay) ? "[E]" : $"[{bindingDisplay}]";
-
-        EnsurePromptStyle();
-
-        float x = (Screen.width - promptSize.x) * 0.5f;
-        float y = Screen.height - promptSize.y - 36f;
-        GUI.Box(new Rect(x, y, promptSize.x, promptSize.y), $"{promptPrefix} {prompt}", promptStyle);
     }
 
     public void Configure(
@@ -125,6 +98,19 @@ public class PlayerInteractor : MonoBehaviour
         }
 
         ResolveReferences();
+    }
+
+    private void OnDestroy()
+    {
+        if (promptRoot != null)
+        {
+            Destroy(promptRoot.gameObject);
+        }
+    }
+
+    private void OnDisable()
+    {
+        SetPromptVisible(false);
     }
 
     private void RefreshInteractionQuery()
@@ -228,20 +214,101 @@ public class PlayerInteractor : MonoBehaviour
         }
     }
 
-    private void EnsurePromptStyle()
+    private void EnsurePromptUi()
     {
-        if (promptStyle != null)
+        if (promptRoot != null)
         {
             return;
         }
 
-        promptStyle = new GUIStyle(GUI.skin.box)
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        RectTransform layerRoot = manager.GetLayerRoot(PrototypeUiLayer.Overlay);
+        promptRoot = PrototypeUiToolkit.CreateRectTransform("InteractionPrompt", layerRoot);
+        PrototypeUiToolkit.SetAnchor(
+            promptRoot,
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 36f),
+            new Vector2(Mathf.Max(160f, promptSize.x), Mathf.Max(24f, promptSize.y)));
+
+        Image background = promptRoot.gameObject.AddComponent<Image>();
+        background.color = new Color(0.08f, 0.1f, 0.14f, 0.9f);
+        promptCanvasGroup = PrototypeUiToolkit.EnsureCanvasGroup(promptRoot);
+
+        RectTransform labelRoot = PrototypeUiToolkit.CreateRectTransform("Label", promptRoot);
+        PrototypeUiToolkit.SetStretch(labelRoot, 12f, 12f, 8f, 8f);
+        promptText = labelRoot.gameObject.AddComponent<Text>();
+        promptText.font = manager.RuntimeFont;
+        promptText.fontSize = 14;
+        promptText.fontStyle = FontStyle.Bold;
+        promptText.color = Color.white;
+        promptText.alignment = TextAnchor.MiddleCenter;
+        promptText.raycastTarget = false;
+        promptText.supportRichText = false;
+        promptText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        promptText.verticalOverflow = VerticalWrapMode.Overflow;
+        PrototypeUiToolkit.SetVisible(promptRoot, false);
+    }
+
+    private void UpdatePromptUi()
+    {
+        if (!showPrompt)
         {
-            alignment = TextAnchor.MiddleCenter,
-            fontSize = 14,
-            normal = { textColor = Color.white }
-        };
-        promptStyle.padding = new RectOffset(10, 10, 8, 8);
+            SetPromptVisible(false);
+            return;
+        }
+
+        EnsurePromptUi();
+        if (promptRoot != null)
+        {
+            promptRoot.sizeDelta = new Vector2(Mathf.Max(160f, promptSize.x), Mathf.Max(24f, promptSize.y));
+        }
+
+        if (!currentQuery.HasValue || (interactionState != null && interactionState.IsUiFocused))
+        {
+            SetPromptVisible(false);
+            return;
+        }
+
+        IInteractable interactable = currentQuery.Interactable;
+        if (interactable == null || !interactable.CanInteract(this))
+        {
+            SetPromptVisible(false);
+            return;
+        }
+
+        string prompt = interactable.GetInteractionLabel(this);
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            SetPromptVisible(false);
+            return;
+        }
+
+        string bindingDisplay = fpsInput != null ? fpsInput.GetBindingDisplayString("Interact") : string.Empty;
+        string promptPrefix = string.IsNullOrWhiteSpace(bindingDisplay) ? "[E]" : $"[{bindingDisplay}]";
+        if (promptText != null)
+        {
+            promptText.text = $"{promptPrefix} {prompt}";
+        }
+
+        SetPromptVisible(true);
+    }
+
+    private void SetPromptVisible(bool visible)
+    {
+        if (promptRoot == null)
+        {
+            return;
+        }
+
+        PrototypeUiToolkit.SetVisible(promptRoot, visible);
+        if (promptCanvasGroup != null)
+        {
+            promptCanvasGroup.alpha = visible ? 1f : 0f;
+            promptCanvasGroup.interactable = false;
+            promptCanvasGroup.blocksRaycasts = false;
+        }
     }
 
     private static IInteractable ResolveInteractable(Collider hitCollider)

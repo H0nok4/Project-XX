@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class RaidGameMode : MonoBehaviour
@@ -37,8 +38,14 @@ public class RaidGameMode : MonoBehaviour
     [SerializeField] private List<ExtractionZone> extractionZones = new List<ExtractionZone>();
     [SerializeField] private List<RaidPlayerSpawnPoint> playerSpawnPoints = new List<RaidPlayerSpawnPoint>();
 
-    private GUIStyle hudStyle;
-    private GUIStyle resultStyle;
+    private RectTransform hudRoot;
+    private Text hudText;
+    private RectTransform extractionRoot;
+    private Text extractionText;
+    private Image extractionFill;
+    private RectTransform resultRoot;
+    private Text resultTitleText;
+    private Text resultBodyText;
 
     public event Action<RaidState> StateChanged;
 
@@ -54,6 +61,7 @@ public class RaidGameMode : MonoBehaviour
         ResolveReferences();
         remainingSeconds = Mathf.Max(0f, raidDurationSeconds);
         ApplyResultUiFocus(currentState != RaidState.Running && currentState != RaidState.Idle);
+        EnsureHudUi();
 
         if (startOnAwake)
         {
@@ -80,20 +88,23 @@ public class RaidGameMode : MonoBehaviour
         }
 
         ApplyResultUiFocus(false);
+        SetUiVisible(hudRoot, false);
+        SetUiVisible(extractionRoot, false);
+        SetUiVisible(resultRoot, false);
     }
 
     private void Update()
     {
-        if (!IsRunning)
+        if (IsRunning)
         {
-            return;
+            remainingSeconds = Mathf.Max(0f, remainingSeconds - Time.deltaTime);
+            if (remainingSeconds <= 0f)
+            {
+                ExpireRaid();
+            }
         }
 
-        remainingSeconds = Mathf.Max(0f, remainingSeconds - Time.deltaTime);
-        if (remainingSeconds <= 0f)
-        {
-            ExpireRaid();
-        }
+        UpdateHudUi();
     }
 
     private void OnValidate()
@@ -107,78 +118,6 @@ public class RaidGameMode : MonoBehaviour
         {
             remainingSeconds = Mathf.Clamp(remainingSeconds, 0f, raidDurationSeconds);
         }
-    }
-
-    private void OnGUI()
-    {
-        if (!showHud)
-        {
-            return;
-        }
-
-        EnsureHudStyles();
-
-        InventoryContainer inventory = playerInteractor != null ? playerInteractor.PrimaryInventory : null;
-        string inventorySummary = inventory != null
-            ? $"\nSlots {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}"
-            : string.Empty;
-
-        GUI.Box(
-            new Rect(18f, 18f, 320f, 72f),
-            $"Raid {currentState}\nTime {FormatTime(remainingSeconds)}{inventorySummary}",
-            hudStyle);
-
-        ExtractionZone activeExtractionZone = GetActiveExtractionZone();
-        if (activeExtractionZone != null)
-        {
-            DrawExtractionProgress(new Rect(18f, 96f, 320f, 44f), activeExtractionZone);
-        }
-
-        if (string.IsNullOrWhiteSpace(lastResultMessage) || currentState == RaidState.Running)
-        {
-            return;
-        }
-
-        Rect resultRect = new Rect(Screen.width * 0.5f - 250f, 24f, 500f, 220f);
-        GUI.Box(resultRect, string.Empty, resultStyle);
-
-        GUILayout.BeginArea(new Rect(resultRect.x + 16f, resultRect.y + 14f, resultRect.width - 32f, resultRect.height - 28f));
-        GUILayout.Label(GetResultTitle(), resultStyle);
-        GUILayout.Label(lastResultMessage, resultStyle);
-        GUILayout.Space(8f);
-        GUILayout.Label($"Time Remaining: {FormatTime(remainingSeconds)}", resultStyle);
-
-        if (inventory != null)
-        {
-            GUILayout.Label($"Inventory: {inventory.Items.Count}/{inventory.MaxSlots} stacks   Weight: {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}", resultStyle);
-            GUILayout.Space(4f);
-
-            if (inventory.IsEmpty)
-            {
-                GUILayout.Label("No loot carried.", resultStyle);
-            }
-            else
-            {
-                int visibleEntries = Mathf.Min(6, inventory.Items.Count);
-                for (int index = 0; index < visibleEntries; index++)
-                {
-                    ItemInstance item = inventory.Items[index];
-                    if (item == null || !item.IsDefined())
-                    {
-                        continue;
-                    }
-
-                    GUILayout.Label($"- {item.DisplayName} x{item.Quantity}", resultStyle);
-                }
-
-                if (inventory.Items.Count > visibleEntries)
-                {
-                    GUILayout.Label($"- ...and {inventory.Items.Count - visibleEntries} more stacks", resultStyle);
-                }
-            }
-        }
-
-        GUILayout.EndArea();
     }
 
     public void Configure(PlayerInteractor interactor, PrototypeUnitVitals vitals)
@@ -414,45 +353,163 @@ public class RaidGameMode : MonoBehaviour
         return null;
     }
 
-    private void DrawExtractionProgress(Rect rect, ExtractionZone zone)
+    private void EnsureHudUi()
     {
-        GUI.Box(rect, GUIContent.none, hudStyle);
+        if (hudRoot != null)
+        {
+            return;
+        }
 
-        Rect fillRect = new Rect(rect.x + 3f, rect.y + 22f, Mathf.Max(0f, (rect.width - 6f) * zone.ExtractionProgressNormalized), rect.height - 25f);
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.22f, 0.86f, 0.48f, 0.95f);
-        GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
-        GUI.color = previousColor;
+        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
+        Font font = manager.RuntimeFont;
 
-        GUI.Label(
-            new Rect(rect.x + 10f, rect.y + 4f, rect.width - 20f, 18f),
-            $"Extracting {zone.ExtractionName}  {zone.ExtractionRemainingSeconds:0.0}s",
-            hudStyle);
+        hudRoot = PrototypeUiToolkit.CreatePanel(
+            manager.GetLayerRoot(PrototypeUiLayer.Hud),
+            "RaidHud",
+            new Color(0.08f, 0.1f, 0.14f, 0.88f),
+            new RectOffset(12, 12, 10, 10),
+            0f);
+        PrototypeUiToolkit.SetAnchor(hudRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -18f), new Vector2(320f, 72f));
+        hudText = PrototypeUiToolkit.CreateText(hudRoot, font, string.Empty, 14, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
+
+        extractionRoot = PrototypeUiToolkit.CreatePanel(
+            manager.GetLayerRoot(PrototypeUiLayer.Hud),
+            "ExtractionProgress",
+            new Color(0.08f, 0.1f, 0.14f, 0.92f),
+            new RectOffset(10, 10, 8, 8),
+            6f);
+        PrototypeUiToolkit.SetAnchor(extractionRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -96f), new Vector2(320f, 44f));
+        extractionText = PrototypeUiToolkit.CreateText(extractionRoot, font, string.Empty, 14, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+
+        RectTransform barBackground = PrototypeUiToolkit.CreateRectTransform("BarBackground", extractionRoot);
+        LayoutElement barLayout = barBackground.gameObject.AddComponent<LayoutElement>();
+        barLayout.preferredHeight = 14f;
+        Image barBackgroundImage = barBackground.gameObject.AddComponent<Image>();
+        barBackgroundImage.color = new Color(0f, 0f, 0f, 0.45f);
+
+        RectTransform fillRoot = PrototypeUiToolkit.CreateRectTransform("Fill", barBackground);
+        fillRoot.anchorMin = new Vector2(0f, 0f);
+        fillRoot.anchorMax = new Vector2(0f, 1f);
+        fillRoot.pivot = new Vector2(0f, 0.5f);
+        fillRoot.offsetMin = Vector2.zero;
+        fillRoot.offsetMax = Vector2.zero;
+        extractionFill = fillRoot.gameObject.AddComponent<Image>();
+        extractionFill.color = new Color(0.22f, 0.86f, 0.48f, 0.95f);
+
+        resultRoot = PrototypeUiToolkit.CreatePanel(
+            manager.GetLayerRoot(PrototypeUiLayer.Modal),
+            "RaidResult",
+            new Color(0.08f, 0.1f, 0.14f, 0.96f),
+            new RectOffset(18, 18, 16, 16),
+            8f);
+        PrototypeUiToolkit.SetAnchor(resultRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(500f, 220f));
+        ContentSizeFitter resultFitter = resultRoot.gameObject.AddComponent<ContentSizeFitter>();
+        resultFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        resultFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        resultTitleText = PrototypeUiToolkit.CreateText(resultRoot, font, string.Empty, 22, FontStyle.Bold, Color.white, TextAnchor.UpperCenter);
+        resultTitleText.lineSpacing = 0.95f;
+        resultBodyText = PrototypeUiToolkit.CreateText(resultRoot, font, string.Empty, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
+        resultBodyText.lineSpacing = 0.92f;
+
+        SetUiVisible(hudRoot, false);
+        SetUiVisible(extractionRoot, false);
+        SetUiVisible(resultRoot, false);
     }
 
-    private void EnsureHudStyles()
+    private void UpdateHudUi()
     {
-        if (hudStyle == null)
+        EnsureHudUi();
+        if (!showHud)
         {
-            hudStyle = new GUIStyle(GUI.skin.box)
-            {
-                alignment = TextAnchor.UpperLeft,
-                fontSize = 14,
-                normal = { textColor = Color.white }
-            };
-            hudStyle.padding = new RectOffset(12, 12, 10, 10);
+            SetUiVisible(hudRoot, false);
+            SetUiVisible(extractionRoot, false);
+            SetUiVisible(resultRoot, false);
+            return;
         }
 
-        if (resultStyle == null)
+        InventoryContainer inventory = playerInteractor != null ? playerInteractor.PrimaryInventory : null;
+        string inventorySummary = inventory != null
+            ? $"\nSlots {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}"
+            : string.Empty;
+
+        if (hudText != null)
         {
-            resultStyle = new GUIStyle(GUI.skin.box)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 18,
-                normal = { textColor = Color.white }
-            };
-            resultStyle.padding = new RectOffset(16, 16, 12, 12);
+            hudText.text = $"Raid {currentState}\nTime {FormatTime(remainingSeconds)}{inventorySummary}";
         }
+
+        SetUiVisible(hudRoot, true);
+
+        ExtractionZone activeExtractionZone = GetActiveExtractionZone();
+        bool showExtractionProgress = activeExtractionZone != null;
+        SetUiVisible(extractionRoot, showExtractionProgress);
+        if (showExtractionProgress)
+        {
+            if (extractionText != null)
+            {
+                extractionText.text = $"Extracting {activeExtractionZone.ExtractionName}  {activeExtractionZone.ExtractionRemainingSeconds:0.0}s";
+            }
+
+            if (extractionFill != null)
+            {
+                extractionFill.rectTransform.sizeDelta = new Vector2(294f * activeExtractionZone.ExtractionProgressNormalized, 0f);
+            }
+        }
+
+        bool showResult = !string.IsNullOrWhiteSpace(lastResultMessage) && currentState != RaidState.Running;
+        SetUiVisible(resultRoot, showResult);
+        if (!showResult)
+        {
+            return;
+        }
+
+        if (resultTitleText != null)
+        {
+            resultTitleText.text = GetResultTitle();
+        }
+
+        if (resultBodyText != null)
+        {
+            resultBodyText.text = BuildResultBodyText(inventory);
+        }
+    }
+
+    private string BuildResultBodyText(InventoryContainer inventory)
+    {
+        string body = $"{lastResultMessage}\n\nTime Remaining: {FormatTime(remainingSeconds)}";
+        if (inventory == null)
+        {
+            return body;
+        }
+
+        body += $"\nInventory: {inventory.Items.Count}/{inventory.MaxSlots} stacks   Weight: {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}";
+        if (inventory.IsEmpty)
+        {
+            return $"{body}\nNo loot carried.";
+        }
+
+        int visibleEntries = Mathf.Min(6, inventory.Items.Count);
+        for (int index = 0; index < visibleEntries; index++)
+        {
+            ItemInstance item = inventory.Items[index];
+            if (item == null || !item.IsDefined())
+            {
+                continue;
+            }
+
+            body += $"\n- {item.DisplayName} x{item.Quantity}";
+        }
+
+        if (inventory.Items.Count > visibleEntries)
+        {
+            body += $"\n- ...and {inventory.Items.Count - visibleEntries} more stacks";
+        }
+
+        return body;
+    }
+
+    private static void SetUiVisible(RectTransform root, bool visible)
+    {
+        PrototypeUiToolkit.SetVisible(root, visible);
     }
 
     private static string FormatTime(float seconds)
@@ -491,6 +548,24 @@ public class RaidGameMode : MonoBehaviour
             {
                 list.RemoveAt(index);
             }
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (hudRoot != null)
+        {
+            Destroy(hudRoot.gameObject);
+        }
+
+        if (extractionRoot != null)
+        {
+            Destroy(extractionRoot.gameObject);
+        }
+
+        if (resultRoot != null)
+        {
+            Destroy(resultRoot.gameObject);
         }
     }
 }

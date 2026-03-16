@@ -205,7 +205,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string FeedbackMessage => feedbackMessage;
     internal float FeedbackUntilTime => feedbackUntilTime;
-    internal bool UsesImmediateGui => menuUiMode == MenuUiMode.ImmediateGui;
+    internal bool UsesImmediateGui => false;
 
     private void EnsurePresenters()
     {
@@ -219,12 +219,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         if (menuUiMode != MenuUiMode.Ugui)
         {
-            if (uguiView != null)
-            {
-                uguiView.SetViewVisible(false);
-            }
-
-            return;
+            menuUiMode = MenuUiMode.Ugui;
         }
 
         uguiView ??= GetComponentInChildren<PrototypeMainMenuUguiView>(true);
@@ -324,7 +319,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         SanitizeRaidSceneOptions();
     }
 
-    private void OnGUI()
+    private void LegacyOnGui()
     {
         if (!uiVisible || menuUiMode != MenuUiMode.ImmediateGui)
         {
@@ -549,6 +544,10 @@ public class PrototypeMainMenuController : MonoBehaviour
         if (item.IsWeapon && item.WeaponDefinition != null)
         {
             detail = BuildWeaponDetail(item, item.WeaponDefinition);
+        }
+        else if (PrototypeRaidInventoryRules.TryGetSecureContainerSpec(item.DefinitionBase, out PrototypeRaidSecureContainerSpec secureSpec))
+        {
+            detail = $"Secure {secureSpec.SlotCount} slots  Capacity {secureSpec.MaxWeight:0.0}";
         }
         else if (item.Definition is ArmorDefinition armorDefinition)
         {

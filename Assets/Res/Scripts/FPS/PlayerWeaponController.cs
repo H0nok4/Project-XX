@@ -299,6 +299,47 @@ public class PlayerWeaponController : MonoBehaviour
         return GetMeleeItemInstance()?.ToWeaponInstance();
     }
 
+    public bool TrySetWeaponSlotItem(PrototypeRaidGearSlotType gearSlot, ItemInstance itemInstance, out ItemInstance displacedWeapon)
+    {
+        displacedWeapon = null;
+        if (!TryMapRaidSlot(gearSlot, out WeaponSlot weaponSlot))
+        {
+            return false;
+        }
+
+        if (!PrototypeRaidInventoryRules.CanEquipWeaponToSlot(itemInstance, gearSlot))
+        {
+            return false;
+        }
+
+        displacedWeapon = BuildItemInstance(GetWeaponRuntime(weaponSlot));
+        SetWeaponForSlot(weaponSlot, itemInstance);
+        EquipWeapon(weaponSlot);
+        return true;
+    }
+
+    public bool TryTakeWeaponSlotItem(PrototypeRaidGearSlotType gearSlot, out ItemInstance removedWeapon)
+    {
+        removedWeapon = null;
+        if (!TryMapRaidSlot(gearSlot, out WeaponSlot weaponSlot))
+        {
+            return false;
+        }
+
+        WeaponRuntime runtime = GetWeaponRuntime(weaponSlot);
+        if (runtime == null || !runtime.IsConfigured)
+        {
+            return false;
+        }
+
+        removedWeapon = BuildItemInstance(runtime);
+        SetWeaponForSlot(weaponSlot, (PrototypeWeaponDefinition)null);
+        SelectInitialWeapon();
+        RefreshWeaponViewModels();
+        skillManager?.RefreshFromEquipment();
+        return removedWeapon != null;
+    }
+
     public int RecoverAmmoToActiveWeapon(int rounds)
     {
         WeaponRuntime runtime = GetActiveWeapon();
@@ -1052,6 +1093,25 @@ public class PlayerWeaponController : MonoBehaviour
 
             default:
                 return meleeRuntime;
+        }
+    }
+
+    private static bool TryMapRaidSlot(PrototypeRaidGearSlotType gearSlot, out WeaponSlot weaponSlot)
+    {
+        switch (gearSlot)
+        {
+            case PrototypeRaidGearSlotType.PrimaryWeapon:
+                weaponSlot = WeaponSlot.Primary;
+                return true;
+            case PrototypeRaidGearSlotType.SecondaryWeapon:
+                weaponSlot = WeaponSlot.Secondary;
+                return true;
+            case PrototypeRaidGearSlotType.MeleeWeapon:
+                weaponSlot = WeaponSlot.Melee;
+                return true;
+            default:
+                weaponSlot = WeaponSlot.Primary;
+                return false;
         }
     }
 

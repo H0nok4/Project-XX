@@ -203,6 +203,26 @@ public class PrototypeCorpseLoot : MonoBehaviour
         return true;
     }
 
+    public bool TryExtractWeapon(int index, out ItemInstance extractedWeapon)
+    {
+        extractedWeapon = null;
+        if (weapons == null || index < 0 || index >= weapons.Count)
+        {
+            return false;
+        }
+
+        WeaponEntry entry = weapons[index];
+        extractedWeapon = entry != null ? entry.CreateInstance() : null;
+        if (extractedWeapon == null)
+        {
+            return false;
+        }
+
+        weapons.RemoveAt(index);
+        RefreshEquippedWeaponVisual();
+        return true;
+    }
+
     private void SanitizeWeapons()
     {
         if (weapons == null)
@@ -221,6 +241,18 @@ public class PrototypeCorpseLoot : MonoBehaviour
             }
 
             entry.Sanitize();
+        }
+    }
+
+    private void RefreshEquippedWeaponVisual()
+    {
+        PrototypeEquippedWeaponVisual equippedWeaponVisual = GetComponent<PrototypeEquippedWeaponVisual>();
+        if (equippedWeaponVisual != null)
+        {
+            PrototypeWeaponDefinition visibleWeapon = weapons != null && weapons.Count > 0
+                ? weapons[0].WeaponDefinition
+                : null;
+            equippedWeaponVisual.SetEquippedWeapon(visibleWeapon);
         }
     }
 }
