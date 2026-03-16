@@ -108,7 +108,7 @@ public sealed class MetaMerchantPresenter
         GUILayout.EndVertical();
     }
 
-    private void BuyOffer(PrototypeMerchantCatalog.MerchantOfferView offer)
+    internal void BuyOffer(PrototypeMerchantCatalog.MerchantOfferView offer)
     {
         if (!offer.IsValid || offer.ItemInstance == null)
         {

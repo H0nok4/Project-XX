@@ -393,7 +393,7 @@ public sealed class MetaInventoryPresenter
         GUILayout.EndVertical();
     }
 
-    private void MoveItemBetweenInventories(
+    internal void MoveItemBetweenInventories(
         InventoryContainer source,
         InventoryContainer destination,
         int itemIndex,
@@ -422,7 +422,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void EquipArmorFromInventory(InventoryContainer source, int itemIndex, string sourceLabel)
+    internal void EquipArmorFromInventory(InventoryContainer source, int itemIndex, string sourceLabel)
     {
         if (source == null || itemIndex < 0 || itemIndex >= source.Items.Count)
         {
@@ -460,7 +460,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void StoreEquippedArmorToStash(int armorIndex)
+    internal void StoreEquippedArmorToStash(int armorIndex)
     {
         if (armorIndex < 0 || armorIndex >= host.EquippedArmor.Count)
         {
@@ -487,7 +487,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void MoveEquippedArmorToBackpack(int armorIndex)
+    internal void MoveEquippedArmorToBackpack(int armorIndex)
     {
         if (armorIndex < 0 || armorIndex >= host.EquippedArmor.Count)
         {
@@ -514,7 +514,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void StoreAllRaidBackpack()
+    internal void StoreAllRaidBackpack()
     {
         if (host.RaidBackpackInventory == null || host.StashInventory == null)
         {
@@ -564,7 +564,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void StoreWeaponItemFromInventory(InventoryContainer source, int itemIndex)
+    internal void StoreWeaponItemFromInventory(InventoryContainer source, int itemIndex)
     {
         if (source == null || itemIndex < 0 || itemIndex >= source.Items.Count)
         {
@@ -588,7 +588,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void EquipWeaponFromInventory(InventoryContainer source, int itemIndex, PrototypeMainMenuController.WeaponSlotType slotType)
+    internal void EquipWeaponFromInventory(InventoryContainer source, int itemIndex, PrototypeMainMenuController.WeaponSlotType slotType)
     {
         if (source == null || itemIndex < 0 || itemIndex >= source.Items.Count)
         {
@@ -637,7 +637,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void EquipWeaponFromLocker(int lockerIndex, PrototypeMainMenuController.WeaponSlotType slotType)
+    internal void EquipWeaponFromLocker(int lockerIndex, PrototypeMainMenuController.WeaponSlotType slotType)
     {
         if (lockerIndex < 0 || lockerIndex >= host.WeaponLocker.Count)
         {
@@ -679,7 +679,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void StoreEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
+    internal void StoreEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
     {
         ItemInstance weaponInstance = GetEquippedWeapon(slotType);
         if (weaponInstance == null)
@@ -731,7 +731,7 @@ public sealed class MetaInventoryPresenter
         return PrototypeMainMenuController.BuildItemInstanceDetail(item);
     }
 
-    private void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
+    internal void SellItemFromInventory(InventoryContainer source, int itemIndex, int quantity, string successPrefix)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
         if (source == null || merchantCatalog == null || itemIndex < 0 || itemIndex >= source.Items.Count)
@@ -767,7 +767,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void SellWeaponFromLocker(int lockerIndex)
+    internal void SellWeaponFromLocker(int lockerIndex)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
         if (merchantCatalog == null || lockerIndex < 0 || lockerIndex >= host.WeaponLocker.Count)
@@ -796,7 +796,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void SellEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
+    internal void SellEquippedWeapon(PrototypeMainMenuController.WeaponSlotType slotType)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
         if (merchantCatalog == null)
@@ -825,7 +825,7 @@ public sealed class MetaInventoryPresenter
         host.AutoSaveIfNeeded();
     }
 
-    private void SellEquippedArmor(int armorIndex)
+    internal void SellEquippedArmor(int armorIndex)
     {
         PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
         if (merchantCatalog == null || armorIndex < 0 || armorIndex >= host.EquippedArmor.Count)

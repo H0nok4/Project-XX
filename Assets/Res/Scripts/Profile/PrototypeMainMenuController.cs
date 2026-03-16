@@ -7,6 +7,8 @@ using UnityEngine.Serialization;
 [DisallowMultipleComponent]
 public class PrototypeMainMenuController : MonoBehaviour
 {
+    private const string MenuUiPrefabResourcePath = "UI/PrototypeMainMenuUgui";
+
     [Serializable]
     private sealed class RaidSceneOption
     {
@@ -42,6 +44,12 @@ public class PrototypeMainMenuController : MonoBehaviour
         Melee = 2
     }
 
+    internal enum MenuUiMode
+    {
+        ImmediateGui = 0,
+        Ugui = 1
+    }
+
     [Header("Profile")]
     [SerializeField] private PrototypeItemCatalog itemCatalog;
     [SerializeField] private PrototypeMerchantCatalog merchantCatalog;
@@ -61,6 +69,10 @@ public class PrototypeMainMenuController : MonoBehaviour
     [SerializeField] private bool allowBaseHubEntryButton = true;
     [SerializeField] private List<RaidSceneOption> raidSceneOptions = new List<RaidSceneOption>();
     [SerializeField] private int selectedRaidSceneIndex;
+
+    [Header("UI")]
+    [SerializeField] private MenuUiMode menuUiMode = MenuUiMode.Ugui;
+    [SerializeField] private GameObject uguiViewPrefab;
 
     [Header("Scene Dressing")]
     [SerializeField] private Color stashColor = new Color(0.2f, 0.65f, 0.38f, 1f);
@@ -94,11 +106,21 @@ public class PrototypeMainMenuController : MonoBehaviour
     private MetaLoadoutPresenter loadoutPresenter;
     private MetaInventoryPresenter inventoryPresenter;
     private MetaMerchantPresenter merchantPresenter;
+    private PrototypeMainMenuUguiView uguiView;
 
     internal MenuPage CurrentPage
     {
         get => currentPage;
-        set => currentPage = value;
+        set
+        {
+            if (currentPage == value)
+            {
+                return;
+            }
+
+            currentPage = value;
+            RequestUiRefresh();
+        }
     }
 
     internal InventoryContainer StashInventory => stashInventory;
@@ -126,19 +148,46 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal ItemInstance EquippedPrimaryWeapon
     {
         get => equippedPrimaryWeapon;
-        set => equippedPrimaryWeapon = value;
+        set
+        {
+            if (ReferenceEquals(equippedPrimaryWeapon, value))
+            {
+                return;
+            }
+
+            equippedPrimaryWeapon = value;
+            RequestUiRefresh();
+        }
     }
 
     internal ItemInstance EquippedSecondaryWeapon
     {
         get => equippedSecondaryWeapon;
-        set => equippedSecondaryWeapon = value;
+        set
+        {
+            if (ReferenceEquals(equippedSecondaryWeapon, value))
+            {
+                return;
+            }
+
+            equippedSecondaryWeapon = value;
+            RequestUiRefresh();
+        }
     }
 
     internal ItemInstance EquippedMeleeWeapon
     {
         get => equippedMeleeWeapon;
-        set => equippedMeleeWeapon = value;
+        set
+        {
+            if (ReferenceEquals(equippedMeleeWeapon, value))
+            {
+                return;
+            }
+
+            equippedMeleeWeapon = value;
+            RequestUiRefresh();
+        }
     }
 
     internal GUIStyle TitleStyle => titleStyle;
@@ -155,6 +204,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string FeedbackMessage => feedbackMessage;
     internal float FeedbackUntilTime => feedbackUntilTime;
+    internal bool UsesImmediateGui => menuUiMode == MenuUiMode.ImmediateGui;
 
     private void EnsurePresenters()
     {
@@ -162,6 +212,45 @@ public class PrototypeMainMenuController : MonoBehaviour
         loadoutPresenter ??= new MetaLoadoutPresenter(this);
         inventoryPresenter ??= new MetaInventoryPresenter(this);
         merchantPresenter ??= new MetaMerchantPresenter(this);
+    }
+
+    private void EnsureRuntimeUi()
+    {
+        if (menuUiMode != MenuUiMode.Ugui)
+        {
+            if (uguiView != null)
+            {
+                uguiView.SetViewVisible(false);
+            }
+
+            return;
+        }
+
+        uguiView ??= GetComponentInChildren<PrototypeMainMenuUguiView>(true);
+        if (uguiView == null)
+        {
+            GameObject prefabAsset = uguiViewPrefab != null
+                ? uguiViewPrefab
+                : Resources.Load<GameObject>(MenuUiPrefabResourcePath);
+            if (prefabAsset != null)
+            {
+                GameObject instance = Instantiate(prefabAsset, transform);
+                instance.name = prefabAsset.name;
+                uguiView = instance.GetComponent<PrototypeMainMenuUguiView>();
+            }
+            else
+            {
+                uguiView = gameObject.AddComponent<PrototypeMainMenuUguiView>();
+            }
+        }
+
+        uguiView.Initialize(this);
+        uguiView.SetViewVisible(uiVisible);
+    }
+
+    internal void RequestUiRefresh()
+    {
+        uguiView?.RequestRefresh();
     }
 
     private void Awake()
@@ -175,6 +264,8 @@ public class PrototypeMainMenuController : MonoBehaviour
         {
             EnsureMenuCursorState();
         }
+
+        EnsureRuntimeUi();
     }
 
     private void OnEnable()
@@ -183,6 +274,8 @@ public class PrototypeMainMenuController : MonoBehaviour
         {
             EnsureMenuCursorState();
         }
+
+        EnsureRuntimeUi();
     }
 
     private void Update()
@@ -232,7 +325,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!uiVisible)
+        if (!uiVisible || menuUiMode != MenuUiMode.ImmediateGui)
         {
             return;
         }
@@ -442,7 +535,10 @@ public class PrototypeMainMenuController : MonoBehaviour
         if (autoSaveOnInventoryChange)
         {
             SaveProfileFromContainers();
+            return;
         }
+
+        RequestUiRefresh();
     }
 
     internal int GetInventoryStackCount(InventoryContainer inventory)
@@ -629,6 +725,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         profile = PrototypeProfileService.LoadProfile(itemCatalog);
         ApplyProfileToContainers(profile);
+        RequestUiRefresh();
     }
 
     internal void SaveProfileFromContainers()
@@ -664,6 +761,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         profile.loadoutItems.Clear();
         profile.extractedItems.Clear();
         PrototypeProfileService.SaveProfile(profile, itemCatalog);
+        RequestUiRefresh();
     }
 
     internal void ResetProfile()
@@ -678,6 +776,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         feedbackMessage = message ?? string.Empty;
         feedbackUntilTime = Time.time + 2.6f;
+        RequestUiRefresh();
     }
 
     internal void ShowPage(MenuPage page)
@@ -685,11 +784,14 @@ public class PrototypeMainMenuController : MonoBehaviour
         currentPage = page;
         uiVisible = true;
         EnsureMenuCursorState();
+        EnsureRuntimeUi();
+        RequestUiRefresh();
     }
 
     internal void HideUi()
     {
         uiVisible = false;
+        uguiView?.SetViewVisible(false);
     }
 
     internal int GetRaidSceneOptionCount()
@@ -710,10 +812,12 @@ public class PrototypeMainMenuController : MonoBehaviour
         if (raidSceneOptions.Count == 0)
         {
             selectedRaidSceneIndex = 0;
+            RequestUiRefresh();
             return;
         }
 
         selectedRaidSceneIndex = Mathf.Clamp(index, 0, raidSceneOptions.Count - 1);
+        RequestUiRefresh();
     }
 
     internal string GetRaidSceneOptionDisplayName(int index)
@@ -736,6 +840,19 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal string GetSelectedRaidSceneDescription()
     {
         return GetRaidSceneOptionDescription(GetSelectedRaidSceneIndex());
+    }
+
+    internal string BuildHomePageSummaryText()
+    {
+        return
+            $"已选地图：{GetSelectedRaidSceneDisplayName()}\n" +
+            $"资金：{GetAvailableFunds()} {GetCurrencyLabel()}\n" +
+            $"仓库：物品堆叠 {GetInventoryStackCount(StashInventory)}  武器 {WeaponLocker.Count}\n" +
+            $"战局背包：{GetInventoryStackCount(RaidBackpackInventory)}  安全箱：{GetInventoryStackCount(SecureContainerInventory)}\n" +
+            $"特殊装备：{GetInventoryStackCount(SpecialEquipmentInventory)}  护甲：{EquippedArmor.Count}\n" +
+            $"近战：{(EquippedMeleeWeapon != null ? EquippedMeleeWeapon.DisplayName : "空")}\n" +
+            $"主武器：{(EquippedPrimaryWeapon != null ? EquippedPrimaryWeapon.DisplayName : "空")}\n" +
+            $"副武器：{(EquippedSecondaryWeapon != null ? EquippedSecondaryWeapon.DisplayName : "空")}";
     }
 
     private static void EnsureMenuCursorState()
