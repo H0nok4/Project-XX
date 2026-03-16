@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79b3face933e04543a549b72a5fb056c, type: 3}
+  m_Name: Spawn_HospitalSoldier
+  m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
+  enemyId: hospital_soldier
+  displayName: "\u5C01\u9501\u533A\u7279\u52E4\u611F\u67D3\u8005"
+  archetype: 2
+  unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
+  enemyPrefab: {fileID: 931919266672286102, guid: 26e7cc56b577e27478a1d67d07f86881, type: 3}
+  primaryWeapon: {fileID: 11400000, guid: 33fc9ca354b964b4ca14cc6aaefcc01d, type: 2}
+  weaponPool:
+  - {fileID: 11400000, guid: 33fc9ca354b964b4ca14cc6aaefcc01d, type: 2}
+  primaryWeaponCommonWeight: 12
+  primaryWeaponUncommonWeight: 20
+  primaryWeaponRareWeight: 26
+  primaryWeaponEpicWeight: 24
+  primaryWeaponLegendaryWeight: 18
+  bossProfile: 1
+  bossLootRarityBias: 2
+  bossPrimaryWeaponRarityBias: 2
+  bossBonusLootRolls: 2
+  bossItemLevelBonus: 2
+  carriedLootTable: {fileID: 11400000, guid: 20864417ed4fb464780e0c6876e2b880, type: 2}
+  bodyMaterial: {fileID: 2100000, guid: 3896f50c501404745a194e7e503aeeac, type: 2}
+  localScale: {x: 0.9, y: 1.1, z: 0.9}
+  armorLoadout:
+  - {fileID: 11400000, guid: bc5752194b7d03d4e8c8ecec01797918, type: 2}
+  - {fileID: 11400000, guid: e4d9a26f349b2604e8a7ebfd3540944e, type: 2}

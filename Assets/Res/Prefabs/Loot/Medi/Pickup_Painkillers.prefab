@@ -125,7 +125,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9ad4a694a363b84784ee54a33f6d529, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GroundLootItem
-  itemDefinition: {fileID: 11400000, guid: 83dabb884641b8a4d8705aa348ad8f10, type: 2}
-  quantity: 1
-  interactionVerb: Pick Up
+  itemInstance:
+    instanceId: 45dd60bb0477412aad9c7708e3fb6d46
+    definition: {fileID: 11400000, guid: 83dabb884641b8a4d8705aa348ad8f10, type: 2}
+    weaponDefinition: {fileID: 0}
+    rarity: 0
+    quantity: 1
+    magazineAmmo: 0
+    currentDurability: -1
+    affixes: []
+    skills: []
+  interactionVerb: "\u62FE\u53D6"
   destroyWhenCollected: 1

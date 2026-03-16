@@ -816,6 +816,8 @@ GameObject:
   - component: {fileID: 278989223}
   - component: {fileID: 278989226}
   - component: {fileID: 278989225}
+  - component: {fileID: 278989230}
+  - component: {fileID: 278989229}
   m_Layer: 2
   m_Name: BaseHubPlayer
   m_TagString: Untagged
@@ -864,6 +866,7 @@ MonoBehaviour:
   stopBleedActionName: StopBleed
   splintActionName: UseSplint
   painkillerActionName: UsePainkiller
+  throwThrowableActionName: ThrowThrowable
   jumpActionName: Jump
   toggleCrouchActionName: ToggleCrouch
   speedAdjustModifierActionName: SpeedAdjustModifier
@@ -909,6 +912,9 @@ MonoBehaviour:
   meleeNoiseRadius: 8
   weaponController: {fileID: 0}
   medicalController: {fileID: 0}
+  throwableController: {fileID: 0}
+  skillManager: {fileID: 278989230}
+  progressionRuntime: {fileID: 278989229}
 --- !u!4 &278989224
 Transform:
   m_ObjectHideFlags: 0
@@ -996,6 +1002,7 @@ MonoBehaviour:
   strafeMoveSpeedMultiplier: 0.8
   stopSpeed: 2.2
   airPlanarDrag: 1.8
+  sprintJumpAirDragMultiplier: 0.35
   sprintStrafeMultiplier: 0.35
   landingRecoveryTime: 0.14
   landingRecoveryMoveMultiplier: 0.72
@@ -1016,6 +1023,16 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967291
   stanceClearancePadding: 0.04
+  headBobEnabled: 1
+  headBobFrequency: 7.5
+  headBobVerticalAmplitude: 0.014
+  headBobHorizontalAmplitude: 0.008
+  headBobActivationSpeed: 0.18
+  sprintHeadBobAmplitudeMultiplier: 1.22
+  sprintHeadBobFrequencyMultiplier: 1.12
+  crouchHeadBobAmplitudeMultiplier: 0.72
+  headBobSmoothing: 14
+  headBobResetSpeed: 10
   walkNoiseRadius: 4.8
   sprintNoiseRadius: 11.5
   jumpNoiseRadius: 7.5
@@ -1047,6 +1064,48 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!114 &278989229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 278989220}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27853947f1e3f7d448cd609126a58484, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerProgressionRuntime
+  playerVitals: {fileID: 0}
+  weaponController: {fileID: 0}
+  skillManager: {fileID: 278989230}
+  feedbackLifetime: 2.6
+  runtimeProgression:
+    progressionDataVersion: 3
+    playerLevel: 1
+    currentExperience: 0
+    lifetimeExperience: 0
+    killCount: 0
+  feedbackMessage: 
+  feedbackTimer: 0
+--- !u!114 &278989230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 278989220}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1af0a085ee684c00883d82e096a2417c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSkillManager
+  playerVitals: {fileID: 0}
+  weaponController: {fileID: 0}
+  progressionRuntime: {fileID: 278989229}
+  activeSkills: []
+  battleFrenzyEndTime: 0
+  perfectDodgeReadyTime: 0
 --- !u!1 &336928982
 GameObject:
   m_ObjectHideFlags: 0
@@ -3634,7 +3693,18 @@ MonoBehaviour:
   raidSceneOptions:
   - displayName: "\u539F\u578B\u6218\u533A"
     sceneName: SampleScene
-    description: "\u539F\u578B\u5BA4\u5185\u6218\u6597\u533A\u57DF\u3002"
+    description: "\u539F\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u4E0E\u5BB9\u5668\u6389\u843D
+      1-10 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B\u65E2\u6709\u64A4\u79BB\u4E0E\u8FDB\u5165\u70B9\u3002"
+  - displayName: "\u5E9F\u5F03\u5B66\u6821"
+    sceneName: SchoolTestScene
+    description: "\u5B66\u6821\u4E3B\u9898\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u5237\u65B0\u5E76\u6389\u843D
+      11-20 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B 2 \u4E2A\u8FDB\u5165\u70B9\u4E0E
+      2 \u4E2A\u64A4\u79BB\u70B9\u3002"
+  - displayName: "\u5C01\u9501\u533B\u9662"
+    sceneName: HospitalTestScene
+    description: "\u533B\u9662\u4E3B\u9898\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u5237\u65B0\u5E76\u6389\u843D
+      21-30 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B 2 \u4E2A\u8FDB\u5165\u70B9\u4E0E
+      3 \u4E2A\u64A4\u79BB\u70B9\u3002"
   selectedRaidSceneIndex: 0
   stashColor: {r: 0.2, g: 0.65, b: 0.38, a: 1}
   backpackColor: {r: 0.75, g: 0.26, b: 0.22, a: 1}

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79b3face933e04543a549b72a5fb056c, type: 3}
+  m_Name: Spawn_SchoolPolice
+  m_EditorClassIdentifier: Assembly-CSharp::PrototypeEnemySpawnProfile
+  enemyId: school_police
+  displayName: "\u6821\u8B66\u611F\u67D3\u8005"
+  archetype: 1
+  unitDefinition: {fileID: 11400000, guid: 252342392ed74dafb5b094c8ec34e826, type: 2}
+  enemyPrefab: {fileID: 3574033584342409976, guid: 2c9444062b71a834e890c45b89ab04ac, type: 3}
+  primaryWeapon: {fileID: 11400000, guid: aabb5ce048c2b73488afa0156680226f, type: 2}
+  weaponPool:
+  - {fileID: 11400000, guid: aabb5ce048c2b73488afa0156680226f, type: 2}
+  primaryWeaponCommonWeight: 34
+  primaryWeaponUncommonWeight: 31
+  primaryWeaponRareWeight: 22
+  primaryWeaponEpicWeight: 10
+  primaryWeaponLegendaryWeight: 3
+  bossProfile: 1
+  bossLootRarityBias: 1
+  bossPrimaryWeaponRarityBias: 1
+  bossBonusLootRolls: 1
+  bossItemLevelBonus: 1
+  carriedLootTable: {fileID: 11400000, guid: cc24499a82e217c4db56d1f1177856ce, type: 2}
+  bodyMaterial: {fileID: 2100000, guid: ee5601af118260e4e8137f1375100c2f, type: 2}
+  localScale: {x: 0.9, y: 1.1, z: 0.9}
+  armorLoadout:
+  - {fileID: 11400000, guid: 2e335af7652512a4db71acdc2c8b98f4, type: 2}

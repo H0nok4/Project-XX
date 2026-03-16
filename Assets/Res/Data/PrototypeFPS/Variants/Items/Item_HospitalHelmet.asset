@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be40f1d0e8fff4d48bfca7bbb8eda8e7, type: 3}
+  m_Name: Item_HospitalHelmet
+  m_EditorClassIdentifier: Assembly-CSharp::ArmorDefinition
+  itemId: hospital_helmet
+  displayName: "\u5C01\u9501\u533A\u590D\u5408\u5934\u76D4"
+  description: "\u533B\u9662\u6D4B\u8BD5\u56FE\u4E2D\u7684\u9AD8\u9636\u5934\u90E8\u62A4\u7532\u3002"
+  maxStackSize: 1
+  unitWeight: 2.05
+  icon: {fileID: 0}
+  itemLevel: 24
+  requiredLevel: 21
+  coveredPartIds:
+  - head
+  armorClass: 6
+  maxDurability: 72
+  bonusHealth: 12
+  bluntDamageMultiplier: 0.11
+  blockedDurabilityLossMultiplier: 0.98
+  penetratedDurabilityLossMultiplier: 1.25
+  bleedProtection: 0.68
+  fractureProtection: 0.36

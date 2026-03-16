@@ -397,7 +397,18 @@ MonoBehaviour:
   raidSceneOptions:
   - displayName: "\u539F\u578B\u6218\u533A"
     sceneName: SampleScene
-    description: "\u539F\u578B\u5BA4\u5185\u6218\u6597\u533A\u57DF\u3002"
+    description: "\u539F\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u4E0E\u5BB9\u5668\u6389\u843D
+      1-10 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B\u65E2\u6709\u64A4\u79BB\u4E0E\u8FDB\u5165\u70B9\u3002"
+  - displayName: "\u5E9F\u5F03\u5B66\u6821"
+    sceneName: SchoolTestScene
+    description: "\u5B66\u6821\u4E3B\u9898\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u5237\u65B0\u5E76\u6389\u843D
+      11-20 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B 2 \u4E2A\u8FDB\u5165\u70B9\u4E0E
+      2 \u4E2A\u64A4\u79BB\u70B9\u3002"
+  - displayName: "\u5C01\u9501\u533B\u9662"
+    sceneName: HospitalTestScene
+    description: "\u533B\u9662\u4E3B\u9898\u6D4B\u8BD5\u56FE\uFF0C\u654C\u4EBA\u5237\u65B0\u5E76\u6389\u843D
+      21-30 \u7EA7\u88C5\u5907\uFF0C\u5305\u542B 2 \u4E2A\u8FDB\u5165\u70B9\u4E0E
+      3 \u4E2A\u64A4\u79BB\u70B9\u3002"
   selectedRaidSceneIndex: 0
   stashColor: {r: 0.2, g: 0.65, b: 0.38, a: 1}
   backpackColor: {r: 0.75, g: 0.26, b: 0.22, a: 1}

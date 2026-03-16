@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5f12fc91d1abb74aa2cecd856041133, type: 3}
+  m_Name: Loot_SchoolFloor
+  m_EditorClassIdentifier: Assembly-CSharp::LootTableDefinition
+  tableId: school_floor
+  displayName: "\u5B66\u6821\u6563\u843D\u7269"
+  minRolls: 1
+  maxRolls: 3
+  allowDuplicateRolls: 1
+  commonWeight: 60
+  uncommonWeight: 25
+  rareWeight: 10
+  epicWeight: 4
+  legendaryWeight: 1
+  entries:
+  - definition: {fileID: 11400000, guid: ec5402d2f4ea7f94fa4812e8ba234fd5, type: 2}
+    itemDefinition: {fileID: 11400000, guid: ec5402d2f4ea7f94fa4812e8ba234fd5, type: 2}
+    weaponDefinition: {fileID: 0}
+    minQuantity: 1
+    maxQuantity: 3
+    rollRarity: 0
+    weight: 1.1
+  - definition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
+    itemDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
+    weaponDefinition: {fileID: 0}
+    minQuantity: 8
+    maxQuantity: 18
+    rollRarity: 0
+    weight: 0.78
+  - definition: {fileID: 11400000, guid: 0fd3f97d4047b3a48867a697f9fbdeb8, type: 2}
+    itemDefinition: {fileID: 11400000, guid: 0fd3f97d4047b3a48867a697f9fbdeb8, type: 2}
+    weaponDefinition: {fileID: 0}
+    minQuantity: 1
+    maxQuantity: 1
+    rollRarity: 0
+    weight: 0.45
+  - definition: {fileID: 11400000, guid: 16261418470d1534c90f34c9deb79f30, type: 2}
+    itemDefinition: {fileID: 0}
+    weaponDefinition: {fileID: 11400000, guid: 16261418470d1534c90f34c9deb79f30, type: 2}
+    minQuantity: 1
+    maxQuantity: 1
+    rollRarity: 1
+    weight: 0.25
