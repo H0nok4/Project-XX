@@ -672,6 +672,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         if (focusedMerchant != null)
         {
             orderedMerchants.Add(focusedMerchant);
+            return orderedMerchants;
         }
 
         for (int merchantIndex = 0; merchantIndex < merchantCatalog.Merchants.Count; merchantIndex++)
