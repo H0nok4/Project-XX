@@ -146,6 +146,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
             return;
         }
 
+        CancelActiveDrag();
         isOpen = false;
         SetUiFocus(false);
         UpdateWindowVisibility();
@@ -235,6 +236,16 @@ public class PlayerInventoryWindowController : MonoBehaviour
             return;
         }
 
+        if (summaryText != null)
+        {
+            summaryText.text = BuildSummaryText();
+        }
+
+        if (HasActiveDrag())
+        {
+            return;
+        }
+
         int contentHash = raidEquipmentController.BuildStateHash();
         if (!contentDirty && contentHash == lastContentHash)
         {
@@ -245,11 +256,6 @@ public class PlayerInventoryWindowController : MonoBehaviour
         float gearScroll = gearScrollRect != null ? gearScrollRect.verticalNormalizedPosition : 1f;
         lastContentHash = contentHash;
         contentDirty = false;
-
-        if (summaryText != null)
-        {
-            summaryText.text = BuildSummaryText();
-        }
 
         PrototypeUiToolkit.ClearChildren(backpackContentRoot);
         PrototypeUiToolkit.ClearChildren(gearContentRoot);
@@ -509,6 +515,17 @@ public class PlayerInventoryWindowController : MonoBehaviour
     private void MarkDirty()
     {
         contentDirty = true;
+    }
+
+    private static bool HasActiveDrag()
+    {
+        PrototypeRaidDragService dragService = PrototypeRaidDragService.CurrentInstance;
+        return dragService != null && dragService.CurrentPayload != null;
+    }
+
+    private static void CancelActiveDrag()
+    {
+        PrototypeRaidDragService.CurrentInstance?.EndDrag();
     }
 
     private void ResolveReferences()

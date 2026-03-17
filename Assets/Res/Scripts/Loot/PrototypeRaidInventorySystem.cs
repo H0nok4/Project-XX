@@ -473,8 +473,6 @@ public sealed class PrototypeRaidEquipmentController : MonoBehaviour
             hash = hash * 31 + PrototypeRaidInventoryRules.BuildItemHash(GetSlotItem(PrototypeRaidGearSlotType.Armor));
             hash = hash * 31 + PrototypeRaidInventoryRules.BuildItemHash(GetSlotItem(PrototypeRaidGearSlotType.Helmet));
             hash = hash * 31 + PrototypeRaidInventoryRules.BuildItemHash(GetSlotItem(PrototypeRaidGearSlotType.SecureContainer));
-            hash = hash * 31 + (StatusMessage != null ? StatusMessage.GetHashCode() : 0);
-
             if (openContainer != null)
             {
                 hash = hash * 31 + PrototypeRaidInventoryRules.BuildInventoryHash(openContainer.Inventory);
@@ -1195,6 +1193,7 @@ public sealed class PrototypeRaidDragService : MonoBehaviour
     private RectTransform ghostRoot;
     private Text ghostLabel;
 
+    public static PrototypeRaidDragService CurrentInstance => instance;
     public static PrototypeRaidDragService Instance => GetOrCreate();
     public PrototypeRaidDragPayload CurrentPayload { get; private set; }
 
@@ -1331,6 +1330,25 @@ public sealed class PrototypeRaidDragHandle : MonoBehaviour, IBeginDragHandler, 
     public void OnEndDrag(PointerEventData eventData)
     {
         PrototypeRaidDragService.Instance.EndDrag();
+    }
+
+    private void OnDisable()
+    {
+        CancelOwnedDrag();
+    }
+
+    private void OnDestroy()
+    {
+        CancelOwnedDrag();
+    }
+
+    private void CancelOwnedDrag()
+    {
+        PrototypeRaidDragService dragService = PrototypeRaidDragService.CurrentInstance;
+        if (dragService != null && ReferenceEquals(dragService.CurrentPayload, payload))
+        {
+            dragService.EndDrag();
+        }
     }
 }
 

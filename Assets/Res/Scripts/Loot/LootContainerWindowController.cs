@@ -162,6 +162,7 @@ public class LootContainerWindowController : MonoBehaviour
             return;
         }
 
+        CancelActiveDrag();
         openContainer = null;
         SetUiFocus(false);
         UpdateWindowVisibility();
@@ -264,6 +265,16 @@ public class LootContainerWindowController : MonoBehaviour
             return;
         }
 
+        if (summaryText != null)
+        {
+            summaryText.text = BuildSummaryText();
+        }
+
+        if (HasActiveDrag())
+        {
+            return;
+        }
+
         int contentHash = raidEquipmentController.BuildStateHash(openContainer);
         if (!contentDirty && contentHash == lastContentHash)
         {
@@ -279,11 +290,6 @@ public class LootContainerWindowController : MonoBehaviour
         if (windowChrome.TitleText != null)
         {
             windowChrome.TitleText.text = openContainer.ContainerLabel;
-        }
-
-        if (summaryText != null)
-        {
-            summaryText.text = BuildSummaryText();
         }
 
         PrototypeUiToolkit.ClearChildren(lootContentRoot);
@@ -645,6 +651,17 @@ public class LootContainerWindowController : MonoBehaviour
     private void MarkDirty()
     {
         contentDirty = true;
+    }
+
+    private static bool HasActiveDrag()
+    {
+        PrototypeRaidDragService dragService = PrototypeRaidDragService.CurrentInstance;
+        return dragService != null && dragService.CurrentPayload != null;
+    }
+
+    private static void CancelActiveDrag()
+    {
+        PrototypeRaidDragService.CurrentInstance?.EndDrag();
     }
 
     private void ResolveReferences()
