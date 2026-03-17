@@ -12,7 +12,7 @@ description: Call C# method. Any method could be called, even private methods. I
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool reflection-method-call --input '{
+npx unity-mcp-cli run-tool reflection-method-call --input '{
   "filter": "string_value",
   "knownNamespace": false,
   "typeNameMatchLevel": 0,

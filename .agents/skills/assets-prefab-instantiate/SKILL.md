@@ -12,7 +12,7 @@ description: Instantiates prefab in the current active scene. Use 'assets-find' 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-prefab-instantiate --input '{
+npx unity-mcp-cli run-tool assets-prefab-instantiate --input '{
   "prefabAssetPath": "string_value",
   "gameObjectPath": "string_value",
   "position": "string_value",

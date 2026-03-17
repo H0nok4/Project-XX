@@ -12,7 +12,7 @@ description: Destroy one or many components from target GameObject. Can't destro
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-component-destroy --input '{
+npx unity-mcp-cli run-tool gameobject-component-destroy --input '{
   "gameObjectRef": "string_value",
   "destroyComponentRefs": "string_value"
 }'

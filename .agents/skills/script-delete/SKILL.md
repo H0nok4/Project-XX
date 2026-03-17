@@ -12,7 +12,7 @@ description: Delete the script file(s). Does AssetDatabase.Refresh() and waits f
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool script-delete --input '{
+npx unity-mcp-cli run-tool script-delete --input '{
   "files": "string_value"
 }'
 ```

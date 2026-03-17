@@ -12,7 +12,7 @@ description: Find method in the project using C# Reflection. It looks for all as
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool reflection-method-find --input '{
+npx unity-mcp-cli run-tool reflection-method-find --input '{
   "filter": "string_value",
   "knownNamespace": false,
   "typeNameMatchLevel": 0,

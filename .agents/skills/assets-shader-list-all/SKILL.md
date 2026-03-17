@@ -12,7 +12,7 @@ description: List all available shaders in the project assets and packages. Retu
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-shader-list-all --input '{
+npx unity-mcp-cli run-tool assets-shader-list-all --input '{
   "nothing": "string_value"
 }'
 ```

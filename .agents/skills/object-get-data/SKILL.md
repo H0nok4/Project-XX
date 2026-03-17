@@ -12,7 +12,7 @@ description: Get data of the specified Unity Object. Returns serialized data of 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool object-get-data --input '{
+npx unity-mcp-cli run-tool object-get-data --input '{
   "objectRef": "string_value"
 }'
 ```

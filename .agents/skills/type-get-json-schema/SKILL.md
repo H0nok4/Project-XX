@@ -12,7 +12,7 @@ description: Generates a JSON Schema for a given C# type name using reflection. 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool type-get-json-schema --input '{
+npx unity-mcp-cli run-tool type-get-json-schema --input '{
   "typeName": "string_value",
   "descriptionMode": "string_value",
   "propertyDescriptionMode": "string_value",

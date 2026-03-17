@@ -12,7 +12,7 @@ description: List C# class names extended from UnityEngine.Component. Use this t
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-component-list-all --input '{
+npx unity-mcp-cli run-tool gameobject-component-list-all --input '{
   "search": "string_value",
   "page": 0,
   "pageSize": 0

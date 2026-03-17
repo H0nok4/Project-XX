@@ -12,7 +12,7 @@ description: Copy assets at given paths and store them at new paths. Does AssetD
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-copy --input '{
+npx unity-mcp-cli run-tool assets-copy --input '{
   "sourcePaths": "string_value",
   "destinationPaths": "string_value"
 }'

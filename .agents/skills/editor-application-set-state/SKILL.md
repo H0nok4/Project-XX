@@ -12,7 +12,7 @@ description: Control the Unity Editor application state. You can start, stop, or
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool editor-application-set-state --input '{
+npx unity-mcp-cli run-tool editor-application-set-state --input '{
   "isPlaying": false,
   "isPaused": false
 }'

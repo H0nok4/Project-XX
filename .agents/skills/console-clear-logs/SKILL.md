@@ -12,7 +12,7 @@ description: Clears the MCP log cache (used by console-get-logs) and the Unity E
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool console-clear-logs --input '{
+npx unity-mcp-cli run-tool console-clear-logs --input '{
   "nothing": "string_value"
 }'
 ```

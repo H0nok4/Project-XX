@@ -12,7 +12,7 @@ description: Modify GameObject fields and properties in opened Prefab or in a Sc
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-modify --input '{
+npx unity-mcp-cli run-tool gameobject-modify --input '{
   "gameObjectRefs": "string_value",
   "gameObjectDiffs": "string_value"
 }'

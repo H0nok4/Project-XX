@@ -12,7 +12,7 @@ description: Duplicate GameObjects in opened Prefab or in a Scene. Use 'gameobje
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-duplicate --input '{
+npx unity-mcp-cli run-tool gameobject-duplicate --input '{
   "gameObjectRefs": "string_value"
 }'
 ```

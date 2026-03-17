@@ -12,7 +12,7 @@ description: "Search for packages in both Unity Package Manager registry and ins
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool package-search --input '{
+npx unity-mcp-cli run-tool package-search --input '{
   "query": "string_value",
   "maxResults": 0,
   "offlineMode": false

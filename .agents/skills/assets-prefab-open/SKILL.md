@@ -12,7 +12,7 @@ description: "Open prefab edit mode for a specific GameObject. In the Edit mode 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-prefab-open --input '{
+npx unity-mcp-cli run-tool assets-prefab-open --input '{
   "gameObjectRef": "string_value"
 }'
 ```

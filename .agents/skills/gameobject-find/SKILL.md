@@ -12,7 +12,7 @@ description: Finds specific GameObject by provided information in opened Prefab 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-find --input '{
+npx unity-mcp-cli run-tool gameobject-find --input '{
   "gameObjectRef": "string_value",
   "includeData": false,
   "includeComponents": false,

@@ -12,7 +12,7 @@ description: Set parent GameObject to list of GameObjects in opened Prefab or in
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-set-parent --input '{
+npx unity-mcp-cli run-tool gameobject-set-parent --input '{
   "gameObjectRefs": "string_value",
   "parentGameObjectRef": "string_value",
   "worldPositionStays": false

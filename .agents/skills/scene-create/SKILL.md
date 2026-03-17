@@ -12,7 +12,7 @@ description: Create new scene in the project assets. Use 'scene-list-opened' too
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-create --input '{
+npx unity-mcp-cli run-tool scene-create --input '{
   "path": "string_value",
   "newSceneSetup": "string_value",
   "newSceneMode": "string_value"

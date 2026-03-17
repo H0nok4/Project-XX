@@ -12,7 +12,7 @@ description: Set the current Selection in the Unity Editor to the provided objec
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool editor-selection-set --input '{
+npx unity-mcp-cli run-tool editor-selection-set --input '{
   "select": "string_value"
 }'
 ```

@@ -12,7 +12,7 @@ description: "Install a package from the Unity Package Manager registry, Git URL
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool package-add --input '{
+npx unity-mcp-cli run-tool package-add --input '{
   "packageId": "string_value"
 }'
 ```

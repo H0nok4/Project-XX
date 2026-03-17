@@ -12,7 +12,7 @@ description: Returns the list of currently opened scenes in Unity Editor. Use 's
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-list-opened --input '{
+npx unity-mcp-cli run-tool scene-list-opened --input '{
   "nothing": "string_value"
 }'
 ```

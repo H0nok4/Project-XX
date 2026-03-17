@@ -12,7 +12,7 @@ description: Retrieves Unity Editor logs. Useful for debugging and monitoring Un
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool console-get-logs --input '{
+npx unity-mcp-cli run-tool console-get-logs --input '{
   "maxEntries": 0,
   "logTypeFilter": "string_value",
   "includeStackTrace": false,

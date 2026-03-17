@@ -12,7 +12,7 @@ description: Get asset data from the asset file in the Unity project. It include
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-get-data --input '{
+npx unity-mcp-cli run-tool assets-get-data --input '{
   "assetRef": "string_value"
 }'
 ```

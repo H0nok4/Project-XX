@@ -12,7 +12,7 @@ description: List all packages installed in the Unity project (UPM packages). Re
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool package-list --input '{
+npx unity-mcp-cli run-tool package-list --input '{
   "sourceFilter": "string_value",
   "nameFilter": "string_value",
   "directDependenciesOnly": false

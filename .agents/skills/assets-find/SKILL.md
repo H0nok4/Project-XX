@@ -12,7 +12,7 @@ description: Search the asset database using the search filter string. Allows yo
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-find --input '{
+npx unity-mcp-cli run-tool assets-find --input '{
   "filter": "string_value",
   "searchInFolders": "string_value",
   "maxResults": 0

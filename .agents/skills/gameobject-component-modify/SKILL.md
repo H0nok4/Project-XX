@@ -12,7 +12,7 @@ description: Modify a specific Component on a GameObject in opened Prefab or in 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-component-modify --input '{
+npx unity-mcp-cli run-tool gameobject-component-modify --input '{
   "gameObjectRef": "string_value",
   "componentRef": "string_value",
   "componentDiff": "string_value"

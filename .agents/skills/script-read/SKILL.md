@@ -12,7 +12,7 @@ description: Reads the content of a script file and returns it as a string. Use 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool script-read --input '{
+npx unity-mcp-cli run-tool script-read --input '{
   "filePath": "string_value",
   "lineFrom": 0,
   "lineTo": 0

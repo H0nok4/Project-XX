@@ -12,7 +12,7 @@ description: Updates or creates script file with the provided C# code. Does Asse
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool script-update-or-create --input '{
+npx unity-mcp-cli run-tool script-update-or-create --input '{
   "filePath": "string_value",
   "content": "string_value"
 }'

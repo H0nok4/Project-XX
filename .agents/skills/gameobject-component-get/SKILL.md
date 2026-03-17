@@ -12,7 +12,7 @@ description: Get detailed information about a specific Component on a GameObject
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-component-get --input '{
+npx unity-mcp-cli run-tool gameobject-component-get --input '{
   "gameObjectRef": "string_value",
   "componentRef": "string_value",
   "includeFields": false,

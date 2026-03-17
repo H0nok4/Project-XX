@@ -12,7 +12,7 @@ description: Create a prefab from a GameObject in the current active scene. The 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-prefab-create --input '{
+npx unity-mcp-cli run-tool assets-prefab-create --input '{
   "prefabAssetPath": "string_value",
   "gameObjectRef": "string_value",
   "replaceGameObjectWithPrefab": false

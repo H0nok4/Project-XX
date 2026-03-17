@@ -12,7 +12,7 @@ description: "Search the built-in assets of the Unity Editor located in the buil
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-find-built-in --input '{
+npx unity-mcp-cli run-tool assets-find-built-in --input '{
   "name": "string_value",
   "type": "string_value",
   "maxResults": 0

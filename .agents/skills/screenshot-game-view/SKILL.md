@@ -12,7 +12,7 @@ description: Captures a screenshot from the Unity Editor Game View and returns i
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool screenshot-game-view --input '{
+npx unity-mcp-cli run-tool screenshot-game-view --input '{
   "nothing": "string_value"
 }'
 ```

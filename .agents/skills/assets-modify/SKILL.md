@@ -12,7 +12,7 @@ description: Modify asset file in the project. Use 'assets-get-data' tool first 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-modify --input '{
+npx unity-mcp-cli run-tool assets-modify --input '{
   "assetRef": "string_value",
   "content": "string_value"
 }'

@@ -12,7 +12,7 @@ description: Save a prefab. Use it when you are in prefab editing mode in Unity 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-prefab-save --input '{
+npx unity-mcp-cli run-tool assets-prefab-save --input '{
   "nothing": "string_value"
 }'
 ```

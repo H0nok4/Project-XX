@@ -12,7 +12,7 @@ description: This tool retrieves the list of root GameObjects in the specified s
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-get-data --input '{
+npx unity-mcp-cli run-tool scene-get-data --input '{
   "openedSceneName": "string_value",
   "includeRootGameObjects": false,
   "includeChildrenDepth": 0,

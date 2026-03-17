@@ -12,7 +12,7 @@ description: Creates a new folder in the specified parent folder. The parent fol
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-create-folder --input '{
+npx unity-mcp-cli run-tool assets-create-folder --input '{
   "inputs": "string_value"
 }'
 ```

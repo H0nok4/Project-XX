@@ -12,7 +12,7 @@ description: Captures a screenshot from the Unity Editor Scene View and returns 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool screenshot-scene-view --input '{
+npx unity-mcp-cli run-tool screenshot-scene-view --input '{
   "width": 0,
   "height": 0
 }'

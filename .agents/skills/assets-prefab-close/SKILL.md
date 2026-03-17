@@ -12,7 +12,7 @@ description: Close currently opened prefab. Use it when you are in prefab editin
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-prefab-close --input '{
+npx unity-mcp-cli run-tool assets-prefab-close --input '{
   "save": false
 }'
 ```

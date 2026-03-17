@@ -12,7 +12,7 @@ description: Modify the specified Unity Object. Allows direct modification of ob
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool object-modify --input '{
+npx unity-mcp-cli run-tool object-modify --input '{
   "objectRef": "string_value",
   "objectDiff": "string_value"
 }'

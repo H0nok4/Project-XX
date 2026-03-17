@@ -12,7 +12,7 @@ description: Create new material asset with default parameters. Creates folders 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-material-create --input '{
+npx unity-mcp-cli run-tool assets-material-create --input '{
   "assetPath": "string_value",
   "shaderName": "string_value"
 }'

@@ -12,7 +12,7 @@ description: Save Opened scene to the asset file. Use 'scene-list-opened' tool t
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-save --input '{
+npx unity-mcp-cli run-tool scene-save --input '{
   "openedSceneName": "string_value",
   "path": "string_value"
 }'

@@ -12,7 +12,7 @@ description: Set the specified opened scene as the active scene. Use 'scene-list
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-set-active --input '{
+npx unity-mcp-cli run-tool scene-set-active --input '{
   "sceneRef": "string_value"
 }'
 ```

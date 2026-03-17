@@ -12,7 +12,7 @@ description: Refreshes the AssetDatabase. Use it if any file was added or update
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-refresh --input '{
+npx unity-mcp-cli run-tool assets-refresh --input '{
   "options": "string_value"
 }'
 ```

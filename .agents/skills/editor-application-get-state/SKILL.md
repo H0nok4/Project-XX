@@ -12,7 +12,7 @@ description: "Returns available information about 'UnityEditor.EditorApplication
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool editor-application-get-state --input '{
+npx unity-mcp-cli run-tool editor-application-get-state --input '{
   "nothing": "string_value"
 }'
 ```

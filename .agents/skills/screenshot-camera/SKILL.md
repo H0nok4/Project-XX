@@ -12,7 +12,7 @@ description: Captures a screenshot from a camera and returns it as an image. If 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool screenshot-camera --input '{
+npx unity-mcp-cli run-tool screenshot-camera --input '{
   "cameraRef": "string_value",
   "width": 0,
   "height": 0

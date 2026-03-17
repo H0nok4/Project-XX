@@ -12,7 +12,7 @@ description: Create a new GameObject in opened Prefab or in a Scene. If needed -
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-create --input '{
+npx unity-mcp-cli run-tool gameobject-create --input '{
   "name": "string_value",
   "parentGameObjectRef": "string_value",
   "position": "string_value",

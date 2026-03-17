@@ -12,7 +12,7 @@ description: Destroy GameObject and all nested GameObjects recursively in opened
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-destroy --input '{
+npx unity-mcp-cli run-tool gameobject-destroy --input '{
   "gameObjectRef": "string_value"
 }'
 ```

@@ -12,7 +12,7 @@ description: Unload scene from the Opened scenes in Unity Editor. Use 'scene-lis
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-unload --input '{
+npx unity-mcp-cli run-tool scene-unload --input '{
   "name": "string_value"
 }'
 ```

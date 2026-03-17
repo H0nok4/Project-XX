@@ -12,7 +12,7 @@ description: Execute Unity tests and return detailed results. Supports filtering
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool tests-run --input '{
+npx unity-mcp-cli run-tool tests-run --input '{
   "testMode": "string_value",
   "testAssembly": "string_value",
   "testNamespace": "string_value",

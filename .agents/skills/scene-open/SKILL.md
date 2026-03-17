@@ -12,7 +12,7 @@ description: Open scene from the project asset file. Use 'assets-find' tool to f
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool scene-open --input '{
+npx unity-mcp-cli run-tool scene-open --input '{
   "sceneRef": "string_value",
   "loadSceneMode": "string_value"
 }'

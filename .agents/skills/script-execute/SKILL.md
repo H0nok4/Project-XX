@@ -12,7 +12,7 @@ description: Compiles and executes C# code dynamically using Roslyn. The provide
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool script-execute --input '{
+npx unity-mcp-cli run-tool script-execute --input '{
   "csharpCode": "string_value",
   "className": "string_value",
   "methodName": "string_value",

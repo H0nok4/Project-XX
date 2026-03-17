@@ -12,7 +12,7 @@ description: Add Component to GameObject in opened Prefab or in a Scene. Use 'ga
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool gameobject-component-add --input '{
+npx unity-mcp-cli run-tool gameobject-component-add --input '{
   "componentNames": "string_value",
   "gameObjectRef": "string_value"
 }'

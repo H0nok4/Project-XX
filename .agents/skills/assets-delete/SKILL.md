@@ -12,7 +12,7 @@ description: Delete the assets at paths from the project. Does AssetDatabase.Ref
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-delete --input '{
+npx unity-mcp-cli run-tool assets-delete --input '{
   "paths": "string_value"
 }'
 ```

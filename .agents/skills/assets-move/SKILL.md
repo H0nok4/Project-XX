@@ -12,7 +12,7 @@ description: Move the assets at paths in the project. Should be used for asset r
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool assets-move --input '{
+npx unity-mcp-cli run-tool assets-move --input '{
   "sourcePaths": "string_value",
   "destinationPaths": "string_value"
 }'

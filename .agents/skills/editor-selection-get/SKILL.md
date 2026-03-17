@@ -12,7 +12,7 @@ description: Get information about the current Selection in the Unity Editor. Us
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool editor-selection-get --input '{
+npx unity-mcp-cli run-tool editor-selection-get --input '{
   "includeGameObjects": false,
   "includeTransforms": false,
   "includeInstanceIDs": false,

@@ -12,7 +12,7 @@ description: "Remove (uninstall) a package from the Unity project. This removes 
 Execute this tool directly via command line:
 
 ```bash
-unity-mcp-cli run-tool package-remove --input '{
+npx unity-mcp-cli run-tool package-remove --input '{
   "packageId": "string_value"
 }'
 ```
