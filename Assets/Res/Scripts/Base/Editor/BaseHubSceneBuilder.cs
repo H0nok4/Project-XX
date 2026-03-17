@@ -70,70 +70,82 @@ public static class BaseHubSceneBuilder
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "BaseScene";
 
-        Material floorMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseFloor.mat", new Color(0.21f, 0.24f, 0.28f, 1f));
+        Material floorMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseFloor.mat", BaseHubBlockoutStandards.NeutralColor);
         Material wallMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseWall.mat", new Color(0.58f, 0.62f, 0.68f, 1f));
         Material ceilingMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseCeiling.mat", new Color(0.84f, 0.86f, 0.9f, 1f));
         Material accentMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseAccent.mat", new Color(0.88f, 0.48f, 0.18f, 1f));
-        Material readyMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_ReadyRoom.mat", new Color(0.22f, 0.74f, 0.96f, 1f));
-        Material warehouseMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Warehouse.mat", new Color(0.26f, 0.68f, 0.42f, 1f));
-        Material merchantMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Merchant.mat", new Color(0.92f, 0.56f, 0.18f, 1f));
-        Material taskMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Task.mat", new Color(0.72f, 0.4f, 0.88f, 1f));
-        Material medicalMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Medical.mat", new Color(0.84f, 0.91f, 0.96f, 1f));
+        Material readyMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_ReadyRoom.mat", BaseHubBlockoutStandards.ReadyColor);
+        Material warehouseMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Warehouse.mat", BaseHubBlockoutStandards.WarehouseColor);
+        Material merchantMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Merchant.mat", BaseHubBlockoutStandards.MerchantColor);
+        Material taskMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Task.mat", BaseHubBlockoutStandards.MissionColor);
+        Material medicalMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Medical.mat", BaseHubBlockoutStandards.RecoveryColor);
         Material signMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Sign.mat", new Color(0.11f, 0.14f, 0.19f, 1f));
         Material trimMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Trim.mat", new Color(0.15f, 0.18f, 0.22f, 1f));
 
         ConfigureDirectionalLight();
 
-        GameObject root = new GameObject("BaseHubRoot");
-        CreateBox("Floor", root.transform, Vector3.zero, new Vector3(30f, 0.4f, 26f), floorMaterial);
-        CreateBox("Ceiling", root.transform, new Vector3(0f, 4.6f, 0f), new Vector3(30f, 0.3f, 26f), ceilingMaterial);
-        CreateBox("Wall_North", root.transform, new Vector3(0f, 2.3f, 13f), new Vector3(30f, 4.6f, 0.4f), wallMaterial);
-        CreateBox("Wall_South", root.transform, new Vector3(0f, 2.3f, -13f), new Vector3(30f, 4.6f, 0.4f), wallMaterial);
-        CreateBox("Wall_East", root.transform, new Vector3(15f, 2.3f, 0f), new Vector3(0.4f, 4.6f, 26f), wallMaterial);
-        CreateBox("Wall_West", root.transform, new Vector3(-15f, 2.3f, 0f), new Vector3(0.4f, 4.6f, 26f), wallMaterial);
-        CreateBox("Divider_North_Left", root.transform, new Vector3(-6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
-        CreateBox("Divider_North_Right", root.transform, new Vector3(6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
-        CreateBox("Divider_South_Left", root.transform, new Vector3(-7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
-        CreateBox("Divider_South_Right", root.transform, new Vector3(7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
-        CreateBox("Divider_West_North", root.transform, new Vector3(-4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
-        CreateBox("Divider_West_South", root.transform, new Vector3(-4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
-        CreateBox("Divider_East_North", root.transform, new Vector3(4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
-        CreateBox("Divider_East_South", root.transform, new Vector3(4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
-        CreateBox("CentralStrip", root.transform, new Vector3(0f, 0.03f, 0f), Quaternion.identity, new Vector3(6f, 0.05f, 6f), accentMaterial, false);
-        CreateBox("ReadyStrip", root.transform, new Vector3(0f, 0.03f, 9.1f), Quaternion.identity, new Vector3(8f, 0.05f, 7f), readyMaterial, false);
-        CreateBox("WarehouseStrip", root.transform, new Vector3(10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), warehouseMaterial, false);
-        CreateBox("MerchantStrip", root.transform, new Vector3(-10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), merchantMaterial, false);
-        CreateBox("TaskStrip", root.transform, new Vector3(0f, 0.03f, -8.4f), Quaternion.identity, new Vector3(10f, 0.05f, 7.2f), taskMaterial, false);
-        CreateBox("RecoveryStrip", root.transform, new Vector3(10.1f, 0.03f, -9f), Quaternion.identity, new Vector3(6.6f, 0.05f, 6.4f), medicalMaterial, false);
-        CreateBox("NorthDoorHeader", root.transform, new Vector3(0f, 3.2f, 4.8f), new Vector3(4.4f, 0.25f, 0.6f), readyMaterial);
-        CreateBox("SouthDoorHeader", root.transform, new Vector3(0f, 3.2f, -4.8f), new Vector3(4.4f, 0.25f, 0.6f), taskMaterial);
-        CreateBox("WestDoorHeader", root.transform, new Vector3(-4.8f, 3.2f, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), merchantMaterial);
-        CreateBox("EastDoorHeader", root.transform, new Vector3(4.8f, 3.2f, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), warehouseMaterial);
-        CreateBox("Pillar_NW", root.transform, new Vector3(-4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
-        CreateBox("Pillar_NE", root.transform, new Vector3(4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
-        CreateBox("Pillar_SW", root.transform, new Vector3(-4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
-        CreateBox("Pillar_SE", root.transform, new Vector3(4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        GameObject root = new GameObject(BaseHubBlockoutStandards.RootName);
+        Transform shellRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.ShellRootName);
+        Transform readyRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.ReadyZoneRootName);
+        Transform warehouseRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.WarehouseZoneRootName);
+        Transform merchantRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.MerchantZoneRootName);
+        Transform missionRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.MissionZoneRootName);
+        Transform recoveryRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.RecoveryZoneRootName);
+        Transform gameplayRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.GameplayRootName);
+        Transform wayfindingRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.WayfindingRootName);
+        Transform lightingRoot = CreateGroup(root.transform, BaseHubBlockoutStandards.LightingRootName);
+        CreateGroup(root.transform, BaseHubBlockoutStandards.DebugRootName);
 
-        CreateInformationBoard("DirectoryBoard", root.transform, new Vector3(0f, 1.7f, 2.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(3.8f, 2.4f, 0.25f), signMaterial, "基地导览", "↑ 准备区\n← 商人区\n→ 仓库区\n↓ 任务区", Color.white, new Color(0.86f, 0.91f, 0.96f, 1f));
-        CreateInformationBoard("ReadyRoomSign", root.transform, new Vector3(0f, 2.2f, 12.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(4f, 1.5f, 0.25f), signMaterial, "准备区", "配装 / 出击 / 状态确认", readyMaterial.color, new Color(0.9f, 0.95f, 0.99f, 1f));
-        CreateInformationBoard("WarehouseSign", root.transform, new Vector3(13.8f, 2.2f, 2f), Quaternion.Euler(0f, -90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "仓库区", "仓储 / 武器柜 / 安全箱", warehouseMaterial.color, new Color(0.9f, 0.98f, 0.92f, 1f));
-        CreateInformationBoard("MerchantSign", root.transform, new Vector3(-13.8f, 2.2f, 2f), Quaternion.Euler(0f, 90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "商人区", "武器 / 护甲 / 医疗 / 杂货", merchantMaterial.color, new Color(0.99f, 0.94f, 0.88f, 1f));
-        CreateInformationBoard("TaskSign", root.transform, new Vector3(0f, 2.2f, -12.2f), Quaternion.identity, new Vector3(4.6f, 1.5f, 0.25f), signMaterial, "任务区", "公告板 / 汇报 / 情报整理", taskMaterial.color, new Color(0.96f, 0.91f, 0.99f, 1f));
+        CreateBox("BH_Shell_Floor", shellRoot, Vector3.zero, new Vector3(30f, 0.4f, 26f), floorMaterial);
+        CreateBox("BH_Shell_Ceiling", shellRoot, new Vector3(0f, BaseHubBlockoutStandards.CeilingHeight, 0f), new Vector3(30f, 0.3f, 26f), ceilingMaterial);
+        CreateBox("BH_Shell_Wall_North", shellRoot, new Vector3(0f, 2.3f, 13f), new Vector3(30f, BaseHubBlockoutStandards.CeilingHeight, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Wall_South", shellRoot, new Vector3(0f, 2.3f, -13f), new Vector3(30f, BaseHubBlockoutStandards.CeilingHeight, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Wall_East", shellRoot, new Vector3(15f, 2.3f, 0f), new Vector3(0.4f, BaseHubBlockoutStandards.CeilingHeight, 26f), wallMaterial);
+        CreateBox("BH_Shell_Wall_West", shellRoot, new Vector3(-15f, 2.3f, 0f), new Vector3(0.4f, BaseHubBlockoutStandards.CeilingHeight, 26f), wallMaterial);
+        CreateBox("BH_Shell_Divider_North_Left", shellRoot, new Vector3(-6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_North_Right", shellRoot, new Vector3(6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_South_Left", shellRoot, new Vector3(-7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_South_Right", shellRoot, new Vector3(7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_West_North", shellRoot, new Vector3(-4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_West_South", shellRoot, new Vector3(-4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
+        CreateBox("BH_Shell_Divider_East_North", shellRoot, new Vector3(4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
+        CreateBox("BH_Shell_Divider_East_South", shellRoot, new Vector3(4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
+        CreateBox("BH_Shell_Pillar_NW", shellRoot, new Vector3(-4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("BH_Shell_Pillar_NE", shellRoot, new Vector3(4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("BH_Shell_Pillar_SW", shellRoot, new Vector3(-4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("BH_Shell_Pillar_SE", shellRoot, new Vector3(4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
 
-        CreateReadyRoomLayout(root.transform, wallMaterial, accentMaterial, readyMaterial, signMaterial);
-        CreateWarehouseLayout(root.transform, wallMaterial, accentMaterial, warehouseMaterial, signMaterial);
-        CreateMerchantLayout(root.transform, wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateTaskLayout(root.transform, wallMaterial, accentMaterial, taskMaterial, signMaterial);
-        CreateRecoveryLayout(root.transform, accentMaterial, medicalMaterial, signMaterial);
+        CreateBox("BH_Wayfinding_CentralStrip", wayfindingRoot, new Vector3(0f, 0.03f, 0f), Quaternion.identity, new Vector3(6f, 0.05f, 6f), accentMaterial, false);
+        CreateBox("BH_Wayfinding_ReadyStrip", wayfindingRoot, new Vector3(0f, 0.03f, 9.1f), Quaternion.identity, new Vector3(8f, 0.05f, 7f), readyMaterial, false);
+        CreateBox("BH_Wayfinding_WarehouseStrip", wayfindingRoot, new Vector3(10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), warehouseMaterial, false);
+        CreateBox("BH_Wayfinding_MerchantStrip", wayfindingRoot, new Vector3(-10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), merchantMaterial, false);
+        CreateBox("BH_Wayfinding_TaskStrip", wayfindingRoot, new Vector3(0f, 0.03f, -8.4f), Quaternion.identity, new Vector3(10f, 0.05f, 7.2f), taskMaterial, false);
+        CreateBox("BH_Wayfinding_RecoveryStrip", wayfindingRoot, new Vector3(10.1f, 0.03f, -9f), Quaternion.identity, new Vector3(6.6f, 0.05f, 6.4f), medicalMaterial, false);
+        CreateBox("BH_Wayfinding_DoorHeader_North", wayfindingRoot, new Vector3(0f, BaseHubBlockoutStandards.DoorHeaderHeight, 4.8f), new Vector3(4.4f, 0.25f, 0.6f), readyMaterial);
+        CreateBox("BH_Wayfinding_DoorHeader_South", wayfindingRoot, new Vector3(0f, BaseHubBlockoutStandards.DoorHeaderHeight, -4.8f), new Vector3(4.4f, 0.25f, 0.6f), taskMaterial);
+        CreateBox("BH_Wayfinding_DoorHeader_West", wayfindingRoot, new Vector3(-4.8f, BaseHubBlockoutStandards.DoorHeaderHeight, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), merchantMaterial);
+        CreateBox("BH_Wayfinding_DoorHeader_East", wayfindingRoot, new Vector3(4.8f, BaseHubBlockoutStandards.DoorHeaderHeight, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), warehouseMaterial);
 
-        Transform departureArrivalPoint = CreateMarker(root.transform, "Spawn_Departure", new Vector3(0f, 0f, 7.6f), Quaternion.Euler(0f, 180f, 0f));
-        Transform respawnArrivalPoint = CreateMarker(root.transform, "Spawn_Respawn", new Vector3(10.4f, 0f, -8.4f), Quaternion.Euler(0f, 140f, 0f));
-        CreateZoneMarker(root.transform, "Zone_Atrium", BaseHubZoneType.Arrival, "中枢大厅", "基地动线中枢，可快速前往四个功能分区。", new Vector3(0f, 0f, 0f), 4.8f);
-        CreateZoneMarker(root.transform, "Zone_ReadyRoom", BaseHubZoneType.ReadyRoom, "准备区", "这里用于整备装备、确认地图并从出击终端进入战斗。", new Vector3(0f, 0f, 8.8f), 4.4f);
-        CreateZoneMarker(root.transform, "Zone_Warehouse", BaseHubZoneType.Warehouse, "仓库区", "安全仓库、武器柜和受保护栏位都集中在这里。", new Vector3(10.3f, 0f, 1.2f), 5.4f);
-        CreateZoneMarker(root.transform, "Zone_Merchant", BaseHubZoneType.Merchants, "商人区", "固定商人柜台已经预留，后续可直接接入 NPC 交互。", new Vector3(-10.3f, 0f, 1.2f), 5.4f);
-        CreateZoneMarker(root.transform, "Zone_Task", BaseHubZoneType.Missions, "任务区", "任务公告板、简报桌和后续任务 NPC 点位位于该区域。", new Vector3(0f, 0f, -8.4f), 5.2f);
-        CreateZoneMarker(root.transform, "Zone_Recovery", BaseHubZoneType.Recovery, "恢复区", "用于撤离失败后的回归落点和医疗恢复。", new Vector3(10.2f, 0f, -9f), 3.8f);
+        CreateInformationBoard("SIGN_DirectoryBoard", wayfindingRoot, new Vector3(0f, 1.7f, 2.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(3.8f, 2.4f, 0.25f), signMaterial, "基地导览", "↑ 准备区\n← 商人区\n→ 仓库区\n↓ 任务区", Color.white, new Color(0.86f, 0.91f, 0.96f, 1f));
+        CreateInformationBoard("SIGN_ReadyRoom", wayfindingRoot, new Vector3(0f, BaseHubBlockoutStandards.MainSignHeight, 12.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(4f, 1.5f, 0.25f), signMaterial, "准备区", "配装 / 出击 / 状态确认", readyMaterial.color, new Color(0.9f, 0.95f, 0.99f, 1f));
+        CreateInformationBoard("SIGN_Warehouse", wayfindingRoot, new Vector3(13.8f, BaseHubBlockoutStandards.MainSignHeight, 2f), Quaternion.Euler(0f, -90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "仓库区", "仓储 / 武器柜 / 安全箱", warehouseMaterial.color, new Color(0.9f, 0.98f, 0.92f, 1f));
+        CreateInformationBoard("SIGN_Merchant", wayfindingRoot, new Vector3(-13.8f, BaseHubBlockoutStandards.MainSignHeight, 2f), Quaternion.Euler(0f, 90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "商人区", "武器 / 护甲 / 医疗 / 杂货", merchantMaterial.color, new Color(0.99f, 0.94f, 0.88f, 1f));
+        CreateInformationBoard("SIGN_Task", wayfindingRoot, new Vector3(0f, BaseHubBlockoutStandards.MainSignHeight, -12.2f), Quaternion.identity, new Vector3(4.6f, 1.5f, 0.25f), signMaterial, "任务区", "公告板 / 汇报 / 情报整理", taskMaterial.color, new Color(0.96f, 0.91f, 0.99f, 1f));
+
+        CreateReadyRoomLayout(readyRoot, wallMaterial, accentMaterial, readyMaterial, signMaterial);
+        CreateWarehouseLayout(warehouseRoot, wallMaterial, accentMaterial, warehouseMaterial, signMaterial);
+        CreateMerchantLayout(merchantRoot, gameplayRoot, wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateTaskLayout(missionRoot, gameplayRoot, wallMaterial, accentMaterial, taskMaterial, signMaterial);
+        CreateRecoveryLayout(recoveryRoot, accentMaterial, medicalMaterial, signMaterial);
+
+        Transform departureArrivalPoint = CreateMarker(gameplayRoot, "SPAWN_Departure", new Vector3(0f, 0f, 7.6f), Quaternion.Euler(0f, 180f, 0f));
+        Transform respawnArrivalPoint = CreateMarker(gameplayRoot, "SPAWN_Respawn", new Vector3(10.4f, 0f, -8.4f), Quaternion.Euler(0f, 140f, 0f));
+        CreateZoneMarker(gameplayRoot, "ZONE_Atrium", BaseHubZoneType.Arrival, "中枢大厅", "基地动线中枢，可快速前往四个功能分区。", new Vector3(0f, 0f, 0f), 4.8f);
+        CreateZoneMarker(gameplayRoot, "ZONE_ReadyRoom", BaseHubZoneType.ReadyRoom, "准备区", "这里用于整备装备、确认地图并从出击终端进入战斗。", new Vector3(0f, 0f, 8.8f), 4.4f);
+        CreateZoneMarker(gameplayRoot, "ZONE_Warehouse", BaseHubZoneType.Warehouse, "仓库区", "安全仓库、武器柜和受保护栏位都集中在这里。", new Vector3(10.3f, 0f, 1.2f), 5.4f);
+        CreateZoneMarker(gameplayRoot, "ZONE_Merchant", BaseHubZoneType.Merchants, "商人区", "固定商人柜台已经预留，后续可直接接入 NPC 交互。", new Vector3(-10.3f, 0f, 1.2f), 5.4f);
+        CreateZoneMarker(gameplayRoot, "ZONE_Task", BaseHubZoneType.Missions, "任务区", "任务公告板、简报桌和后续任务 NPC 点位位于该区域。", new Vector3(0f, 0f, -8.4f), 5.2f);
+        CreateZoneMarker(gameplayRoot, "ZONE_Recovery", BaseHubZoneType.Recovery, "恢复区", "用于撤离失败后的回归落点和医疗恢复。", new Vector3(10.2f, 0f, -9f), 3.8f);
 
         GameObject player = CreatePlayer(new Vector3(0f, 1.05f, 7.6f));
         PrototypeFpsController fpsController = player.GetComponent<PrototypeFpsController>();
@@ -157,8 +169,8 @@ public static class BaseHubSceneBuilder
         SetSerializedString(director, "navigationLegend", "← 商人区  ·  ↑ 准备区  ·  → 仓库区  ·  ↓ 任务区");
 
         CreateTerminal(
-            "DepartureBoard",
-            root.transform,
+            "INT_DepartureBoard",
+            gameplayRoot,
             new Vector3(0f, 1.1f, 10.1f),
             Quaternion.Euler(0f, 180f, 0f),
             new Vector3(1.5f, 2.2f, 0.9f),
@@ -168,8 +180,8 @@ public static class BaseHubSceneBuilder
             BaseHubInteractionKind.Deploy,
             "打开出击终端");
         CreateTerminal(
-            "WarehouseTerminal",
-            root.transform,
+            "INT_WarehouseTerminal",
+            gameplayRoot,
             new Vector3(9.2f, 1.1f, 6.2f),
             Quaternion.Euler(0f, -90f, 0f),
             new Vector3(1.3f, 2.2f, 0.9f),
@@ -179,8 +191,8 @@ public static class BaseHubSceneBuilder
             BaseHubInteractionKind.Warehouse,
             "打开仓库");
         CreateTerminal(
-            "MerchantDirectoryTerminal",
-            root.transform,
+            "INT_MerchantDirectoryTerminal",
+            gameplayRoot,
             new Vector3(-8.2f, 1.1f, 0.2f),
             Quaternion.Euler(0f, 90f, 0f),
             new Vector3(1.3f, 2.2f, 0.9f),
@@ -190,12 +202,12 @@ public static class BaseHubSceneBuilder
             BaseHubInteractionKind.Merchants,
             "查看商人目录");
 
-        CreatePointLight(root.transform, new Vector3(0f, 3.3f, 0f), new Color(0.96f, 0.84f, 0.72f), 4.2f, 14f);
-        CreatePointLight(root.transform, new Vector3(0f, 3.3f, 9.2f), new Color(0.58f, 0.84f, 1f), 4.3f, 13f);
-        CreatePointLight(root.transform, new Vector3(10.2f, 3.2f, 1.4f), new Color(0.56f, 0.9f, 0.68f), 4.1f, 12f);
-        CreatePointLight(root.transform, new Vector3(-10.2f, 3.2f, 1.4f), new Color(1f, 0.72f, 0.42f), 4.2f, 12f);
-        CreatePointLight(root.transform, new Vector3(0f, 3.2f, -8.4f), new Color(0.86f, 0.68f, 1f), 4f, 12f);
-        CreatePointLight(root.transform, new Vector3(10.4f, 3f, -8.8f), new Color(0.8f, 0.94f, 1f), 3.8f, 10f);
+        CreatePointLight(lightingRoot, "LGT_Atrium_Main", new Vector3(0f, 3.3f, 0f), new Color(0.96f, 0.84f, 0.72f), 4.2f, 14f);
+        CreatePointLight(lightingRoot, "LGT_ReadyRoom_Main", new Vector3(0f, 3.3f, 9.2f), new Color(0.58f, 0.84f, 1f), 4.3f, 13f);
+        CreatePointLight(lightingRoot, "LGT_Warehouse_Main", new Vector3(10.2f, 3.2f, 1.4f), new Color(0.56f, 0.9f, 0.68f), 4.1f, 12f);
+        CreatePointLight(lightingRoot, "LGT_Merchant_Main", new Vector3(-10.2f, 3.2f, 1.4f), new Color(1f, 0.72f, 0.42f), 4.2f, 12f);
+        CreatePointLight(lightingRoot, "LGT_Mission_Main", new Vector3(0f, 3.2f, -8.4f), new Color(0.86f, 0.68f, 1f), 4f, 12f);
+        CreatePointLight(lightingRoot, "LGT_Recovery_Main", new Vector3(10.4f, 3f, -8.8f), new Color(0.8f, 0.94f, 1f), 3.8f, 10f);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, BaseScenePath);
@@ -287,6 +299,13 @@ public static class BaseHubSceneBuilder
         EditorUtility.SetDirty(config);
     }
 
+    private static Transform CreateGroup(Transform parent, string objectName)
+    {
+        GameObject group = new GameObject(objectName);
+        group.transform.SetParent(parent, false);
+        return group.transform;
+    }
+
     private static void CreateReadyRoomLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material readyMaterial, Material signMaterial)
     {
         CreateBox("Ready_LockerLeft", parent, new Vector3(-6.2f, 1.35f, 10.8f), new Vector3(0.9f, 2.7f, 1.3f), wallMaterial);
@@ -330,15 +349,15 @@ public static class BaseHubSceneBuilder
             Color.white);
     }
 
-    private static void CreateMerchantLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material merchantMaterial, Material signMaterial)
+    private static void CreateMerchantLayout(Transform parent, Transform gameplayParent, Material wallMaterial, Material accentMaterial, Material merchantMaterial, Material signMaterial)
     {
-        CreateMerchantStand(parent, "WeaponMerchantStand", BaseHubMerchantSpotType.Weapon, "weapons_trader", "武器商人", "武器 / 弹药 / 配件", new Vector3(-12f, 0.7f, 6.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, "ArmorMerchantStand", BaseHubMerchantSpotType.Armor, "armor_trader", "护甲商人", "头盔 / 防具 / 战术背心", new Vector3(-12f, 0.7f, 2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, "MedicalMerchantStand", BaseHubMerchantSpotType.Medical, "medical_trader", "医疗商人", "医疗包 / 药品 / 注射剂", new Vector3(-12f, 0.7f, -2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, "GeneralMerchantStand", BaseHubMerchantSpotType.General, "general_trader", "杂货商人", "消耗品 / 钥匙 / 任务杂项", new Vector3(-12f, 0.7f, -7.8f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, gameplayParent, "WeaponMerchantStand", BaseHubMerchantSpotType.Weapon, "weapons_trader", "武器商人", "武器 / 弹药 / 配件", new Vector3(-12f, 0.7f, 6.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, gameplayParent, "ArmorMerchantStand", BaseHubMerchantSpotType.Armor, "armor_trader", "护甲商人", "头盔 / 防具 / 战术背心", new Vector3(-12f, 0.7f, 2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, gameplayParent, "MedicalMerchantStand", BaseHubMerchantSpotType.Medical, "medical_trader", "医疗商人", "医疗包 / 药品 / 注射剂", new Vector3(-12f, 0.7f, -2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, gameplayParent, "GeneralMerchantStand", BaseHubMerchantSpotType.General, "general_trader", "杂货商人", "消耗品 / 钥匙 / 任务杂项", new Vector3(-12f, 0.7f, -7.8f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
     }
 
-    private static void CreateTaskLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material taskMaterial, Material signMaterial)
+    private static void CreateTaskLayout(Transform parent, Transform gameplayParent, Material wallMaterial, Material accentMaterial, Material taskMaterial, Material signMaterial)
     {
         CreateInformationBoard(
             "TaskBoard",
@@ -358,9 +377,9 @@ public static class BaseHubSceneBuilder
         CreateBox("Task_IntelRack", parent, new Vector3(-8.8f, 1.4f, -10.8f), new Vector3(1.2f, 2.8f, 0.6f), wallMaterial);
         CreateBox("Task_TrainingRack", parent, new Vector3(8.8f, 1.4f, -10.8f), new Vector3(1.2f, 2.8f, 0.6f), wallMaterial);
 
-        CreateMarker(parent, "CommanderAnchor", new Vector3(-5.6f, 0f, -7.2f), Quaternion.identity);
-        CreateMarker(parent, "IntelOfficerAnchor", new Vector3(0f, 0f, -10.1f), Quaternion.identity);
-        CreateMarker(parent, "TrainerAnchor", new Vector3(5.6f, 0f, -7.2f), Quaternion.identity);
+        CreateMarker(gameplayParent, "NPC_Commander_Anchor", new Vector3(-5.6f, 0f, -7.2f), Quaternion.identity);
+        CreateMarker(gameplayParent, "NPC_IntelOfficer_Anchor", new Vector3(0f, 0f, -10.1f), Quaternion.identity);
+        CreateMarker(gameplayParent, "NPC_Trainer_Anchor", new Vector3(5.6f, 0f, -7.2f), Quaternion.identity);
 
         CreateWorldText(parent, "Task_CommanderLabel", "主线汇报点", new Vector3(-5.6f, 1.8f, -6.4f), Quaternion.identity, 52, taskMaterial.color, TextAnchor.MiddleCenter, TextAlignment.Center, 0.07f);
         CreateWorldText(parent, "Task_IntelLabel", "情报整理点", new Vector3(0f, 1.8f, -10.8f), Quaternion.identity, 52, taskMaterial.color, TextAnchor.MiddleCenter, TextAlignment.Center, 0.07f);
@@ -387,6 +406,7 @@ public static class BaseHubSceneBuilder
 
     private static void CreateMerchantStand(
         Transform parent,
+        Transform gameplayParent,
         string objectName,
         BaseHubMerchantSpotType spotType,
         string merchantId,
@@ -403,7 +423,7 @@ public static class BaseHubSceneBuilder
         CreateBox($"{objectName}_DisplayBar", parent, counterPosition + new Vector3(-0.7f, 1.9f, 0f), new Vector3(0.5f, 0.35f, 2f), merchantMaterial);
         CreateInformationBoard($"{objectName}_Sign", parent, counterPosition + new Vector3(-0.72f, 2.35f, 0f), Quaternion.Euler(0f, 90f, 0f), new Vector3(2.2f, 1f, 0.16f), signMaterial, merchantName, previewDescription, merchantMaterial.color, Color.white, 50, 34, 0.055f, 0.04f);
 
-        Transform anchor = CreateMarker(parent, $"{objectName}_Anchor", counterPosition + new Vector3(-1.1f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
+        Transform anchor = CreateMarker(gameplayParent, $"NPC_{merchantName.Replace(" ", string.Empty)}_Anchor", counterPosition + new Vector3(-1.1f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
         BaseHubMerchantSpot merchantSpot = anchor.gameObject.AddComponent<BaseHubMerchantSpot>();
         SetSerializedEnum(merchantSpot, "spotType", (int)spotType);
         SetSerializedString(merchantSpot, "merchantId", merchantId);
@@ -554,9 +574,9 @@ public static class BaseHubSceneBuilder
         return marker.transform;
     }
 
-    private static void CreatePointLight(Transform parent, Vector3 localPosition, Color color, float intensity, float range)
+    private static void CreatePointLight(Transform parent, string objectName, Vector3 localPosition, Color color, float intensity, float range)
     {
-        GameObject lightObject = new GameObject("PointLight");
+        GameObject lightObject = new GameObject(string.IsNullOrWhiteSpace(objectName) ? "LGT_Point" : objectName.Trim());
         lightObject.transform.SetParent(parent, false);
         lightObject.transform.localPosition = localPosition;
 
@@ -722,4 +742,43 @@ public static class BaseHubSceneBuilder
         property.stringValue = value;
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
+}
+
+/// <summary>
+/// BaseScene / 基地 Hub 原型搭建统一规范。
+/// 这份常量不追求“玩法逻辑”，只用于约束 blockout 的尺度、层级和替换边界。
+/// </summary>
+internal static class BaseHubBlockoutStandards
+{
+    public const float MacroGrid = 1f;
+    public const float ModuleGrid = 0.5f;
+    public const float FineGrid = 0.25f;
+
+    public const float CeilingHeight = 4.6f;
+    public const float DoorHeaderHeight = 3.2f;
+    public const float MainCorridorWidth = 4f;
+    public const float SideCorridorWidth = 3f;
+    public const float MainDoorWidth = 3.6f;
+    public const float SideDoorWidth = 2.4f;
+    public const float CounterHeight = 0.95f;
+    public const float MainSignHeight = 2.2f;
+
+    public const string RootName = "BH_BaseHubRoot";
+    public const string ShellRootName = "00_Shell";
+    public const string ReadyZoneRootName = "10_ReadyRoom";
+    public const string WarehouseZoneRootName = "20_Warehouse";
+    public const string MerchantZoneRootName = "30_MerchantWing";
+    public const string MissionZoneRootName = "40_MissionWing";
+    public const string RecoveryZoneRootName = "50_RecoveryBay";
+    public const string GameplayRootName = "60_Gameplay";
+    public const string WayfindingRootName = "70_Wayfinding";
+    public const string LightingRootName = "80_Lighting";
+    public const string DebugRootName = "90_Debug";
+
+    public static readonly Color NeutralColor = new Color(0.21f, 0.24f, 0.28f, 1f);
+    public static readonly Color ReadyColor = new Color(0.22f, 0.74f, 0.96f, 1f);
+    public static readonly Color WarehouseColor = new Color(0.26f, 0.68f, 0.42f, 1f);
+    public static readonly Color MerchantColor = new Color(0.92f, 0.56f, 0.18f, 1f);
+    public static readonly Color MissionColor = new Color(0.72f, 0.4f, 0.88f, 1f);
+    public static readonly Color RecoveryColor = new Color(0.84f, 0.91f, 0.96f, 1f);
 }
