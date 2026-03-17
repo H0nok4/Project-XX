@@ -69,6 +69,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     [SerializeField] private bool allowBaseHubEntryButton = true;
     [SerializeField] private List<RaidSceneOption> raidSceneOptions = new List<RaidSceneOption>();
     [SerializeField] private int selectedRaidSceneIndex;
+    [SerializeField] private string focusedMerchantId = string.Empty;
 
     [Header("UI")]
     [SerializeField] private MenuUiMode menuUiMode = MenuUiMode.Ugui;
@@ -142,6 +143,7 @@ public class PrototypeMainMenuController : MonoBehaviour
         : 0;
     internal PrototypeItemCatalog ItemCatalog => itemCatalog;
     internal PrototypeMerchantCatalog MerchantCatalog => merchantCatalog;
+    internal string FocusedMerchantId => focusedMerchantId;
     internal ItemDefinition CashDefinition => cashDefinition;
     internal System.Collections.Generic.List<ItemInstance> WeaponLocker => weaponLocker;
     internal System.Collections.Generic.List<ArmorInstance> EquippedArmor => equippedArmor;
@@ -798,6 +800,68 @@ public class PrototypeMainMenuController : MonoBehaviour
         feedbackMessage = message ?? string.Empty;
         feedbackUntilTime = Time.time + 2.6f;
         RequestUiRefresh();
+    }
+
+    internal void ShowMerchantDirectory()
+    {
+        focusedMerchantId = string.Empty;
+        ShowPage(MenuPage.Merchants);
+    }
+
+    internal bool ShowMerchant(string merchantId, string merchantDisplayName = null)
+    {
+        if (!TryFocusMerchant(merchantId))
+        {
+            ShowMerchantDirectory();
+            if (!string.IsNullOrWhiteSpace(merchantDisplayName))
+            {
+                SetFeedback($"未找到商人：{merchantDisplayName}");
+            }
+
+            return false;
+        }
+
+        ShowPage(MenuPage.Merchants);
+        return true;
+    }
+
+    internal bool TryFocusMerchant(string merchantId)
+    {
+        ResolveCatalog();
+        if (merchantCatalog == null || string.IsNullOrWhiteSpace(merchantId))
+        {
+            focusedMerchantId = string.Empty;
+            return false;
+        }
+
+        PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog.GetMerchantById(merchantId);
+        if (merchant == null)
+        {
+            focusedMerchantId = string.Empty;
+            return false;
+        }
+
+        focusedMerchantId = merchant.MerchantId;
+        return true;
+    }
+
+    internal PrototypeMerchantCatalog.MerchantDefinition GetFocusedMerchant()
+    {
+        ResolveCatalog();
+        return merchantCatalog != null ? merchantCatalog.GetMerchantById(focusedMerchantId) : null;
+    }
+
+    internal int GetFocusedMerchantIndex()
+    {
+        ResolveCatalog();
+        return merchantCatalog != null ? merchantCatalog.GetMerchantIndex(focusedMerchantId) : -1;
+    }
+
+    internal bool IsMerchantFocused(string merchantId)
+    {
+        return !string.IsNullOrWhiteSpace(focusedMerchantId)
+            && !string.IsNullOrWhiteSpace(merchantId)
+            && string.Equals(focusedMerchantId, merchantId.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     internal void ShowPage(MenuPage page)

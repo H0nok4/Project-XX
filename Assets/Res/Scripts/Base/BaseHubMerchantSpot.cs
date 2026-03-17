@@ -12,7 +12,7 @@ public enum BaseHubMerchantSpotType
 public sealed class BaseHubMerchantSpot : MonoBehaviour
 {
     [SerializeField] private BaseHubMerchantSpotType spotType = BaseHubMerchantSpotType.Weapon;
-    [SerializeField] private string merchantId = "weapon_trader";
+    [SerializeField] private string merchantId = "weapons_trader";
     [SerializeField] private string merchantName = "武器商人";
     [TextArea(1, 3)]
     [SerializeField] private string previewDescription = "出售武器、弹药和基础配件。";

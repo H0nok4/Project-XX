@@ -212,6 +212,46 @@ public class PrototypeMerchantCatalog : ScriptableObject
         runtimeInventoriesDirty = false;
     }
 
+    public MerchantDefinition GetMerchantById(string merchantId)
+    {
+        if (string.IsNullOrWhiteSpace(merchantId) || merchants == null)
+        {
+            return null;
+        }
+
+        string sanitizedMerchantId = merchantId.Trim();
+        for (int index = 0; index < merchants.Count; index++)
+        {
+            MerchantDefinition merchant = merchants[index];
+            if (merchant != null && string.Equals(merchant.MerchantId, sanitizedMerchantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return merchant;
+            }
+        }
+
+        return null;
+    }
+
+    public int GetMerchantIndex(string merchantId)
+    {
+        if (string.IsNullOrWhiteSpace(merchantId) || merchants == null)
+        {
+            return -1;
+        }
+
+        string sanitizedMerchantId = merchantId.Trim();
+        for (int index = 0; index < merchants.Count; index++)
+        {
+            MerchantDefinition merchant = merchants[index];
+            if (merchant != null && string.Equals(merchant.MerchantId, sanitizedMerchantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     public void RegenerateRuntimeInventories()
     {
         EnsureSanitized();

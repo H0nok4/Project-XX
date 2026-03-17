@@ -569,6 +569,7 @@ public class MerchantInventory
 - 搭建基地场景（可以先用blockout）
 - 放置商人NPC位置
 - 添加导航和标识
+- 已通过 `BaseHubSceneBuilder` 使用 ProBuilder 重建 `BaseScene`，落地中枢大厅 + 四向功能翼布局
 
 **技术要点**
 - 使用ProBuilder或其他工具快速搭建
@@ -577,14 +578,15 @@ public class MerchantInventory
 - 性能优化（合批、遮挡剔除）
 
 **验收标准**
-- [ ] 基地场景完整可导航
-- [ ] 各功能区域清晰
-- [ ] 商人位置合理
+- [x] 基地场景完整可导航
+- [x] 各功能区域清晰
+- [x] 商人位置合理
 - [ ] 性能达标（60FPS）
 
 **相关文件**
-- 新增：`Assets/Scenes/BaseScene.unity`
-- 新增：基地场景相关预制体
+- `Assets/Scenes/BaseScene.unity`
+- `Assets/Res/Scripts/Base/Editor/BaseHubSceneBuilder.cs`
+- `Assets/Res/Materials/BaseHub/`
 
 #### 2.2 商人NPC交互系统
 **优先级**：最高
@@ -596,6 +598,7 @@ public class MerchantInventory
 - 实现按E键打开商店
 - 创建商人数据配置
 - 实现商人对话（可选）
+- 已接入 `MerchantNPC -> MerchantUIManager -> BaseHubDirector -> PrototypeMainMenuController` 的指定商人打开链路
 
 **技术要点**
 ```csharp
@@ -628,13 +631,18 @@ public enum MerchantType
 ```
 
 **验收标准**
-- [ ] 可以靠近商人看到提示
-- [ ] 按E打开对应商店
-- [ ] 商店显示商人信息
-- [ ] 交互流畅自然
+- [x] 可以靠近商人看到提示
+- [x] 按E打开对应商店
+- [x] 商店显示商人信息
+- [x] 交互流畅自然
 
 **相关文件**
-- 新增：`MerchantNPC.cs`, `MerchantUIManager.cs`
+- `Assets/Res/Scripts/Base/MerchantNPC.cs`
+- `Assets/Res/Scripts/Base/MerchantUIManager.cs`
+- `Assets/Res/Scripts/Base/BaseHubDirector.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
+- `Assets/Resources/PrototypeMerchantCatalog.asset`
 - `Assets/Res/Scripts/Interaction/IInteractable.cs`
 - `Assets/Res/Scripts/Interaction/PlayerInteractor.cs`
 

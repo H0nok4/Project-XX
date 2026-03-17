@@ -343,7 +343,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
     {
         BindButton(homeButton, () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Home);
         BindButton(warehouseButton, () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse);
-        BindButton(merchantButton, () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Merchants);
+        BindButton(merchantButton, host.ShowMerchantDirectory);
         BindButton(saveProfileButton, SaveProfile);
         BindButton(resetProfileButton, ResetProfile);
         BindButton(exitButton, ExitApplication);
@@ -531,7 +531,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         {
             new ButtonSpec("进入战斗", host.StartRaid),
             new ButtonSpec("打开仓库", () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse),
-            new ButtonSpec("拜访商人", () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Merchants)
+            new ButtonSpec("拜访商人", host.ShowMerchantDirectory)
         };
 
         if (host.ShouldShowBaseHubEntry())
@@ -613,23 +613,23 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = true;
 
-        for (int merchantIndex = 0; merchantIndex < merchantCatalog.Merchants.Count; merchantIndex++)
+        List<PrototypeMerchantCatalog.MerchantDefinition> displayMerchants = BuildMerchantDisplayOrder(merchantCatalog);
+        for (int merchantIndex = 0; merchantIndex < displayMerchants.Count; merchantIndex++)
         {
-            PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog.Merchants[merchantIndex];
+            PrototypeMerchantCatalog.MerchantDefinition merchant = displayMerchants[merchantIndex];
             if (merchant == null)
             {
                 continue;
             }
 
-            Color accent = merchantIndex == 0
-                ? host.StashColor
-                : merchantIndex == 1
-                    ? host.BackpackColor
-                    : host.ProtectedColor;
+            bool isFocusedMerchant = host.IsMerchantFocused(merchant.MerchantId);
+            Color accent = ResolveMerchantAccent(merchantIndex);
             PanelRefs panel = CreateScrollablePanel(
                 columns,
                 merchant.DisplayName,
-                $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}",
+                isFocusedMerchant
+                    ? $"当前交互  ·  等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}"
+                    : $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}",
                 accent);
 
             bool drewOffer = false;
@@ -648,6 +648,61 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             {
                 CreateEmptyLabel(panel.content, "当前没有可售商品。");
             }
+
+            if (isFocusedMerchant && panel.footer != null)
+            {
+                CreateButton(panel.footer, "查看全部商人", () =>
+                {
+                    host.ShowMerchantDirectory();
+                    RequestRefresh();
+                }, 34f);
+            }
+        }
+    }
+
+    private List<PrototypeMerchantCatalog.MerchantDefinition> BuildMerchantDisplayOrder(PrototypeMerchantCatalog merchantCatalog)
+    {
+        var orderedMerchants = new List<PrototypeMerchantCatalog.MerchantDefinition>();
+        if (merchantCatalog == null || merchantCatalog.Merchants == null)
+        {
+            return orderedMerchants;
+        }
+
+        PrototypeMerchantCatalog.MerchantDefinition focusedMerchant = host.GetFocusedMerchant();
+        if (focusedMerchant != null)
+        {
+            orderedMerchants.Add(focusedMerchant);
+        }
+
+        for (int merchantIndex = 0; merchantIndex < merchantCatalog.Merchants.Count; merchantIndex++)
+        {
+            PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog.Merchants[merchantIndex];
+            if (merchant == null || ReferenceEquals(merchant, focusedMerchant))
+            {
+                continue;
+            }
+
+            orderedMerchants.Add(merchant);
+        }
+
+        return orderedMerchants;
+    }
+
+    private Color ResolveMerchantAccent(int merchantIndex)
+    {
+        switch (merchantIndex % 4)
+        {
+            case 1:
+                return host.BackpackColor;
+
+            case 2:
+                return host.ProtectedColor;
+
+            case 3:
+                return host.LockerColor;
+
+            default:
+                return host.StashColor;
         }
     }
 

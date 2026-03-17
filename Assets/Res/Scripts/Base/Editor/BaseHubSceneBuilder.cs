@@ -3,6 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.ProBuilder;
 using UnityEngine.SceneManagement;
 
 [InitializeOnLoad]
@@ -15,6 +16,9 @@ public static class BaseHubSceneBuilder
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
     private const string ResourcesFolder = "Assets/Resources";
     private const string MaterialFolder = "Assets/Res/Materials/BaseHub";
+    private const string WorldTextMaterialPath = "Assets/Res/Materials/BaseHub/Mat_WorldText.mat";
+    private const string WorldTextShaderPath = "Assets/Shaders/WorldTextOccluded.shader";
+    private const string WorldTextShaderName = "ProjectXX/WorldTextOccluded";
     private const string ItemCatalogPath = "Assets/Resources/PrototypeItemCatalog.asset";
     private const string RouteConfigPath = "Assets/Resources/MetaEntryRouteConfig.asset";
     private const int IgnoreRaycastLayer = 2;
@@ -134,7 +138,6 @@ public static class BaseHubSceneBuilder
 
         CreateReadyRoomLayout(readyRoot, wallMaterial, accentMaterial, readyMaterial, signMaterial);
         CreateWarehouseLayout(warehouseRoot, wallMaterial, accentMaterial, warehouseMaterial, signMaterial);
-        CreateMerchantLayout(merchantRoot, gameplayRoot, wallMaterial, accentMaterial, merchantMaterial, signMaterial);
         CreateTaskLayout(missionRoot, gameplayRoot, wallMaterial, accentMaterial, taskMaterial, signMaterial);
         CreateRecoveryLayout(recoveryRoot, accentMaterial, medicalMaterial, signMaterial);
 
@@ -158,6 +161,7 @@ public static class BaseHubSceneBuilder
 
         GameObject systems = new GameObject("BaseHubSystems");
         BaseHubDirector director = systems.AddComponent<BaseHubDirector>();
+        MerchantUIManager merchantUiManager = systems.AddComponent<MerchantUIManager>();
         SetSerializedReference(director, "fpsController", fpsController);
         SetSerializedReference(director, "fpsInput", fpsInput);
         SetSerializedReference(director, "interactionState", interactionState);
@@ -167,6 +171,10 @@ public static class BaseHubSceneBuilder
         SetSerializedString(director, "hubTitle", "幸存者基地");
         SetSerializedString(director, "hubHint", "E：交互  |  Esc：关闭界面");
         SetSerializedString(director, "navigationLegend", "← 商人区  ·  ↑ 准备区  ·  → 仓库区  ·  ↓ 任务区");
+        SetSerializedReference(merchantUiManager, "director", director);
+        SetSerializedReference(merchantUiManager, "menuController", menuController);
+
+        CreateMerchantLayout(merchantRoot, gameplayRoot, wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
 
         CreateTerminal(
             "INT_DepartureBoard",
@@ -349,12 +357,19 @@ public static class BaseHubSceneBuilder
             Color.white);
     }
 
-    private static void CreateMerchantLayout(Transform parent, Transform gameplayParent, Material wallMaterial, Material accentMaterial, Material merchantMaterial, Material signMaterial)
+    private static void CreateMerchantLayout(
+        Transform parent,
+        Transform gameplayParent,
+        Material wallMaterial,
+        Material accentMaterial,
+        Material merchantMaterial,
+        Material signMaterial,
+        MerchantUIManager merchantUiManager)
     {
-        CreateMerchantStand(parent, gameplayParent, "WeaponMerchantStand", BaseHubMerchantSpotType.Weapon, "weapons_trader", "武器商人", "武器 / 弹药 / 配件", new Vector3(-12f, 0.7f, 6.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, gameplayParent, "ArmorMerchantStand", BaseHubMerchantSpotType.Armor, "armor_trader", "护甲商人", "头盔 / 防具 / 战术背心", new Vector3(-12f, 0.7f, 2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, gameplayParent, "MedicalMerchantStand", BaseHubMerchantSpotType.Medical, "medical_trader", "医疗商人", "医疗包 / 药品 / 注射剂", new Vector3(-12f, 0.7f, -2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
-        CreateMerchantStand(parent, gameplayParent, "GeneralMerchantStand", BaseHubMerchantSpotType.General, "general_trader", "杂货商人", "消耗品 / 钥匙 / 任务杂项", new Vector3(-12f, 0.7f, -7.8f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, gameplayParent, "WeaponMerchantStand", BaseHubMerchantSpotType.Weapon, "weapons_trader", "武器商人", "武器 / 弹药 / 配件", "有新到的武器和弹药，自己挑。", new Vector3(-12f, 0.7f, 6.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
+        CreateMerchantStand(parent, gameplayParent, "ArmorMerchantStand", BaseHubMerchantSpotType.Armor, "armor_trader", "护甲商人", "头盔 / 防具 / 战术背心", "想活着回来，先把护甲穿好。", new Vector3(-12f, 0.7f, 2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
+        CreateMerchantStand(parent, gameplayParent, "MedicalMerchantStand", BaseHubMerchantSpotType.Medical, "medical_trader", "医疗商人", "医疗包 / 药品 / 注射剂", "伤口别拖，补给都在这边。", new Vector3(-12f, 0.7f, -2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
+        CreateMerchantStand(parent, gameplayParent, "GeneralMerchantStand", BaseHubMerchantSpotType.General, "general_trader", "杂货商人", "补给 / 安全箱 / 任务杂项", "常用杂货和补给我这都有。", new Vector3(-12f, 0.7f, -7.8f), wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
     }
 
     private static void CreateTaskLayout(Transform parent, Transform gameplayParent, Material wallMaterial, Material accentMaterial, Material taskMaterial, Material signMaterial)
@@ -412,11 +427,13 @@ public static class BaseHubSceneBuilder
         string merchantId,
         string merchantName,
         string previewDescription,
+        string greetingLine,
         Vector3 counterPosition,
         Material wallMaterial,
         Material accentMaterial,
         Material merchantMaterial,
-        Material signMaterial)
+        Material signMaterial,
+        MerchantUIManager merchantUiManager)
     {
         CreateBox($"{objectName}_Counter", parent, counterPosition, new Vector3(1.5f, 0.95f, 2.4f), accentMaterial);
         CreateBox($"{objectName}_BackPanel", parent, counterPosition + new Vector3(-1.35f, 1.45f, 0f), new Vector3(0.3f, 2.9f, 2.8f), wallMaterial);
@@ -430,6 +447,29 @@ public static class BaseHubSceneBuilder
         SetSerializedString(merchantSpot, "merchantName", merchantName);
         SetSerializedString(merchantSpot, "previewDescription", previewDescription);
         SetSerializedReference(merchantSpot, "standAnchor", anchor);
+
+        MerchantNPC merchantNpc = anchor.gameObject.AddComponent<MerchantNPC>();
+        SetSerializedReference(merchantNpc, "merchantSpot", merchantSpot);
+        SetSerializedReference(merchantNpc, "uiManager", merchantUiManager);
+        SetSerializedString(merchantNpc, "greetingLine", greetingLine);
+        SetSerializedFloat(merchantNpc, "interactionRange", 3.4f);
+
+        CreateMerchantNpcVisual(anchor, objectName, merchantName, wallMaterial, accentMaterial, merchantMaterial);
+    }
+
+    private static void CreateMerchantNpcVisual(
+        Transform anchor,
+        string objectName,
+        string merchantName,
+        Material bodyMaterial,
+        Material accentMaterial,
+        Material merchantMaterial)
+    {
+        CreateBox($"{objectName}_NpcBody", anchor, new Vector3(0f, 1.05f, 0f), new Vector3(0.75f, 1.35f, 0.55f), bodyMaterial);
+        CreateBox($"{objectName}_NpcHead", anchor, new Vector3(0f, 2.05f, 0f), new Vector3(0.55f, 0.55f, 0.55f), accentMaterial);
+        CreateBox($"{objectName}_NpcPack", anchor, new Vector3(-0.28f, 1.12f, -0.18f), new Vector3(0.24f, 0.78f, 0.32f), merchantMaterial);
+        CreateBox($"{objectName}_NpcDeskLamp", anchor, new Vector3(0.62f, 1.35f, 0.42f), new Vector3(0.18f, 0.52f, 0.18f), merchantMaterial);
+        CreateWorldText(anchor, $"{objectName}_NpcLabel", merchantName, new Vector3(0f, 2.75f, 0f), Quaternion.identity, 48, Color.white, TextAnchor.MiddleCenter, TextAlignment.Center, 0.05f);
     }
 
     private static Transform CreateZoneMarker(
@@ -532,7 +572,8 @@ public static class BaseHubSceneBuilder
         GameObject textObject = new GameObject(objectName);
         textObject.transform.SetParent(parent, false);
         textObject.transform.localPosition = localPosition;
-        textObject.transform.localRotation = localRotation;
+        // TextMesh front faces need a 180-degree flip so board text reads correctly from the player side.
+        textObject.transform.localRotation = localRotation * Quaternion.Euler(0f, 180f, 0f);
 
         TextMesh textMesh = textObject.AddComponent<TextMesh>();
         Font font = ResolveBuiltInFont();
@@ -540,7 +581,7 @@ public static class BaseHubSceneBuilder
         if (font != null)
         {
             MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = font.material;
+            renderer.sharedMaterial = ResolveWorldTextMaterial(font) ?? font.material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
         }
@@ -563,6 +604,46 @@ public static class BaseHubSceneBuilder
         }
 
         return Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    private static Material ResolveWorldTextMaterial(Font font)
+    {
+        if (font == null)
+        {
+            return null;
+        }
+
+        Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(WorldTextShaderPath) ?? Shader.Find(WorldTextShaderName);
+        Material fontMaterial = font.material;
+        if (shader == null)
+        {
+            return fontMaterial;
+        }
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(WorldTextMaterialPath);
+        if (material == null)
+        {
+            material = new Material(shader);
+            AssetDatabase.CreateAsset(material, WorldTextMaterialPath);
+        }
+        else if (material.shader != shader)
+        {
+            material.shader = shader;
+        }
+
+        Texture fontAtlas = fontMaterial != null ? fontMaterial.mainTexture : null;
+        if (fontAtlas != null && material.HasProperty("_MainTex"))
+        {
+            material.SetTexture("_MainTex", fontAtlas);
+        }
+
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", Color.white);
+        }
+
+        EditorUtility.SetDirty(material);
+        return material;
     }
 
     private static Transform CreateMarker(Transform parent, string objectName, Vector3 localPosition, Quaternion localRotation)
@@ -614,12 +695,14 @@ public static class BaseHubSceneBuilder
         bool withCollider = true,
         bool markStatic = true)
     {
-        GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        // Use ProBuilder cubes so the base hub blockout stays editable in-editor.
+        ProBuilderMesh mesh = ShapeGenerator.GenerateCube(PivotLocation.Center, localScale);
+        GameObject box = mesh.gameObject;
         box.name = objectName;
         box.transform.SetParent(parent, false);
         box.transform.localPosition = localPosition;
         box.transform.localRotation = localRotation;
-        box.transform.localScale = localScale;
+        box.transform.localScale = Vector3.one;
 
         MeshRenderer renderer = box.GetComponent<MeshRenderer>();
         if (renderer != null)
@@ -627,9 +710,23 @@ public static class BaseHubSceneBuilder
             renderer.sharedMaterial = material;
         }
 
-        if (!withCollider)
+        BoxCollider collider = box.GetComponent<BoxCollider>();
+        if (withCollider)
         {
-            Object.DestroyImmediate(box.GetComponent<Collider>());
+            if (collider == null)
+            {
+                collider = box.AddComponent<BoxCollider>();
+            }
+
+            collider.center = Vector3.zero;
+            collider.size = localScale;
+        }
+        else
+        {
+            if (collider != null)
+            {
+                Object.DestroyImmediate(collider);
+            }
         }
 
         if (markStatic)

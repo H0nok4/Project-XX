@@ -15,7 +15,7 @@ MonoBehaviour:
   merchants:
   - merchantId: weapons_trader
     displayName: "\u6B66\u5668\u5546\u4EBA"
-    merchantLevel: 4
+    merchantLevel: 1
     itemOffers:
     - definition: {fileID: 11400000, guid: d1288d60881a73e41bf4faa915d830fd, type: 2}
       quantity: 30
@@ -30,9 +30,9 @@ MonoBehaviour:
       price: 16
     - definition: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
       price: 10
-  - merchantId: medical_vendor
-    displayName: "\u836F\u54C1\u5546\u4EBA"
-    merchantLevel: 3
+  - merchantId: medical_trader
+    displayName: "\u533B\u7597\u5546\u4EBA"
+    merchantLevel: 1
     itemOffers:
     - definition: {fileID: 11400000, guid: 94d329bee42f14c419e7c0230b717bd8, type: 2}
       quantity: 1
@@ -50,9 +50,9 @@ MonoBehaviour:
       quantity: 1
       price: 4
     weaponOffers: []
-  - merchantId: armor_vendor
+  - merchantId: armor_trader
     displayName: "\u62A4\u7532\u5546\u4EBA"
-    merchantLevel: 4
+    merchantLevel: 1
     itemOffers:
     - definition: {fileID: 11400000, guid: d9c180fe32b357048b459e5a32cac308, type: 2}
       quantity: 1
@@ -61,5 +61,21 @@ MonoBehaviour:
       quantity: 1
       price: 20
     weaponOffers: []
+  - merchantId: general_trader
+    displayName: "\u6742\u8D27\u5546\u4EBA"
+    merchantLevel: 2
+    itemOffers:
+    - definition: {fileID: 11400000, guid: 83dabb884641b8a4d8705aa348ad8f10, type: 2}
+      quantity: 1
+      price: 4
+    - definition: {fileID: 11400000, guid: ff89f2d8776d58c4ebc97a9065270773, type: 2}
+      quantity: 1
+      price: 4
+    - definition: {fileID: 11400000, guid: 1ec4c69e9e0c4ae7af353a7054c1b182, type: 2}
+      quantity: 1
+      price: 32
+    weaponOffers:
+    - definition: {fileID: 11400000, guid: c0fe99bf0c8574f41bb196fe14610a6e, type: 2}
+      price: 11
   itemSellbackMultiplier: 0.55
   weaponSellbackMultiplier: 0.6

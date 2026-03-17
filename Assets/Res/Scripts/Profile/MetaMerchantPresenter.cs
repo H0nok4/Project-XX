@@ -25,38 +25,59 @@ public sealed class MetaMerchantPresenter
             return;
         }
 
-        float panelTop = 140f;
-        float panelHeight = Mathf.Max(400f, Screen.height - 220f);
-        float panelWidth = Mathf.Max(250f, (Screen.width - 356f) / 3f);
-        float firstX = 292f;
-
-        DrawMerchantPanel(new Rect(firstX, panelTop, panelWidth, panelHeight), 0, host.StashColor, ref weaponMerchantScroll);
-        if (merchantCatalog.Merchants.Count > 1)
-        {
-            DrawMerchantPanel(new Rect(firstX + panelWidth + 16f, panelTop, panelWidth, panelHeight), 1, host.BackpackColor, ref medicalMerchantScroll);
-        }
-
-        if (merchantCatalog.Merchants.Count > 2)
-        {
-            DrawMerchantPanel(new Rect(firstX + (panelWidth + 16f) * 2f, panelTop, panelWidth, panelHeight), 2, host.ProtectedColor, ref armorMerchantScroll);
-        }
-    }
-
-    private void DrawMerchantPanel(Rect rect, int merchantIndex, Color accent, ref Vector2 scroll)
-    {
-        PrototypeMerchantCatalog merchantCatalog = host.MerchantCatalog;
-        if (merchantCatalog == null || merchantCatalog.Merchants == null || merchantIndex < 0 || merchantIndex >= merchantCatalog.Merchants.Count)
+        List<PrototypeMerchantCatalog.MerchantDefinition> displayMerchants = BuildMerchantDisplayOrder(merchantCatalog);
+        if (displayMerchants.Count == 0)
         {
             return;
         }
 
-        PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog.Merchants[merchantIndex];
+        float panelTop = 140f;
+        float panelHeight = Mathf.Max(400f, Screen.height - 220f);
+        float panelWidth = Mathf.Max(220f, (Screen.width - 308f - Mathf.Max(0, displayMerchants.Count - 1) * 16f) / Mathf.Max(1, displayMerchants.Count));
+        float firstX = 292f;
+
+        for (int merchantIndex = 0; merchantIndex < displayMerchants.Count; merchantIndex++)
+        {
+            Vector2 scroll = merchantIndex == 0
+                ? weaponMerchantScroll
+                : merchantIndex == 1
+                    ? medicalMerchantScroll
+                    : merchantIndex == 2
+                        ? armorMerchantScroll
+                        : Vector2.zero;
+
+            DrawMerchantPanel(
+                new Rect(firstX + (panelWidth + 16f) * merchantIndex, panelTop, panelWidth, panelHeight),
+                displayMerchants[merchantIndex],
+                ResolveMerchantAccent(merchantIndex),
+                ref scroll);
+
+            if (merchantIndex == 0)
+            {
+                weaponMerchantScroll = scroll;
+            }
+            else if (merchantIndex == 1)
+            {
+                medicalMerchantScroll = scroll;
+            }
+            else if (merchantIndex == 2)
+            {
+                armorMerchantScroll = scroll;
+            }
+        }
+    }
+
+    private void DrawMerchantPanel(Rect rect, PrototypeMerchantCatalog.MerchantDefinition merchant, Color accent, ref Vector2 scroll)
+    {
         if (merchant == null)
         {
             return;
         }
 
-        host.BeginPanel(rect, merchant.DisplayName, accent, $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}");
+        string subtitle = host.IsMerchantFocused(merchant.MerchantId)
+            ? $"当前交互  ·  等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}"
+            : $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}";
+        host.BeginPanel(rect, merchant.DisplayName, accent, subtitle);
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(rect.height - 130f));
 
         bool drewAnyOffer = false;
@@ -78,6 +99,52 @@ public sealed class MetaMerchantPresenter
 
         GUILayout.EndScrollView();
         host.EndPanel();
+    }
+
+    private List<PrototypeMerchantCatalog.MerchantDefinition> BuildMerchantDisplayOrder(PrototypeMerchantCatalog merchantCatalog)
+    {
+        var orderedMerchants = new List<PrototypeMerchantCatalog.MerchantDefinition>();
+        if (merchantCatalog == null || merchantCatalog.Merchants == null)
+        {
+            return orderedMerchants;
+        }
+
+        PrototypeMerchantCatalog.MerchantDefinition focusedMerchant = host.GetFocusedMerchant();
+        if (focusedMerchant != null)
+        {
+            orderedMerchants.Add(focusedMerchant);
+        }
+
+        for (int merchantIndex = 0; merchantIndex < merchantCatalog.Merchants.Count; merchantIndex++)
+        {
+            PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog.Merchants[merchantIndex];
+            if (merchant == null || ReferenceEquals(merchant, focusedMerchant))
+            {
+                continue;
+            }
+
+            orderedMerchants.Add(merchant);
+        }
+
+        return orderedMerchants;
+    }
+
+    private Color ResolveMerchantAccent(int merchantIndex)
+    {
+        switch (merchantIndex % 4)
+        {
+            case 1:
+                return host.BackpackColor;
+
+            case 2:
+                return host.ProtectedColor;
+
+            case 3:
+                return host.LockerColor;
+
+            default:
+                return host.StashColor;
+        }
     }
 
     private void DrawOfferEntry(PrototypeMerchantCatalog.MerchantOfferView offer)
@@ -165,6 +232,7 @@ public sealed class MetaMerchantPresenter
         ItemDefinition painkiller = itemCatalog.FindByItemId("painkillers");
         ItemDefinition helmet = itemCatalog.FindByItemId("helmet_alpha");
         ItemDefinition rig = itemCatalog.FindByItemId("armored_rig");
+        ItemDefinition secureCase = itemCatalog.FindByItemId("secure_case_alpha");
         PrototypeWeaponDefinition carbine = itemCatalog.FindWeaponById("carbine_alpha");
         PrototypeWeaponDefinition sidearm = itemCatalog.FindWeaponById("sidearm_9mm");
         PrototypeWeaponDefinition knife = itemCatalog.FindWeaponById("combat_knife");
@@ -212,6 +280,22 @@ public sealed class MetaMerchantPresenter
                 {
                     CreateItemOffer(helmet, 1, 14),
                     CreateItemOffer(rig, 1, 20)
+                }
+            },
+            new PrototypeMerchantCatalog.MerchantDefinition
+            {
+                merchantId = "general_trader",
+                displayName = "杂货商人",
+                merchantLevel = 2,
+                itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
+                {
+                    CreateItemOffer(painkiller, 1, 4),
+                    CreateItemOffer(splint, 1, 4),
+                    CreateItemOffer(secureCase, 1, 32)
+                },
+                weaponOffers = new List<PrototypeMerchantCatalog.WeaponOffer>
+                {
+                    CreateWeaponOffer(knife, 11)
                 }
             });
 

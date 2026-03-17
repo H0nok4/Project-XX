@@ -88,7 +88,7 @@ public class BaseHubDirector : MonoBehaviour
 
         if (interactionKind == BaseHubInteractionKind.Merchants)
         {
-            OpenMenu(PrototypeMainMenuController.MenuPage.Merchants);
+            OpenMerchantDirectory();
             return;
         }
 
@@ -105,6 +105,38 @@ public class BaseHubDirector : MonoBehaviour
         OpenMenu(PrototypeMainMenuController.MenuPage.Warehouse);
     }
 
+    public void OpenMerchantDirectory()
+    {
+        ResolveReferences();
+        if (menuController == null)
+        {
+            return;
+        }
+
+        menuController.ShowMerchantDirectory();
+        uiOpen = true;
+        SetUiFocus(true);
+    }
+
+    public bool OpenMerchant(string merchantId, string merchantName = null)
+    {
+        ResolveReferences();
+        if (menuController == null)
+        {
+            return false;
+        }
+
+        bool opened = menuController.ShowMerchant(merchantId, merchantName);
+        if (!opened)
+        {
+            return false;
+        }
+
+        uiOpen = true;
+        SetUiFocus(true);
+        return true;
+    }
+
     public void CloseMenu()
     {
         CloseMenuInternal(true);
@@ -118,7 +150,15 @@ public class BaseHubDirector : MonoBehaviour
             return;
         }
 
-        menuController.ShowPage(page);
+        if (page == PrototypeMainMenuController.MenuPage.Merchants)
+        {
+            menuController.ShowMerchantDirectory();
+        }
+        else
+        {
+            menuController.ShowPage(page);
+        }
+
         uiOpen = true;
         SetUiFocus(true);
     }

@@ -226,6 +226,7 @@ public static class PrototypeMainMenuSceneBuilder
         ItemDefinition painkiller = FindItem(itemAssets, "painkillers");
         ItemDefinition helmet = FindItem(itemAssets, "helmet_alpha");
         ItemDefinition rig = FindItem(itemAssets, "armored_rig");
+        ItemDefinition secureCase = FindItem(itemAssets, "secure_case_alpha");
         PrototypeWeaponDefinition carbine = FindWeapon(weaponAssets, "carbine_alpha");
         PrototypeWeaponDefinition sidearm = FindWeapon(weaponAssets, "sidearm_9mm");
         PrototypeWeaponDefinition knife = FindWeapon(weaponAssets, "combat_knife");
@@ -251,8 +252,8 @@ public static class PrototypeMainMenuSceneBuilder
             },
             new PrototypeMerchantCatalog.MerchantDefinition
             {
-                merchantId = "medical_vendor",
-                displayName = "药品商人",
+                merchantId = "medical_trader",
+                displayName = "医疗商人",
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = medkit, quantity = 1, price = 10 },
@@ -264,12 +265,28 @@ public static class PrototypeMainMenuSceneBuilder
             },
             new PrototypeMerchantCatalog.MerchantDefinition
             {
-                merchantId = "armor_vendor",
+                merchantId = "armor_trader",
                 displayName = "护甲商人",
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = helmet, quantity = 1, price = 14 },
                     new PrototypeMerchantCatalog.ItemOffer { definition = rig, quantity = 1, price = 20 }
+                }
+            },
+            new PrototypeMerchantCatalog.MerchantDefinition
+            {
+                merchantId = "general_trader",
+                displayName = "杂货商人",
+                merchantLevel = 2,
+                itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
+                {
+                    new PrototypeMerchantCatalog.ItemOffer { definition = painkiller, quantity = 1, price = 4 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = splint, quantity = 1, price = 4 },
+                    new PrototypeMerchantCatalog.ItemOffer { definition = secureCase, quantity = 1, price = 32 }
+                },
+                weaponOffers = new List<PrototypeMerchantCatalog.WeaponOffer>
+                {
+                    new PrototypeMerchantCatalog.WeaponOffer { definition = knife, price = 11 }
                 }
             });
 
