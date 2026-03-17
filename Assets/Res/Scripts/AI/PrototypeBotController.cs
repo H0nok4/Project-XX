@@ -1584,6 +1584,10 @@ public class PrototypeBotController : MonoBehaviour
             return;
         }
 
+        // 在改变之前记录当前血量比例
+        float previousTotalMaxHealth = vitals.TotalMaxHealth;
+        float previousTotalCurrentHealth = vitals.TotalCurrentHealth;
+
         float baseVitalHealth = 0f;
         IReadOnlyList<PrototypeUnitVitals.PartState> bodyPartStates = vitals.BodyParts;
         if (bodyPartStates != null)
@@ -1606,6 +1610,13 @@ public class PrototypeBotController : MonoBehaviour
         float healthMultiplier = PrototypePlayerProgressionUtility.GetEnemyHealthMultiplier(EnemyLevel, bossLootProfile);
         float bonusHealth = Mathf.Max(0f, baseVitalHealth * (healthMultiplier - 1f));
         vitals.ConfigureCharacterBonuses(bonusHealth, 0f, 1f, resetHealth);
+
+        // 如果不是重置模式，按比例调整当前血量以匹配新的最大血量
+        if (!resetHealth && previousTotalMaxHealth > 0f && previousTotalCurrentHealth > 0f)
+        {
+            float healthRatio = previousTotalCurrentHealth / previousTotalMaxHealth;
+            vitals.AdjustCurrentHealthByRatio(healthRatio);
+        }
     }
 
     private int ResolveEnemyLevel()

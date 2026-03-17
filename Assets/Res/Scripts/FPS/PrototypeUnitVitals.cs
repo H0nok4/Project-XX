@@ -704,6 +704,28 @@ public class PrototypeUnitVitals : MonoBehaviour
         EnsureBodyPartSetup(resetResourcesToFull);
     }
 
+    /// <summary>
+    /// 按比例调整所有身体部分的当前血量，保持整体血量比例不变
+    /// </summary>
+    public void AdjustCurrentHealthByRatio(float healthRatio)
+    {
+        if (bodyParts == null || bodyParts.Count == 0)
+        {
+            return;
+        }
+
+        healthRatio = Mathf.Clamp01(healthRatio);
+        
+        for (int index = 0; index < bodyParts.Count; index++)
+        {
+            PartState state = bodyParts[index];
+            if (state != null && state.contributesToUnitHealth && state.maxHealth > HealthEpsilon)
+            {
+                state.currentHealth = state.maxHealth * healthRatio;
+            }
+        }
+    }
+
     public bool TryUseMedicalItem(MedicalItemDefinition medicalItem)
     {
         if (medicalItem == null)

@@ -1,10 +1,12 @@
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
 public enum BaseHubInteractionKind
 {
     Deploy = 0,
-    Warehouse = 1
+    Warehouse = 1,
+    Merchants = 2
 }
 
 [DisallowMultipleComponent]
@@ -12,7 +14,9 @@ public class BaseHubDirector : MonoBehaviour
 {
     [SerializeField] private string hubTitle = "基地";
     [TextArea(2, 4)]
-    [SerializeField] private string hubHint = "靠近出击终端按 E 可打开出击界面，靠近仓库终端按 E 可管理仓库。按 Esc 可以关闭当前界面。";
+    [SerializeField] private string hubHint = "E：交互  |  Esc：关闭界面";
+    [TextArea(1, 3)]
+    [SerializeField] private string navigationLegend = "← 商人区  ·  ↑ 准备区  ·  → 仓库区  ·  ↓ 任务区";
     [SerializeField] private bool showOverlayHint = true;
 
     [Header("References")]
@@ -22,11 +26,13 @@ public class BaseHubDirector : MonoBehaviour
     [SerializeField] private PrototypeMainMenuController menuController;
     [SerializeField] private Transform departureArrivalPoint;
     [SerializeField] private Transform respawnArrivalPoint;
+    [SerializeField] private BaseHubZoneMarker[] zoneMarkers;
 
     private bool uiOpen;
     private RectTransform overlayRoot;
     private Text overlayTitleText;
     private Text overlayBodyText;
+    private Transform playerTransform;
 
     private void Awake()
     {
@@ -77,6 +83,12 @@ public class BaseHubDirector : MonoBehaviour
         if (interactionKind == BaseHubInteractionKind.Warehouse)
         {
             OpenMenu(PrototypeMainMenuController.MenuPage.Warehouse);
+            return;
+        }
+
+        if (interactionKind == BaseHubInteractionKind.Merchants)
+        {
+            OpenMenu(PrototypeMainMenuController.MenuPage.Merchants);
             return;
         }
 
@@ -196,6 +208,11 @@ public class BaseHubDirector : MonoBehaviour
             fpsController = FindFirstObjectByType<PrototypeFpsController>();
         }
 
+        if (playerTransform == null && fpsController != null)
+        {
+            playerTransform = fpsController.transform;
+        }
+
         if (fpsInput == null && fpsController != null)
         {
             fpsInput = fpsController.GetComponent<PrototypeFpsInput>();
@@ -209,6 +226,11 @@ public class BaseHubDirector : MonoBehaviour
         if (menuController == null)
         {
             menuController = FindFirstObjectByType<PrototypeMainMenuController>();
+        }
+
+        if (zoneMarkers == null || zoneMarkers.Length == 0)
+        {
+            zoneMarkers = FindObjectsByType<BaseHubZoneMarker>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         }
     }
 
@@ -259,17 +281,22 @@ public class BaseHubDirector : MonoBehaviour
 
         if (overlayTitleText != null)
         {
-            overlayTitleText.text = hubTitle ?? string.Empty;
+            BaseHubZoneMarker currentZone = ResolveCurrentZoneMarker();
+            overlayTitleText.text = currentZone != null
+                ? $"{hubTitle ?? string.Empty} · {currentZone.ZoneName}"
+                : hubTitle ?? string.Empty;
         }
 
         if (overlayBodyText != null)
         {
-            overlayBodyText.text = hubHint ?? string.Empty;
+            overlayBodyText.text = BuildOverlayBodyText();
         }
 
         if (overlayRoot != null)
         {
-            overlayRoot.sizeDelta = new Vector2(Mathf.Min(520f, Screen.width - 56f), 120f);
+            float width = Mathf.Clamp(Screen.width - 56f, 320f, 560f);
+            float height = ResolveCurrentZoneMarker() != null ? 176f : 148f;
+            overlayRoot.sizeDelta = new Vector2(width, height);
         }
     }
 
@@ -279,5 +306,91 @@ public class BaseHubDirector : MonoBehaviour
         {
             Destroy(overlayRoot.gameObject);
         }
+    }
+
+    private string BuildOverlayBodyText()
+    {
+        StringBuilder builder = new StringBuilder(192);
+        if (!string.IsNullOrWhiteSpace(hubHint))
+        {
+            builder.Append(hubHint.Trim());
+        }
+
+        BaseHubZoneMarker currentZone = ResolveCurrentZoneMarker();
+        if (currentZone != null)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append('\n');
+            }
+
+            builder.Append("当前区域：");
+            builder.Append(currentZone.ZoneName);
+
+            if (!string.IsNullOrWhiteSpace(currentZone.ZoneSummary))
+            {
+                builder.Append('\n');
+                builder.Append(currentZone.ZoneSummary);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(navigationLegend))
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append('\n');
+            }
+
+            builder.Append("导航：");
+            builder.Append(navigationLegend.Trim());
+        }
+
+        return builder.ToString();
+    }
+
+    private BaseHubZoneMarker ResolveCurrentZoneMarker()
+    {
+        if (playerTransform == null)
+        {
+            ResolveReferences();
+        }
+
+        if (playerTransform == null || zoneMarkers == null || zoneMarkers.Length == 0)
+        {
+            return null;
+        }
+
+        Vector3 playerPosition = playerTransform.position;
+        BaseHubZoneMarker fallbackZone = null;
+        float fallbackDistanceSqr = float.PositiveInfinity;
+
+        BaseHubZoneMarker containedZone = null;
+        float containedDistanceSqr = float.PositiveInfinity;
+
+        for (int index = 0; index < zoneMarkers.Length; index++)
+        {
+            BaseHubZoneMarker zoneMarker = zoneMarkers[index];
+            if (zoneMarker == null || !zoneMarker.isActiveAndEnabled)
+            {
+                continue;
+            }
+
+            float distanceSqr = zoneMarker.GetPlanarDistanceSqr(playerPosition);
+            if (distanceSqr < fallbackDistanceSqr)
+            {
+                fallbackDistanceSqr = distanceSqr;
+                fallbackZone = zoneMarker;
+            }
+
+            if (!zoneMarker.Contains(playerPosition) || distanceSqr >= containedDistanceSqr)
+            {
+                continue;
+            }
+
+            containedDistanceSqr = distanceSqr;
+            containedZone = zoneMarker;
+        }
+
+        return containedZone != null ? containedZone : fallbackZone;
     }
 }

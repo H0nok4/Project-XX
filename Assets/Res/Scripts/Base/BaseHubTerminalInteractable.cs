@@ -26,6 +26,8 @@ public sealed class BaseHubTerminalInteractable : MonoBehaviour, IInteractable
 
         return interactionKind == BaseHubInteractionKind.Warehouse
             ? "打开仓库"
+            : interactionKind == BaseHubInteractionKind.Merchants
+                ? "查看商人目录"
             : "打开出击终端";
     }
 

@@ -70,41 +70,72 @@ public static class BaseHubSceneBuilder
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "BaseScene";
 
-        Material floorMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseFloor.mat", new Color(0.22f, 0.24f, 0.28f, 1f));
-        Material wallMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseWall.mat", new Color(0.57f, 0.6f, 0.66f, 1f));
-        Material ceilingMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseCeiling.mat", new Color(0.82f, 0.84f, 0.88f, 1f));
-        Material accentMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseAccent.mat", new Color(0.89f, 0.48f, 0.18f, 1f));
-        Material deployMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Deploy.mat", new Color(0.22f, 0.74f, 0.96f, 1f));
+        Material floorMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseFloor.mat", new Color(0.21f, 0.24f, 0.28f, 1f));
+        Material wallMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseWall.mat", new Color(0.58f, 0.62f, 0.68f, 1f));
+        Material ceilingMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseCeiling.mat", new Color(0.84f, 0.86f, 0.9f, 1f));
+        Material accentMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_BaseAccent.mat", new Color(0.88f, 0.48f, 0.18f, 1f));
+        Material readyMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_ReadyRoom.mat", new Color(0.22f, 0.74f, 0.96f, 1f));
         Material warehouseMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Warehouse.mat", new Color(0.26f, 0.68f, 0.42f, 1f));
-        Material medicalMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Medical.mat", new Color(0.88f, 0.9f, 0.95f, 1f));
+        Material merchantMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Merchant.mat", new Color(0.92f, 0.56f, 0.18f, 1f));
+        Material taskMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Task.mat", new Color(0.72f, 0.4f, 0.88f, 1f));
+        Material medicalMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Medical.mat", new Color(0.84f, 0.91f, 0.96f, 1f));
+        Material signMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Sign.mat", new Color(0.11f, 0.14f, 0.19f, 1f));
+        Material trimMaterial = CreateOrUpdateMaterial($"{MaterialFolder}/Mat_Trim.mat", new Color(0.15f, 0.18f, 0.22f, 1f));
 
         ConfigureDirectionalLight();
 
         GameObject root = new GameObject("BaseHubRoot");
-        CreateBox("Floor", root.transform, new Vector3(0f, 0f, 0f), new Vector3(18f, 0.4f, 18f), floorMaterial);
-        CreateBox("Ceiling", root.transform, new Vector3(0f, 4.2f, 0f), new Vector3(18f, 0.3f, 18f), ceilingMaterial);
-        CreateBox("Wall_North", root.transform, new Vector3(0f, 2.1f, 9f), new Vector3(18f, 4.2f, 0.4f), wallMaterial);
-        CreateBox("Wall_South", root.transform, new Vector3(0f, 2.1f, -9f), new Vector3(18f, 4.2f, 0.4f), wallMaterial);
-        CreateBox("Wall_East", root.transform, new Vector3(9f, 2.1f, 0f), new Vector3(0.4f, 4.2f, 18f), wallMaterial);
-        CreateBox("Wall_West", root.transform, new Vector3(-9f, 2.1f, 0f), new Vector3(0.4f, 4.2f, 18f), wallMaterial);
-        CreateBox("Divider_RespawnBay", root.transform, new Vector3(-3.8f, 1.4f, -4.2f), new Vector3(0.4f, 2.8f, 5.6f), wallMaterial);
-        CreateBox("Divider_Warehouse", root.transform, new Vector3(3.9f, 1.4f, 2.4f), new Vector3(0.4f, 2.8f, 7.4f), wallMaterial);
-        CreateBox("ArrivalStrip", root.transform, new Vector3(0f, 0.02f, 4.8f), new Vector3(3.2f, 0.05f, 2.6f), deployMaterial);
-        CreateBox("MedicalStrip", root.transform, new Vector3(-5.4f, 0.02f, -5.2f), new Vector3(2.8f, 0.05f, 2.8f), medicalMaterial);
-        CreateBox("WarehouseStrip", root.transform, new Vector3(6f, 0.02f, 4.2f), new Vector3(2.8f, 0.05f, 2.6f), warehouseMaterial);
+        CreateBox("Floor", root.transform, Vector3.zero, new Vector3(30f, 0.4f, 26f), floorMaterial);
+        CreateBox("Ceiling", root.transform, new Vector3(0f, 4.6f, 0f), new Vector3(30f, 0.3f, 26f), ceilingMaterial);
+        CreateBox("Wall_North", root.transform, new Vector3(0f, 2.3f, 13f), new Vector3(30f, 4.6f, 0.4f), wallMaterial);
+        CreateBox("Wall_South", root.transform, new Vector3(0f, 2.3f, -13f), new Vector3(30f, 4.6f, 0.4f), wallMaterial);
+        CreateBox("Wall_East", root.transform, new Vector3(15f, 2.3f, 0f), new Vector3(0.4f, 4.6f, 26f), wallMaterial);
+        CreateBox("Wall_West", root.transform, new Vector3(-15f, 2.3f, 0f), new Vector3(0.4f, 4.6f, 26f), wallMaterial);
+        CreateBox("Divider_North_Left", root.transform, new Vector3(-6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("Divider_North_Right", root.transform, new Vector3(6.8f, 1.7f, 4.8f), new Vector3(9.6f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("Divider_South_Left", root.transform, new Vector3(-7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("Divider_South_Right", root.transform, new Vector3(7.2f, 1.7f, -4.8f), new Vector3(10.4f, 3.4f, 0.4f), wallMaterial);
+        CreateBox("Divider_West_North", root.transform, new Vector3(-4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
+        CreateBox("Divider_West_South", root.transform, new Vector3(-4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
+        CreateBox("Divider_East_North", root.transform, new Vector3(4.8f, 1.7f, 5.8f), new Vector3(0.4f, 3.4f, 8.4f), wallMaterial);
+        CreateBox("Divider_East_South", root.transform, new Vector3(4.8f, 1.7f, -6.4f), new Vector3(0.4f, 3.4f, 5.2f), wallMaterial);
+        CreateBox("CentralStrip", root.transform, new Vector3(0f, 0.03f, 0f), Quaternion.identity, new Vector3(6f, 0.05f, 6f), accentMaterial, false);
+        CreateBox("ReadyStrip", root.transform, new Vector3(0f, 0.03f, 9.1f), Quaternion.identity, new Vector3(8f, 0.05f, 7f), readyMaterial, false);
+        CreateBox("WarehouseStrip", root.transform, new Vector3(10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), warehouseMaterial, false);
+        CreateBox("MerchantStrip", root.transform, new Vector3(-10.1f, 0.03f, 1.3f), Quaternion.identity, new Vector3(7.2f, 0.05f, 10.8f), merchantMaterial, false);
+        CreateBox("TaskStrip", root.transform, new Vector3(0f, 0.03f, -8.4f), Quaternion.identity, new Vector3(10f, 0.05f, 7.2f), taskMaterial, false);
+        CreateBox("RecoveryStrip", root.transform, new Vector3(10.1f, 0.03f, -9f), Quaternion.identity, new Vector3(6.6f, 0.05f, 6.4f), medicalMaterial, false);
+        CreateBox("NorthDoorHeader", root.transform, new Vector3(0f, 3.2f, 4.8f), new Vector3(4.4f, 0.25f, 0.6f), readyMaterial);
+        CreateBox("SouthDoorHeader", root.transform, new Vector3(0f, 3.2f, -4.8f), new Vector3(4.4f, 0.25f, 0.6f), taskMaterial);
+        CreateBox("WestDoorHeader", root.transform, new Vector3(-4.8f, 3.2f, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), merchantMaterial);
+        CreateBox("EastDoorHeader", root.transform, new Vector3(4.8f, 3.2f, -1.1f), new Vector3(0.6f, 0.25f, 5.6f), warehouseMaterial);
+        CreateBox("Pillar_NW", root.transform, new Vector3(-4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("Pillar_NE", root.transform, new Vector3(4.8f, 1.7f, 4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("Pillar_SW", root.transform, new Vector3(-4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
+        CreateBox("Pillar_SE", root.transform, new Vector3(4.8f, 1.7f, -4.8f), new Vector3(0.8f, 3.4f, 0.8f), trimMaterial);
 
-        CreateBox("RespawnBed_Frame", root.transform, new Vector3(-5.5f, 0.45f, -5.5f), new Vector3(2.4f, 0.4f, 1.1f), accentMaterial);
-        CreateBox("RespawnBed_Mattress", root.transform, new Vector3(-5.5f, 0.72f, -5.5f), new Vector3(2.2f, 0.18f, 0.95f), medicalMaterial);
-        CreateBox("RespawnBed_Panel", root.transform, new Vector3(-5.5f, 1.55f, -6.1f), new Vector3(1.2f, 1.2f, 0.16f), medicalMaterial);
+        CreateInformationBoard("DirectoryBoard", root.transform, new Vector3(0f, 1.7f, 2.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(3.8f, 2.4f, 0.25f), signMaterial, "基地导览", "↑ 准备区\n← 商人区\n→ 仓库区\n↓ 任务区", Color.white, new Color(0.86f, 0.91f, 0.96f, 1f));
+        CreateInformationBoard("ReadyRoomSign", root.transform, new Vector3(0f, 2.2f, 12.2f), Quaternion.Euler(0f, 180f, 0f), new Vector3(4f, 1.5f, 0.25f), signMaterial, "准备区", "配装 / 出击 / 状态确认", readyMaterial.color, new Color(0.9f, 0.95f, 0.99f, 1f));
+        CreateInformationBoard("WarehouseSign", root.transform, new Vector3(13.8f, 2.2f, 2f), Quaternion.Euler(0f, -90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "仓库区", "仓储 / 武器柜 / 安全箱", warehouseMaterial.color, new Color(0.9f, 0.98f, 0.92f, 1f));
+        CreateInformationBoard("MerchantSign", root.transform, new Vector3(-13.8f, 2.2f, 2f), Quaternion.Euler(0f, 90f, 0f), new Vector3(4.2f, 1.5f, 0.25f), signMaterial, "商人区", "武器 / 护甲 / 医疗 / 杂货", merchantMaterial.color, new Color(0.99f, 0.94f, 0.88f, 1f));
+        CreateInformationBoard("TaskSign", root.transform, new Vector3(0f, 2.2f, -12.2f), Quaternion.identity, new Vector3(4.6f, 1.5f, 0.25f), signMaterial, "任务区", "公告板 / 汇报 / 情报整理", taskMaterial.color, new Color(0.96f, 0.91f, 0.99f, 1f));
 
-        CreateBox("Warehouse_CrateA", root.transform, new Vector3(6.2f, 0.55f, 1.8f), new Vector3(1.2f, 1.1f, 1.2f), accentMaterial);
-        CreateBox("Warehouse_CrateB", root.transform, new Vector3(7.1f, 0.55f, 2.9f), new Vector3(1.1f, 1.1f, 1.1f), accentMaterial);
-        CreateBox("Warehouse_Shelf", root.transform, new Vector3(7f, 1.4f, 6.8f), new Vector3(2.4f, 2.8f, 0.7f), wallMaterial);
+        CreateReadyRoomLayout(root.transform, wallMaterial, accentMaterial, readyMaterial, signMaterial);
+        CreateWarehouseLayout(root.transform, wallMaterial, accentMaterial, warehouseMaterial, signMaterial);
+        CreateMerchantLayout(root.transform, wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateTaskLayout(root.transform, wallMaterial, accentMaterial, taskMaterial, signMaterial);
+        CreateRecoveryLayout(root.transform, accentMaterial, medicalMaterial, signMaterial);
 
-        Transform departureArrivalPoint = CreateMarker(root.transform, "Spawn_Departure", new Vector3(0f, 0f, 4.2f), Quaternion.identity);
-        Transform respawnArrivalPoint = CreateMarker(root.transform, "Spawn_Respawn", new Vector3(-5.4f, 0f, -3.8f), Quaternion.Euler(0f, 20f, 0f));
+        Transform departureArrivalPoint = CreateMarker(root.transform, "Spawn_Departure", new Vector3(0f, 0f, 7.6f), Quaternion.Euler(0f, 180f, 0f));
+        Transform respawnArrivalPoint = CreateMarker(root.transform, "Spawn_Respawn", new Vector3(10.4f, 0f, -8.4f), Quaternion.Euler(0f, 140f, 0f));
+        CreateZoneMarker(root.transform, "Zone_Atrium", BaseHubZoneType.Arrival, "中枢大厅", "基地动线中枢，可快速前往四个功能分区。", new Vector3(0f, 0f, 0f), 4.8f);
+        CreateZoneMarker(root.transform, "Zone_ReadyRoom", BaseHubZoneType.ReadyRoom, "准备区", "这里用于整备装备、确认地图并从出击终端进入战斗。", new Vector3(0f, 0f, 8.8f), 4.4f);
+        CreateZoneMarker(root.transform, "Zone_Warehouse", BaseHubZoneType.Warehouse, "仓库区", "安全仓库、武器柜和受保护栏位都集中在这里。", new Vector3(10.3f, 0f, 1.2f), 5.4f);
+        CreateZoneMarker(root.transform, "Zone_Merchant", BaseHubZoneType.Merchants, "商人区", "固定商人柜台已经预留，后续可直接接入 NPC 交互。", new Vector3(-10.3f, 0f, 1.2f), 5.4f);
+        CreateZoneMarker(root.transform, "Zone_Task", BaseHubZoneType.Missions, "任务区", "任务公告板、简报桌和后续任务 NPC 点位位于该区域。", new Vector3(0f, 0f, -8.4f), 5.2f);
+        CreateZoneMarker(root.transform, "Zone_Recovery", BaseHubZoneType.Recovery, "恢复区", "用于撤离失败后的回归落点和医疗恢复。", new Vector3(10.2f, 0f, -9f), 3.8f);
 
-        GameObject player = CreatePlayer(new Vector3(0f, 1.05f, 4.2f));
+        GameObject player = CreatePlayer(new Vector3(0f, 1.05f, 7.6f));
         PrototypeFpsController fpsController = player.GetComponent<PrototypeFpsController>();
         PrototypeFpsInput fpsInput = player.GetComponent<PrototypeFpsInput>();
         PlayerInteractionState interactionState = player.GetComponent<PlayerInteractionState>();
@@ -121,33 +152,50 @@ public static class BaseHubSceneBuilder
         SetSerializedReference(director, "menuController", menuController);
         SetSerializedReference(director, "departureArrivalPoint", departureArrivalPoint);
         SetSerializedReference(director, "respawnArrivalPoint", respawnArrivalPoint);
-        SetSerializedString(director, "hubTitle", "基地");
-        SetSerializedString(director, "hubHint", "靠近出击终端按 E 可打开出击界面，靠近仓库终端按 E 可管理仓库。按 Esc 可以关闭当前界面。");
+        SetSerializedString(director, "hubTitle", "幸存者基地");
+        SetSerializedString(director, "hubHint", "E：交互  |  Esc：关闭界面");
+        SetSerializedString(director, "navigationLegend", "← 商人区  ·  ↑ 准备区  ·  → 仓库区  ·  ↓ 任务区");
 
         CreateTerminal(
             "DepartureBoard",
             root.transform,
-            new Vector3(0f, 1.1f, 7.2f),
-            new Vector3(1.4f, 2.2f, 0.8f),
+            new Vector3(0f, 1.1f, 10.1f),
+            Quaternion.Euler(0f, 180f, 0f),
+            new Vector3(1.5f, 2.2f, 0.9f),
             accentMaterial,
-            deployMaterial,
+            readyMaterial,
             director,
             BaseHubInteractionKind.Deploy,
             "打开出击终端");
         CreateTerminal(
             "WarehouseTerminal",
             root.transform,
-            new Vector3(5.8f, 1.1f, 4.5f),
-            new Vector3(1.2f, 2.2f, 0.8f),
+            new Vector3(9.2f, 1.1f, 6.2f),
+            Quaternion.Euler(0f, -90f, 0f),
+            new Vector3(1.3f, 2.2f, 0.9f),
             accentMaterial,
             warehouseMaterial,
             director,
             BaseHubInteractionKind.Warehouse,
             "打开仓库");
+        CreateTerminal(
+            "MerchantDirectoryTerminal",
+            root.transform,
+            new Vector3(-8.2f, 1.1f, 0.2f),
+            Quaternion.Euler(0f, 90f, 0f),
+            new Vector3(1.3f, 2.2f, 0.9f),
+            accentMaterial,
+            merchantMaterial,
+            director,
+            BaseHubInteractionKind.Merchants,
+            "查看商人目录");
 
-        CreatePointLight(root.transform, new Vector3(-5.5f, 2.9f, -5.1f), new Color(0.85f, 0.94f, 1f), 4.2f, 12f);
-        CreatePointLight(root.transform, new Vector3(0f, 3.1f, 6.4f), new Color(0.58f, 0.84f, 1f), 4.4f, 13f);
-        CreatePointLight(root.transform, new Vector3(6.2f, 3f, 4.1f), new Color(0.56f, 0.9f, 0.68f), 4.1f, 12f);
+        CreatePointLight(root.transform, new Vector3(0f, 3.3f, 0f), new Color(0.96f, 0.84f, 0.72f), 4.2f, 14f);
+        CreatePointLight(root.transform, new Vector3(0f, 3.3f, 9.2f), new Color(0.58f, 0.84f, 1f), 4.3f, 13f);
+        CreatePointLight(root.transform, new Vector3(10.2f, 3.2f, 1.4f), new Color(0.56f, 0.9f, 0.68f), 4.1f, 12f);
+        CreatePointLight(root.transform, new Vector3(-10.2f, 3.2f, 1.4f), new Color(1f, 0.72f, 0.42f), 4.2f, 12f);
+        CreatePointLight(root.transform, new Vector3(0f, 3.2f, -8.4f), new Color(0.86f, 0.68f, 1f), 4f, 12f);
+        CreatePointLight(root.transform, new Vector3(10.4f, 3f, -8.8f), new Color(0.8f, 0.94f, 1f), 3.8f, 10f);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, BaseScenePath);
@@ -239,6 +287,152 @@ public static class BaseHubSceneBuilder
         EditorUtility.SetDirty(config);
     }
 
+    private static void CreateReadyRoomLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material readyMaterial, Material signMaterial)
+    {
+        CreateBox("Ready_LockerLeft", parent, new Vector3(-6.2f, 1.35f, 10.8f), new Vector3(0.9f, 2.7f, 1.3f), wallMaterial);
+        CreateBox("Ready_LockerRight", parent, new Vector3(6.2f, 1.35f, 10.8f), new Vector3(0.9f, 2.7f, 1.3f), wallMaterial);
+        CreateBox("Ready_BenchLeft", parent, new Vector3(-2.8f, 0.7f, 8.6f), new Vector3(3f, 0.8f, 1.2f), accentMaterial);
+        CreateBox("Ready_BenchRight", parent, new Vector3(3f, 0.7f, 8.6f), new Vector3(2.6f, 0.8f, 1.4f), wallMaterial);
+        CreateBox("Ready_MapTable", parent, new Vector3(2.6f, 1.1f, 8.6f), new Vector3(2.1f, 0.2f, 1.2f), readyMaterial);
+        CreateBox("Ready_GearCrateA", parent, new Vector3(-5.2f, 0.55f, 7f), new Vector3(1.1f, 1.1f, 1.1f), accentMaterial);
+        CreateBox("Ready_GearCrateB", parent, new Vector3(5.2f, 0.55f, 7f), new Vector3(1.1f, 1.1f, 1.1f), accentMaterial);
+        CreateInformationBoard(
+            "Ready_StatusBoard",
+            parent,
+            new Vector3(4.2f, 2.1f, 12.2f),
+            Quaternion.Euler(0f, 180f, 0f),
+            new Vector3(2.6f, 1.2f, 0.2f),
+            signMaterial,
+            "出击状态",
+            "检查配装\n确认资金\n选择地图",
+            readyMaterial.color,
+            Color.white);
+    }
+
+    private static void CreateWarehouseLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material warehouseMaterial, Material signMaterial)
+    {
+        CreateBox("Warehouse_ShelfNorth", parent, new Vector3(13f, 1.5f, 5.6f), new Vector3(2.2f, 3f, 0.7f), wallMaterial);
+        CreateBox("Warehouse_ShelfEast", parent, new Vector3(13.8f, 1.5f, 1.1f), new Vector3(0.7f, 3f, 6.8f), wallMaterial);
+        CreateBox("Warehouse_CrateA", parent, new Vector3(11.4f, 0.6f, 2.2f), new Vector3(1.3f, 1.2f, 1.3f), accentMaterial);
+        CreateBox("Warehouse_CrateB", parent, new Vector3(12.8f, 0.6f, 0.8f), new Vector3(1.1f, 1.2f, 1.1f), accentMaterial);
+        CreateBox("Warehouse_CrateC", parent, new Vector3(10.8f, 0.6f, -2.2f), new Vector3(1.2f, 1.2f, 1.2f), accentMaterial);
+        CreateBox("Warehouse_LockerBench", parent, new Vector3(8.4f, 0.7f, -1.8f), new Vector3(1.6f, 0.8f, 3.2f), warehouseMaterial);
+        CreateInformationBoard(
+            "Warehouse_InfoBoard",
+            parent,
+            new Vector3(14.2f, 1.8f, -4.8f),
+            Quaternion.Euler(0f, -90f, 0f),
+            new Vector3(2.6f, 1.2f, 0.2f),
+            signMaterial,
+            "仓储说明",
+            "安全仓库\n武器柜\n保护栏位",
+            warehouseMaterial.color,
+            Color.white);
+    }
+
+    private static void CreateMerchantLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material merchantMaterial, Material signMaterial)
+    {
+        CreateMerchantStand(parent, "WeaponMerchantStand", BaseHubMerchantSpotType.Weapon, "weapons_trader", "武器商人", "武器 / 弹药 / 配件", new Vector3(-12f, 0.7f, 6.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, "ArmorMerchantStand", BaseHubMerchantSpotType.Armor, "armor_trader", "护甲商人", "头盔 / 防具 / 战术背心", new Vector3(-12f, 0.7f, 2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, "MedicalMerchantStand", BaseHubMerchantSpotType.Medical, "medical_trader", "医疗商人", "医疗包 / 药品 / 注射剂", new Vector3(-12f, 0.7f, -2.2f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+        CreateMerchantStand(parent, "GeneralMerchantStand", BaseHubMerchantSpotType.General, "general_trader", "杂货商人", "消耗品 / 钥匙 / 任务杂项", new Vector3(-12f, 0.7f, -7.8f), wallMaterial, accentMaterial, merchantMaterial, signMaterial);
+    }
+
+    private static void CreateTaskLayout(Transform parent, Material wallMaterial, Material accentMaterial, Material taskMaterial, Material signMaterial)
+    {
+        CreateInformationBoard(
+            "TaskBoard",
+            parent,
+            new Vector3(0f, 2f, -12.1f),
+            Quaternion.identity,
+            new Vector3(3.4f, 2f, 0.22f),
+            signMaterial,
+            "任务公告板",
+            "主线 / 情报 / 训练\n后续任务 NPC 点位已预留",
+            taskMaterial.color,
+            Color.white);
+
+        CreateBox("Task_BriefingTable", parent, new Vector3(0f, 0.85f, -8.2f), new Vector3(4.8f, 0.9f, 2.2f), accentMaterial);
+        CreateBox("Task_SideDeskLeft", parent, new Vector3(-5.6f, 0.7f, -8.8f), new Vector3(2.2f, 0.8f, 1.2f), wallMaterial);
+        CreateBox("Task_SideDeskRight", parent, new Vector3(5.6f, 0.7f, -8.8f), new Vector3(2.2f, 0.8f, 1.2f), wallMaterial);
+        CreateBox("Task_IntelRack", parent, new Vector3(-8.8f, 1.4f, -10.8f), new Vector3(1.2f, 2.8f, 0.6f), wallMaterial);
+        CreateBox("Task_TrainingRack", parent, new Vector3(8.8f, 1.4f, -10.8f), new Vector3(1.2f, 2.8f, 0.6f), wallMaterial);
+
+        CreateMarker(parent, "CommanderAnchor", new Vector3(-5.6f, 0f, -7.2f), Quaternion.identity);
+        CreateMarker(parent, "IntelOfficerAnchor", new Vector3(0f, 0f, -10.1f), Quaternion.identity);
+        CreateMarker(parent, "TrainerAnchor", new Vector3(5.6f, 0f, -7.2f), Quaternion.identity);
+
+        CreateWorldText(parent, "Task_CommanderLabel", "主线汇报点", new Vector3(-5.6f, 1.8f, -6.4f), Quaternion.identity, 52, taskMaterial.color, TextAnchor.MiddleCenter, TextAlignment.Center, 0.07f);
+        CreateWorldText(parent, "Task_IntelLabel", "情报整理点", new Vector3(0f, 1.8f, -10.8f), Quaternion.identity, 52, taskMaterial.color, TextAnchor.MiddleCenter, TextAlignment.Center, 0.07f);
+        CreateWorldText(parent, "Task_TrainerLabel", "训练任务点", new Vector3(5.6f, 1.8f, -6.4f), Quaternion.identity, 52, taskMaterial.color, TextAnchor.MiddleCenter, TextAlignment.Center, 0.07f);
+    }
+
+    private static void CreateRecoveryLayout(Transform parent, Material accentMaterial, Material medicalMaterial, Material signMaterial)
+    {
+        CreateBox("Recovery_BedFrame", parent, new Vector3(10.4f, 0.45f, -9.2f), new Vector3(2.6f, 0.4f, 1.2f), accentMaterial);
+        CreateBox("Recovery_Mattress", parent, new Vector3(10.4f, 0.72f, -9.2f), new Vector3(2.35f, 0.18f, 1f), medicalMaterial);
+        CreateBox("Recovery_Panel", parent, new Vector3(10.4f, 1.55f, -9.9f), new Vector3(1.3f, 1.2f, 0.18f), medicalMaterial);
+        CreateInformationBoard(
+            "RecoverySign",
+            parent,
+            new Vector3(13.2f, 1.9f, -9.6f),
+            Quaternion.Euler(0f, -90f, 0f),
+            new Vector3(2.8f, 1.2f, 0.2f),
+            signMaterial,
+            "恢复区",
+            "死亡返回点\n临时休整",
+            medicalMaterial.color,
+            new Color(0.12f, 0.18f, 0.24f, 1f));
+    }
+
+    private static void CreateMerchantStand(
+        Transform parent,
+        string objectName,
+        BaseHubMerchantSpotType spotType,
+        string merchantId,
+        string merchantName,
+        string previewDescription,
+        Vector3 counterPosition,
+        Material wallMaterial,
+        Material accentMaterial,
+        Material merchantMaterial,
+        Material signMaterial)
+    {
+        CreateBox($"{objectName}_Counter", parent, counterPosition, new Vector3(1.5f, 0.95f, 2.4f), accentMaterial);
+        CreateBox($"{objectName}_BackPanel", parent, counterPosition + new Vector3(-1.35f, 1.45f, 0f), new Vector3(0.3f, 2.9f, 2.8f), wallMaterial);
+        CreateBox($"{objectName}_DisplayBar", parent, counterPosition + new Vector3(-0.7f, 1.9f, 0f), new Vector3(0.5f, 0.35f, 2f), merchantMaterial);
+        CreateInformationBoard($"{objectName}_Sign", parent, counterPosition + new Vector3(-0.72f, 2.35f, 0f), Quaternion.Euler(0f, 90f, 0f), new Vector3(2.2f, 1f, 0.16f), signMaterial, merchantName, previewDescription, merchantMaterial.color, Color.white, 50, 34, 0.055f, 0.04f);
+
+        Transform anchor = CreateMarker(parent, $"{objectName}_Anchor", counterPosition + new Vector3(-1.1f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
+        BaseHubMerchantSpot merchantSpot = anchor.gameObject.AddComponent<BaseHubMerchantSpot>();
+        SetSerializedEnum(merchantSpot, "spotType", (int)spotType);
+        SetSerializedString(merchantSpot, "merchantId", merchantId);
+        SetSerializedString(merchantSpot, "merchantName", merchantName);
+        SetSerializedString(merchantSpot, "previewDescription", previewDescription);
+        SetSerializedReference(merchantSpot, "standAnchor", anchor);
+    }
+
+    private static Transform CreateZoneMarker(
+        Transform parent,
+        string objectName,
+        BaseHubZoneType zoneType,
+        string zoneName,
+        string zoneSummary,
+        Vector3 localPosition,
+        float guidanceRadius)
+    {
+        GameObject marker = new GameObject(objectName);
+        marker.transform.SetParent(parent, false);
+        marker.transform.localPosition = localPosition;
+
+        BaseHubZoneMarker zoneMarker = marker.AddComponent<BaseHubZoneMarker>();
+        SetSerializedEnum(zoneMarker, "zoneType", (int)zoneType);
+        SetSerializedString(zoneMarker, "zoneName", zoneName);
+        SetSerializedString(zoneMarker, "zoneSummary", zoneSummary);
+        SetSerializedFloat(zoneMarker, "guidanceRadius", guidanceRadius);
+        return marker.transform;
+    }
+
     private static void ConfigureDirectionalLight()
     {
         GameObject lightObject = new GameObject("Directional Light");
@@ -253,6 +447,7 @@ public static class BaseHubSceneBuilder
         string objectName,
         Transform parent,
         Vector3 localPosition,
+        Quaternion localRotation,
         Vector3 localScale,
         Material bodyMaterial,
         Material screenMaterial,
@@ -260,35 +455,94 @@ public static class BaseHubSceneBuilder
         BaseHubInteractionKind interactionKind,
         string interactionLabel)
     {
-        GameObject terminal = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        terminal.name = objectName;
-        terminal.transform.SetParent(parent, false);
-        terminal.transform.localPosition = localPosition;
-        terminal.transform.localScale = localScale;
-        terminal.GetComponent<MeshRenderer>().sharedMaterial = bodyMaterial;
+        GameObject terminal = CreateBox(objectName, parent, localPosition, localRotation, localScale, bodyMaterial);
 
         BaseHubTerminalInteractable interactable = terminal.AddComponent<BaseHubTerminalInteractable>();
         SetSerializedReference(interactable, "director", director);
         SetSerializedEnum(interactable, "interactionKind", (int)interactionKind);
         SetSerializedString(interactable, "interactionLabelOverride", interactionLabel);
 
-        GameObject screen = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject screen = CreateBox("Screen", terminal.transform, new Vector3(0f, 0.3f, 0.45f), new Vector3(0.78f, 0.6f, 0.08f), screenMaterial, false, false);
         screen.name = "Screen";
-        screen.transform.SetParent(terminal.transform, false);
-        screen.transform.localPosition = new Vector3(0f, 0.3f, 0.45f);
-        screen.transform.localScale = new Vector3(0.78f, 0.6f, 0.08f);
-        screen.GetComponent<MeshRenderer>().sharedMaterial = screenMaterial;
-        Object.DestroyImmediate(screen.GetComponent<Collider>());
-
-        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject marker = CreateBox("Marker", terminal.transform, new Vector3(0f, -0.78f, 0.45f), new Vector3(0.8f, 0.08f, 0.08f), screenMaterial, false, false);
         marker.name = "Marker";
-        marker.transform.SetParent(terminal.transform, false);
-        marker.transform.localPosition = new Vector3(0f, -0.78f, 0.45f);
-        marker.transform.localScale = new Vector3(0.8f, 0.08f, 0.08f);
-        marker.GetComponent<MeshRenderer>().sharedMaterial = screenMaterial;
-        Object.DestroyImmediate(marker.GetComponent<Collider>());
-
         return terminal;
+    }
+
+    private static GameObject CreateInformationBoard(
+        string objectName,
+        Transform parent,
+        Vector3 localPosition,
+        Quaternion localRotation,
+        Vector3 boardScale,
+        Material boardMaterial,
+        string title,
+        string body,
+        Color titleColor,
+        Color bodyColor,
+        int titleFontSize = 64,
+        int bodyFontSize = 42,
+        float titleCharacterSize = 0.075f,
+        float bodyCharacterSize = 0.055f)
+    {
+        GameObject board = CreateBox(objectName, parent, localPosition, localRotation, boardScale, boardMaterial, false);
+        float frontOffset = boardScale.z * 0.5f + 0.01f;
+
+        CreateWorldText(board.transform, "Title", title, new Vector3(0f, boardScale.y * 0.16f, frontOffset), Quaternion.identity, titleFontSize, titleColor, TextAnchor.MiddleCenter, TextAlignment.Center, titleCharacterSize);
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            CreateWorldText(board.transform, "Body", body, new Vector3(0f, -boardScale.y * 0.12f, frontOffset), Quaternion.identity, bodyFontSize, bodyColor, TextAnchor.MiddleCenter, TextAlignment.Center, bodyCharacterSize);
+        }
+
+        return board;
+    }
+
+    private static TextMesh CreateWorldText(
+        Transform parent,
+        string objectName,
+        string text,
+        Vector3 localPosition,
+        Quaternion localRotation,
+        int fontSize,
+        Color color,
+        TextAnchor anchor,
+        TextAlignment alignment,
+        float characterSize)
+    {
+        GameObject textObject = new GameObject(objectName);
+        textObject.transform.SetParent(parent, false);
+        textObject.transform.localPosition = localPosition;
+        textObject.transform.localRotation = localRotation;
+
+        TextMesh textMesh = textObject.AddComponent<TextMesh>();
+        Font font = ResolveBuiltInFont();
+        textMesh.font = font;
+        if (font != null)
+        {
+            MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = font.material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        textMesh.text = text ?? string.Empty;
+        textMesh.fontSize = fontSize;
+        textMesh.characterSize = characterSize;
+        textMesh.anchor = anchor;
+        textMesh.alignment = alignment;
+        textMesh.color = color;
+        return textMesh;
+    }
+
+    private static Font ResolveBuiltInFont()
+    {
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (font != null)
+        {
+            return font;
+        }
+
+        return Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 
     private static Transform CreateMarker(Transform parent, string objectName, Vector3 localPosition, Quaternion localRotation)
@@ -315,10 +569,36 @@ public static class BaseHubSceneBuilder
 
     private static GameObject CreateBox(string objectName, Transform parent, Vector3 localPosition, Vector3 localScale, Material material)
     {
+        return CreateBox(objectName, parent, localPosition, Quaternion.identity, localScale, material, true);
+    }
+
+    private static GameObject CreateBox(
+        string objectName,
+        Transform parent,
+        Vector3 localPosition,
+        Vector3 localScale,
+        Material material,
+        bool withCollider,
+        bool markStatic = true)
+    {
+        return CreateBox(objectName, parent, localPosition, Quaternion.identity, localScale, material, withCollider, markStatic);
+    }
+
+    private static GameObject CreateBox(
+        string objectName,
+        Transform parent,
+        Vector3 localPosition,
+        Quaternion localRotation,
+        Vector3 localScale,
+        Material material,
+        bool withCollider = true,
+        bool markStatic = true)
+    {
         GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
         box.name = objectName;
         box.transform.SetParent(parent, false);
         box.transform.localPosition = localPosition;
+        box.transform.localRotation = localRotation;
         box.transform.localScale = localScale;
 
         MeshRenderer renderer = box.GetComponent<MeshRenderer>();
@@ -327,7 +607,31 @@ public static class BaseHubSceneBuilder
             renderer.sharedMaterial = material;
         }
 
+        if (!withCollider)
+        {
+            Object.DestroyImmediate(box.GetComponent<Collider>());
+        }
+
+        if (markStatic)
+        {
+            MarkStatic(box);
+        }
+
         return box;
+    }
+
+    private static void MarkStatic(GameObject gameObject)
+    {
+        if (gameObject == null)
+        {
+            return;
+        }
+
+        GameObjectUtility.SetStaticEditorFlags(
+            gameObject,
+            StaticEditorFlags.BatchingStatic
+            | StaticEditorFlags.OccluderStatic
+            | StaticEditorFlags.OccludeeStatic);
     }
 
     private static Material CreateOrUpdateMaterial(string assetPath, Color color)
@@ -400,6 +704,14 @@ public static class BaseHubSceneBuilder
         SerializedObject serializedObject = new SerializedObject(target);
         SerializedProperty property = serializedObject.FindProperty(propertyName);
         property.intValue = value;
+        serializedObject.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetSerializedFloat(Object target, string propertyName, float value)
+    {
+        SerializedObject serializedObject = new SerializedObject(target);
+        SerializedProperty property = serializedObject.FindProperty(propertyName);
+        property.floatValue = value;
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 
