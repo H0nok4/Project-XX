@@ -1,3 +1,5 @@
+using System;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,6 +7,10 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class QuestTrackerHUD : MonoBehaviour
 {
+    private const string TrackerPrefabResourcePath = "UI/Quest/QuestTrackerHud";
+    private const string ToastPrefabResourcePath = "UI/Quest/QuestToast";
+    private const string JournalPrefabResourcePath = "UI/Quest/QuestJournal";
+
     private static QuestTrackerHUD instance;
 
     private QuestManager manager;
@@ -17,16 +23,21 @@ public sealed class QuestTrackerHUD : MonoBehaviour
     private RectTransform trackerRoot;
     private Text trackerText;
     private Button journalButton;
+    private QuestTrackerViewTemplate trackerView;
     private RectTransform toastRoot;
     private Text toastText;
     private CanvasGroup toastCanvasGroup;
+    private QuestToastViewTemplate toastView;
     private float toastUntil;
 
     private PrototypeUiToolkit.WindowChrome journalWindow;
     private RectTransform journalListContent;
     private RectTransform journalDetailContent;
+    private QuestJournalViewTemplate journalView;
     private bool journalOpen;
     private string selectedQuestId = string.Empty;
+    private string lastTrackerSummary = string.Empty;
+    private string lastJournalStateKey = string.Empty;
 
     public static QuestTrackerHUD Instance => instance;
 
@@ -89,6 +100,8 @@ public sealed class QuestTrackerHUD : MonoBehaviour
     public void Bind(QuestManager questManager, PlayerInteractor interactor = null)
     {
         manager = questManager;
+        lastTrackerSummary = string.Empty;
+        lastJournalStateKey = string.Empty;
         if (interactor != null)
         {
             playerInteractor = interactor;
@@ -108,7 +121,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         UpdateTrackerText();
         if (journalOpen)
         {
-            RebuildJournal();
+            RebuildJournal(false);
         }
     }
 
@@ -184,7 +197,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
                 }
             }
 
-            RebuildJournal();
+            RebuildJournal(true);
         }
     }
 
@@ -219,6 +232,12 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         RectTransform hudLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Hud);
+        if (TryInstantiateTrackerPrefab(hudLayer))
+        {
+            UpdateTrackerText();
+            return;
+        }
+
         trackerRoot = PrototypeUiToolkit.CreatePanel(
             hudLayer,
             "QuestTracker",
@@ -257,6 +276,17 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         RectTransform overlayLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Overlay);
+        if (TryInstantiateToastPrefab(overlayLayer))
+        {
+            PrototypeUiToolkit.SetVisible(toastRoot, false);
+            if (toastCanvasGroup != null)
+            {
+                toastCanvasGroup.alpha = 0f;
+            }
+
+            return;
+        }
+
         toastRoot = PrototypeUiToolkit.CreatePanel(
             overlayLayer,
             "QuestToast",
@@ -278,6 +308,12 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         RectTransform modalLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Modal);
+        if (TryInstantiateJournalPrefab(modalLayer))
+        {
+            PrototypeUiToolkit.SetVisible(journalWindow.Root, false);
+            return;
+        }
+
         journalWindow = PrototypeUiToolkit.CreateWindowChrome(modalLayer, runtimeFont, "QuestJournal", "任务日志", "查看可接任务、进行中任务与奖励。", new Vector2(980f, 680f));
 
         RectTransform bodyRoot = journalWindow.BodyRoot;
@@ -295,13 +331,17 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         listLayout.flexibleHeight = 1f;
         PrototypeUiToolkit.CreateText(listPanel, runtimeFont, "任务列表", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
         ScrollRect listScroll = PrototypeUiToolkit.CreateScrollView(listPanel, out _, out journalListContent, true);
-        VerticalLayoutGroup listContentLayout = journalListContent.gameObject.AddComponent<VerticalLayoutGroup>();
-        listContentLayout.spacing = 8f;
-        listContentLayout.childAlignment = TextAnchor.UpperLeft;
-        listContentLayout.childControlWidth = true;
-        listContentLayout.childControlHeight = true;
-        listContentLayout.childForceExpandWidth = true;
-        listContentLayout.childForceExpandHeight = false;
+        VerticalLayoutGroup listContentLayout = EnsureVerticalLayoutGroup(journalListContent);
+        if (listContentLayout != null)
+        {
+            listContentLayout.spacing = 8f;
+            listContentLayout.childAlignment = TextAnchor.UpperLeft;
+            listContentLayout.childControlWidth = true;
+            listContentLayout.childControlHeight = true;
+            listContentLayout.childForceExpandWidth = true;
+            listContentLayout.childForceExpandHeight = false;
+        }
+
         listScroll.verticalNormalizedPosition = 1f;
 
         RectTransform detailPanel = PrototypeUiToolkit.CreatePanel(bodyRoot, "QuestDetailPanel", new Color(0.11f, 0.14f, 0.18f, 0.92f), new RectOffset(14, 14, 14, 14), 10f);
@@ -310,13 +350,17 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         detailLayout.flexibleHeight = 1f;
         PrototypeUiToolkit.CreateText(detailPanel, runtimeFont, "任务详情", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
         ScrollRect detailScroll = PrototypeUiToolkit.CreateScrollView(detailPanel, out _, out journalDetailContent, true);
-        VerticalLayoutGroup detailContentLayout = journalDetailContent.gameObject.AddComponent<VerticalLayoutGroup>();
-        detailContentLayout.spacing = 8f;
-        detailContentLayout.childAlignment = TextAnchor.UpperLeft;
-        detailContentLayout.childControlWidth = true;
-        detailContentLayout.childControlHeight = true;
-        detailContentLayout.childForceExpandWidth = true;
-        detailContentLayout.childForceExpandHeight = false;
+        VerticalLayoutGroup detailContentLayout = EnsureVerticalLayoutGroup(journalDetailContent);
+        if (detailContentLayout != null)
+        {
+            detailContentLayout.spacing = 8f;
+            detailContentLayout.childAlignment = TextAnchor.UpperLeft;
+            detailContentLayout.childControlWidth = true;
+            detailContentLayout.childControlHeight = true;
+            detailContentLayout.childForceExpandWidth = true;
+            detailContentLayout.childForceExpandHeight = false;
+        }
+
         detailScroll.verticalNormalizedPosition = 1f;
 
         PrototypeUiToolkit.CreateButton(
@@ -340,12 +384,23 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         string trackerSummary = manager != null ? manager.BuildTrackerText() : string.Empty;
+        if (string.IsNullOrWhiteSpace(trackerSummary))
+        {
+            trackerSummary = "\u6682\u65e0\u8ffd\u8e2a\u4efb\u52a1\u3002";
+        }
+
+        if (string.Equals(lastTrackerSummary, trackerSummary, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        lastTrackerSummary = trackerSummary;
         trackerText.text = string.IsNullOrWhiteSpace(trackerSummary)
             ? "暂无追踪任务。"
             : trackerSummary;
     }
 
-    private void RebuildJournal()
+    private void RebuildJournal(bool force)
     {
         if (manager == null)
         {
@@ -364,12 +419,19 @@ public sealed class QuestTrackerHUD : MonoBehaviour
             selectedQuestId = selectedQuest.QuestId;
         }
 
+        string journalStateKey = BuildJournalStateKey(quests, selectedQuest);
+        if (!force && string.Equals(lastJournalStateKey, journalStateKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        lastJournalStateKey = journalStateKey;
         listView.Rebuild(journalListContent, quests, selectedQuest, manager, quest =>
         {
             selectedQuestId = quest != null ? quest.QuestId : string.Empty;
-            RebuildJournal();
+            RebuildJournal(true);
         });
-        detailView.Rebuild(journalDetailContent, manager, selectedQuest, RebuildJournal);
+        detailView.Rebuild(journalDetailContent, manager, selectedQuest, () => RebuildJournal(true));
     }
 
     private Quest ResolveSelectedQuest()
@@ -377,6 +439,185 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         return manager != null && !string.IsNullOrWhiteSpace(selectedQuestId)
             ? manager.GetQuest(selectedQuestId)
             : null;
+    }
+
+    private string BuildJournalStateKey(System.Collections.Generic.IReadOnlyList<Quest> quests, Quest selectedQuest)
+    {
+        StringBuilder builder = new StringBuilder(256);
+        builder.Append(selectedQuest != null ? selectedQuest.QuestId : string.Empty);
+        builder.Append('|');
+        if (quests == null || manager == null)
+        {
+            return builder.ToString();
+        }
+
+        for (int questIndex = 0; questIndex < quests.Count; questIndex++)
+        {
+            Quest quest = quests[questIndex];
+            if (quest == null)
+            {
+                continue;
+            }
+
+            QuestRuntimeState runtimeState = manager.GetQuestState(quest.QuestId);
+            builder.Append(quest.QuestId);
+            builder.Append(':');
+            if (runtimeState != null)
+            {
+                builder.Append((int)runtimeState.status);
+                builder.Append(':');
+                builder.Append(runtimeState.rewardsClaimed ? '1' : '0');
+                builder.Append(':');
+                builder.Append(runtimeState.tracked ? '1' : '0');
+                builder.Append(':');
+                if (runtimeState.objectiveProgress != null)
+                {
+                    for (int index = 0; index < runtimeState.objectiveProgress.Count; index++)
+                    {
+                        builder.Append(runtimeState.objectiveProgress[index]);
+                        builder.Append(',');
+                    }
+                }
+            }
+
+            builder.Append('|');
+        }
+
+        return builder.ToString();
+    }
+
+    private bool TryInstantiateTrackerPrefab(RectTransform parent)
+    {
+        GameObject prefabAsset = Resources.Load<GameObject>(TrackerPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            return false;
+        }
+
+        GameObject instance = Instantiate(prefabAsset, parent, false);
+        instance.name = prefabAsset.name;
+
+        trackerView = instance.GetComponent<QuestTrackerViewTemplate>();
+        if (trackerView == null || trackerView.Root == null)
+        {
+            Destroy(instance);
+            trackerView = null;
+            return false;
+        }
+
+        trackerRoot = trackerView.Root;
+        trackerText = trackerView.TrackerText;
+        journalButton = trackerView.JournalButton;
+        PrototypeUiToolkit.ApplyFontRecursively(trackerRoot, runtimeFont);
+        if (journalButton != null)
+        {
+            journalButton.onClick.RemoveAllListeners();
+            journalButton.onClick.AddListener(ToggleJournal);
+        }
+
+        if (trackerText == null || journalButton == null)
+        {
+            Destroy(instance);
+            trackerView = null;
+            trackerRoot = null;
+            trackerText = null;
+            journalButton = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryInstantiateToastPrefab(RectTransform parent)
+    {
+        GameObject prefabAsset = Resources.Load<GameObject>(ToastPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            return false;
+        }
+
+        GameObject instance = Instantiate(prefabAsset, parent, false);
+        instance.name = prefabAsset.name;
+
+        toastView = instance.GetComponent<QuestToastViewTemplate>();
+        if (toastView == null || toastView.Root == null)
+        {
+            Destroy(instance);
+            toastView = null;
+            return false;
+        }
+
+        toastRoot = toastView.Root;
+        toastText = toastView.MessageText;
+        toastCanvasGroup = toastView.CanvasGroup;
+        PrototypeUiToolkit.ApplyFontRecursively(toastRoot, runtimeFont);
+        if (toastText == null || toastCanvasGroup == null)
+        {
+            Destroy(instance);
+            toastView = null;
+            toastRoot = null;
+            toastText = null;
+            toastCanvasGroup = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryInstantiateJournalPrefab(RectTransform parent)
+    {
+        GameObject prefabAsset = Resources.Load<GameObject>(JournalPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            return false;
+        }
+
+        GameObject instance = Instantiate(prefabAsset, parent, false);
+        instance.name = prefabAsset.name;
+
+        journalView = instance.GetComponent<QuestJournalViewTemplate>();
+        if (journalView == null || journalView.Root == null)
+        {
+            Destroy(instance);
+            journalView = null;
+            return false;
+        }
+
+        journalWindow = journalView.CreateWindowChrome();
+        journalListContent = journalView.ListContentRoot;
+        journalDetailContent = journalView.DetailContentRoot;
+        PrototypeUiToolkit.ApplyFontRecursively(journalWindow.Root, runtimeFont);
+        if (journalView.CloseButton != null)
+        {
+            journalView.CloseButton.onClick.RemoveAllListeners();
+            journalView.CloseButton.onClick.AddListener(() => SetJournalOpen(false));
+        }
+
+        if (journalView.ListScrollRect != null)
+        {
+            journalView.ListScrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        if (journalView.DetailScrollRect != null)
+        {
+            journalView.DetailScrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        if (journalWindow == null
+            || journalWindow.Root == null
+            || journalListContent == null
+            || journalDetailContent == null
+            || journalView.CloseButton == null)
+        {
+            Destroy(instance);
+            journalView = null;
+            journalWindow = null;
+            journalListContent = null;
+            journalDetailContent = null;
+            return false;
+        }
+
+        return true;
     }
 
     private void UpdateToast()
@@ -400,5 +641,21 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         {
             PrototypeUiToolkit.SetVisible(toastRoot, false);
         }
+    }
+
+    private static VerticalLayoutGroup EnsureVerticalLayoutGroup(RectTransform root)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
+        if (layout == null)
+        {
+            layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
+        }
+
+        return layout;
     }
 }

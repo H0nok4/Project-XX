@@ -334,10 +334,9 @@ AI 当前支持：
 
 当前局内战斗系统仍有这些限制：
 
-- 玩家与 AI 武器实例状态还不是真正实例化资产
-- 护甲耐久没有跨局持久化
+- 实例级武器 / 护甲 / 容器持久化已经落地，但局内多容器体验仍需继续打磨
 - AI 仍集中在 `PrototypeBotController`
-- HUD 和搜刮 UI 仍是 IMGUI
+- HUD、任务日志和搜刮 UI 已切到运行时 UGUI / `PrototypeUiToolkit`，但仍偏原型风格
 - 更复杂的掩体战术、队友协同、门战术还没成型
 
 ---
@@ -346,8 +345,8 @@ AI 当前支持：
 
 如果继续深化局内系统，优先建议：
 
-1. 把武器、护甲、容器都做成实例级持久化
-2. 给局内 UI 做真正的多容器拖拽转移
-3. 拆分 `PrototypeFpsController`
-4. 拆分 `PrototypeBotController`
+1. 继续打磨局内多容器拖拽和地图级内容接入
+2. 拆分 `PrototypeFpsController`
+3. 拆分 `PrototypeBotController`
+4. 为地图商人 / 任务 NPC / 世界状态事件预留局内交互点
 5. 把原型 blockout 场景和正式内容场景分离

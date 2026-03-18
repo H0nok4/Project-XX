@@ -8,6 +8,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class DialogueSystem : MonoBehaviour
 {
+    private const string DialoguePrefabResourcePath = "UI/Quest/DialogueWindow";
+
     private static DialogueSystem instance;
 
     private readonly Dictionary<string, DialogueNode> nodes = new Dictionary<string, DialogueNode>(StringComparer.OrdinalIgnoreCase);
@@ -18,6 +20,7 @@ public sealed class DialogueSystem : MonoBehaviour
     private QuestNPC activeNpc;
     private string currentNodeId = string.Empty;
     private PrototypeUiToolkit.WindowChrome windowChrome;
+    private DialogueWindowViewTemplate windowView;
     private RectTransform optionContainer;
     private bool dialogueOpen;
 
@@ -144,6 +147,11 @@ public sealed class DialogueSystem : MonoBehaviour
         }
 
         RectTransform modalLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Modal);
+        if (TryInstantiateWindowPrefab(modalLayer))
+        {
+            PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
+            return true;
+        }
         windowChrome = PrototypeUiToolkit.CreateWindowChrome(modalLayer, runtimeFont, "DialogueWindow", "对话", string.Empty, new Vector2(760f, 560f));
 
         VerticalLayoutGroup bodyLayout = windowChrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -280,18 +288,31 @@ public sealed class DialogueSystem : MonoBehaviour
             windowChrome.SubtitleText.gameObject.SetActive(!string.IsNullOrWhiteSpace(windowChrome.SubtitleText.text));
         }
 
-        ClearChildren(windowChrome.BodyRoot);
-        PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.SpeakerName, 18, FontStyle.Bold, new Color(0.96f, 0.8f, 0.44f, 1f), TextAnchor.UpperLeft);
-        PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.DialogueText, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
+        if (windowView != null
+            && windowView.SpeakerText != null
+            && windowView.DialogueText != null
+            && windowView.OptionsRoot != null)
+        {
+            windowView.SpeakerText.text = node.SpeakerName;
+            windowView.DialogueText.text = node.DialogueText;
+            optionContainer = windowView.OptionsRoot;
+            ClearChildren(optionContainer);
+        }
+        else
+        {
+            ClearChildren(windowChrome.BodyRoot);
+            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.SpeakerName, 18, FontStyle.Bold, new Color(0.96f, 0.8f, 0.44f, 1f), TextAnchor.UpperLeft);
+            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.DialogueText, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
 
-        optionContainer = PrototypeUiToolkit.CreateRectTransform("Options", windowChrome.BodyRoot);
-        VerticalLayoutGroup optionLayout = optionContainer.gameObject.AddComponent<VerticalLayoutGroup>();
-        optionLayout.spacing = 8f;
-        optionLayout.childAlignment = TextAnchor.UpperLeft;
-        optionLayout.childControlWidth = true;
-        optionLayout.childControlHeight = true;
-        optionLayout.childForceExpandWidth = true;
-        optionLayout.childForceExpandHeight = false;
+            optionContainer = PrototypeUiToolkit.CreateRectTransform("Options", windowChrome.BodyRoot);
+            VerticalLayoutGroup optionLayout = optionContainer.gameObject.AddComponent<VerticalLayoutGroup>();
+            optionLayout.spacing = 8f;
+            optionLayout.childAlignment = TextAnchor.UpperLeft;
+            optionLayout.childControlWidth = true;
+            optionLayout.childControlHeight = true;
+            optionLayout.childForceExpandWidth = true;
+            optionLayout.childForceExpandHeight = false;
+        }
 
         bool createdAnyOption = false;
         if (node.options != null)
@@ -345,6 +366,43 @@ public sealed class DialogueSystem : MonoBehaviour
         {
             CloseDialogue();
         }
+    }
+
+    private bool TryInstantiateWindowPrefab(RectTransform parent)
+    {
+        GameObject prefabAsset = Resources.Load<GameObject>(DialoguePrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            return false;
+        }
+
+        GameObject instance = Instantiate(prefabAsset, parent, false);
+        instance.name = prefabAsset.name;
+
+        windowView = instance.GetComponent<DialogueWindowViewTemplate>();
+        if (windowView == null || windowView.Root == null)
+        {
+            Destroy(instance);
+            windowView = null;
+            return false;
+        }
+
+        windowChrome = windowView.CreateWindowChrome();
+        PrototypeUiToolkit.ApplyFontRecursively(windowChrome.Root, runtimeFont);
+        if (windowView.CloseButton != null)
+        {
+            windowView.CloseButton.onClick.RemoveAllListeners();
+            windowView.CloseButton.onClick.AddListener(CloseDialogue);
+        }
+
+        if (windowChrome == null || windowChrome.Root == null)
+        {
+            Destroy(instance);
+            windowView = null;
+            return false;
+        }
+
+        return true;
     }
 
     private static string BuildRootText(QuestNPC npc, QuestManager manager)

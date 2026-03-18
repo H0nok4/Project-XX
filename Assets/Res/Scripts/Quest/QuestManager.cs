@@ -1235,7 +1235,6 @@ public sealed class QuestManager : MonoBehaviour
 
         if (!anyChanged)
         {
-            trackerHud?.RefreshImmediate();
             return;
         }
 

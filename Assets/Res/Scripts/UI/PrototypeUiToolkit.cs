@@ -360,6 +360,23 @@ public static class PrototypeUiToolkit
         return canvasGroup;
     }
 
+    public static void ApplyFontRecursively(Transform root, Font font)
+    {
+        if (root == null || font == null)
+        {
+            return;
+        }
+
+        Text[] textComponents = root.GetComponentsInChildren<Text>(true);
+        for (int index = 0; index < textComponents.Length; index++)
+        {
+            if (textComponents[index] != null)
+            {
+                textComponents[index].font = font;
+            }
+        }
+    }
+
     public static void SetVisible(RectTransform root, bool visible)
     {
         if (root == null)
