@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 [DefaultExecutionOrder(-40)]
 [DisallowMultipleComponent]
-public sealed class QuestTrackerHUD : MonoBehaviour
+public sealed class QuestTrackerHUD : ViewBase
 {
     private const string TrackerPrefabResourcePath = "UI/Quest/QuestTrackerHud";
     private const string ToastPrefabResourcePath = "UI/Quest/QuestToast";
@@ -16,7 +16,6 @@ public sealed class QuestTrackerHUD : MonoBehaviour
     private QuestManager manager;
     private PlayerInteractor playerInteractor;
     private PlayerInteractionState interactionState;
-    private Font runtimeFont;
     private QuestListUI listView;
     private QuestDetailUI detailView;
 
@@ -40,6 +39,10 @@ public sealed class QuestTrackerHUD : MonoBehaviour
     private string lastJournalStateKey = string.Empty;
 
     public static QuestTrackerHUD Instance => instance;
+    protected override bool VisibleOnAwake => true;
+    protected override bool AddTransparentRootGraphic => false;
+    protected override bool RootGraphicRaycastTarget => false;
+    protected override string ViewName => "QuestTrackerView";
 
     public static QuestTrackerHUD GetOrCreate()
     {
@@ -58,7 +61,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         return hudObject.AddComponent<QuestTrackerHUD>();
     }
 
-    private void Awake()
+    protected override void Awake()
     {
         if (instance != null && instance != this)
         {
@@ -67,6 +70,8 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         instance = this;
+        ResolveReferences();
+        base.Awake();
     }
 
     private void Update()
@@ -74,16 +79,11 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         UpdateToast();
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
         if (instance == this)
         {
             instance = null;
-        }
-
-        if (trackerRoot != null)
-        {
-            Destroy(trackerRoot.gameObject);
         }
 
         if (toastRoot != null)
@@ -95,6 +95,8 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         {
             Destroy(journalWindow.Root.gameObject);
         }
+
+        base.OnDestroy();
     }
 
     public void Bind(QuestManager questManager, PlayerInteractor interactor = null)
@@ -110,8 +112,8 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         ResolveReferences();
         EnsureTrackerUi();
         EnsureToastUi();
-        listView ??= new QuestListUI(runtimeFont);
-        detailView ??= new QuestDetailUI(runtimeFont);
+        listView ??= new QuestListUI(RuntimeFont);
+        detailView ??= new QuestDetailUI(RuntimeFont);
     }
 
     public void RefreshImmediate()
@@ -203,10 +205,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
 
     private void ResolveReferences()
     {
-        if (runtimeFont == null)
-        {
-            runtimeFont = PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont;
-        }
+        _ = RuntimeFont;
 
         if (playerInteractor == null)
         {
@@ -226,20 +225,24 @@ public sealed class QuestTrackerHUD : MonoBehaviour
 
     private void EnsureTrackerUi()
     {
-        if (trackerRoot != null)
+        EnsureView();
+    }
+
+    protected override void BuildView(RectTransform root)
+    {
+        if (root == null)
         {
             return;
         }
 
-        RectTransform hudLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Hud);
-        if (TryInstantiateTrackerPrefab(hudLayer))
+        if (TryInstantiateTrackerPrefab(root))
         {
             UpdateTrackerText();
             return;
         }
 
         trackerRoot = PrototypeUiToolkit.CreatePanel(
-            hudLayer,
+            root,
             "QuestTracker",
             new Color(0.08f, 0.1f, 0.14f, 0.88f),
             new RectOffset(12, 12, 10, 10),
@@ -248,7 +251,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
 
         trackerText = PrototypeUiToolkit.CreateText(
             trackerRoot,
-            runtimeFont,
+            RuntimeFont,
             string.Empty,
             14,
             FontStyle.Normal,
@@ -257,7 +260,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
 
         journalButton = PrototypeUiToolkit.CreateButton(
             trackerRoot,
-            runtimeFont,
+            RuntimeFont,
             "任务日志",
             ToggleJournal,
             new Color(0.21f, 0.34f, 0.48f, 0.98f),
@@ -266,6 +269,14 @@ public sealed class QuestTrackerHUD : MonoBehaviour
             34f);
 
         UpdateTrackerText();
+    }
+
+    protected override void OnViewRootDestroyed()
+    {
+        trackerRoot = null;
+        trackerText = null;
+        journalButton = null;
+        trackerView = null;
     }
 
     private void EnsureToastUi()
@@ -295,7 +306,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
             0f);
         PrototypeUiToolkit.SetAnchor(toastRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(520f, 52f));
         toastCanvasGroup = PrototypeUiToolkit.EnsureCanvasGroup(toastRoot);
-        toastText = PrototypeUiToolkit.CreateText(toastRoot, runtimeFont, string.Empty, 15, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        toastText = PrototypeUiToolkit.CreateText(toastRoot, RuntimeFont, string.Empty, 15, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
         PrototypeUiToolkit.SetVisible(toastRoot, false);
         toastCanvasGroup.alpha = 0f;
     }
@@ -314,7 +325,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
             return;
         }
 
-        journalWindow = PrototypeUiToolkit.CreateWindowChrome(modalLayer, runtimeFont, "QuestJournal", "任务日志", "查看可接任务、进行中任务与奖励。", new Vector2(980f, 680f));
+        journalWindow = PrototypeUiToolkit.CreateWindowChrome(modalLayer, RuntimeFont, "QuestJournal", "任务日志", "查看可接任务、进行中任务与奖励。", new Vector2(980f, 680f));
 
         RectTransform bodyRoot = journalWindow.BodyRoot;
         HorizontalLayoutGroup bodyLayout = bodyRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -329,7 +340,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         LayoutElement listLayout = listPanel.gameObject.AddComponent<LayoutElement>();
         listLayout.preferredWidth = 300f;
         listLayout.flexibleHeight = 1f;
-        PrototypeUiToolkit.CreateText(listPanel, runtimeFont, "任务列表", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        PrototypeUiToolkit.CreateText(listPanel, RuntimeFont, "任务列表", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
         ScrollRect listScroll = PrototypeUiToolkit.CreateScrollView(listPanel, out _, out journalListContent, true);
         VerticalLayoutGroup listContentLayout = EnsureVerticalLayoutGroup(journalListContent);
         if (listContentLayout != null)
@@ -348,7 +359,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         LayoutElement detailLayout = detailPanel.gameObject.AddComponent<LayoutElement>();
         detailLayout.flexibleWidth = 1f;
         detailLayout.flexibleHeight = 1f;
-        PrototypeUiToolkit.CreateText(detailPanel, runtimeFont, "任务详情", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        PrototypeUiToolkit.CreateText(detailPanel, RuntimeFont, "任务详情", 18, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
         ScrollRect detailScroll = PrototypeUiToolkit.CreateScrollView(detailPanel, out _, out journalDetailContent, true);
         VerticalLayoutGroup detailContentLayout = EnsureVerticalLayoutGroup(journalDetailContent);
         if (detailContentLayout != null)
@@ -365,7 +376,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
 
         PrototypeUiToolkit.CreateButton(
             journalWindow.FooterRoot,
-            runtimeFont,
+            RuntimeFont,
             "关闭",
             () => SetJournalOpen(false),
             new Color(0.2f, 0.27f, 0.36f, 0.98f),
@@ -408,8 +419,8 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         }
 
         EnsureJournalUi();
-        listView ??= new QuestListUI(runtimeFont);
-        detailView ??= new QuestDetailUI(runtimeFont);
+        listView ??= new QuestListUI(RuntimeFont);
+        detailView ??= new QuestDetailUI(RuntimeFont);
 
         var quests = manager.GetAllQuests();
         Quest selectedQuest = ResolveSelectedQuest();
@@ -508,7 +519,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         trackerRoot = trackerView.Root;
         trackerText = trackerView.TrackerText;
         journalButton = trackerView.JournalButton;
-        PrototypeUiToolkit.ApplyFontRecursively(trackerRoot, runtimeFont);
+        PrototypeUiToolkit.ApplyFontRecursively(trackerRoot, RuntimeFont);
         if (journalButton != null)
         {
             journalButton.onClick.RemoveAllListeners();
@@ -550,7 +561,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         toastRoot = toastView.Root;
         toastText = toastView.MessageText;
         toastCanvasGroup = toastView.CanvasGroup;
-        PrototypeUiToolkit.ApplyFontRecursively(toastRoot, runtimeFont);
+        PrototypeUiToolkit.ApplyFontRecursively(toastRoot, RuntimeFont);
         if (toastText == null || toastCanvasGroup == null)
         {
             Destroy(instance);
@@ -586,7 +597,7 @@ public sealed class QuestTrackerHUD : MonoBehaviour
         journalWindow = journalView.CreateWindowChrome();
         journalListContent = journalView.ListContentRoot;
         journalDetailContent = journalView.DetailContentRoot;
-        PrototypeUiToolkit.ApplyFontRecursively(journalWindow.Root, runtimeFont);
+        PrototypeUiToolkit.ApplyFontRecursively(journalWindow.Root, RuntimeFont);
         if (journalView.CloseButton != null)
         {
             journalView.CloseButton.onClick.RemoveAllListeners();

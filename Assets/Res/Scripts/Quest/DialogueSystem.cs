@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 [DefaultExecutionOrder(-35)]
 [DisallowMultipleComponent]
-public sealed class DialogueSystem : MonoBehaviour
+public sealed class DialogueSystem : WindowBase
 {
     private const string DialoguePrefabResourcePath = "UI/Quest/DialogueWindow";
 
@@ -14,17 +14,21 @@ public sealed class DialogueSystem : MonoBehaviour
 
     private readonly Dictionary<string, DialogueNode> nodes = new Dictionary<string, DialogueNode>(StringComparer.OrdinalIgnoreCase);
 
-    private Font runtimeFont;
     private PlayerInteractor playerInteractor;
     private PlayerInteractionState interactionState;
     private QuestNPC activeNpc;
     private string currentNodeId = string.Empty;
-    private PrototypeUiToolkit.WindowChrome windowChrome;
     private DialogueWindowViewTemplate windowView;
     private RectTransform optionContainer;
     private bool dialogueOpen;
+    private PrototypeUiToolkit.WindowChrome windowChrome => Chrome;
 
     public static DialogueSystem Instance => instance;
+    protected override PrototypeUiLayer WindowLayer => PrototypeUiLayer.Modal;
+    protected override bool VisibleOnAwake => false;
+    protected override string WindowName => "DialogueWindow";
+    protected override string WindowTitle => "对话";
+    protected override Vector2 WindowSize => new Vector2(760f, 560f);
 
     public static DialogueSystem GetOrCreate()
     {
@@ -43,7 +47,7 @@ public sealed class DialogueSystem : MonoBehaviour
         return systemObject.AddComponent<DialogueSystem>();
     }
 
-    private void Awake()
+    protected override void Awake()
     {
         if (instance != null && instance != this)
         {
@@ -52,19 +56,18 @@ public sealed class DialogueSystem : MonoBehaviour
         }
 
         instance = this;
+        ResolveReferences();
+        base.Awake();
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
         if (instance == this)
         {
             instance = null;
         }
 
-        if (windowChrome != null && windowChrome.Root != null)
-        {
-            Destroy(windowChrome.Root.gameObject);
-        }
+        base.OnDestroy();
     }
 
     public void OpenNpcDialogue(QuestNPC npc, PlayerInteractor interactor)
@@ -105,7 +108,8 @@ public sealed class DialogueSystem : MonoBehaviour
 
     public void ShowNode(string nodeId)
     {
-        if (!EnsureWindow() || string.IsNullOrWhiteSpace(nodeId))
+        EnsureWindow();
+        if (!IsWindowBuilt || string.IsNullOrWhiteSpace(nodeId))
         {
             return;
         }
@@ -121,7 +125,7 @@ public sealed class DialogueSystem : MonoBehaviour
 
     private void ResolveReferences()
     {
-        runtimeFont ??= PrototypeRuntimeUiManager.GetOrCreate().RuntimeFont;
+        _ = RuntimeFont;
         if (playerInteractor == null)
         {
             playerInteractor = FindFirstObjectByType<PlayerInteractor>();
@@ -138,23 +142,33 @@ public sealed class DialogueSystem : MonoBehaviour
         }
     }
 
-    private bool EnsureWindow()
+    protected override PrototypeUiToolkit.WindowChrome CreateWindowChrome()
     {
         ResolveReferences();
-        if (windowChrome != null && windowChrome.Root != null)
+        RectTransform modalLayer = UiManager.GetLayerRoot(WindowLayer);
+        if (TryInstantiateWindowPrefab(modalLayer, out PrototypeUiToolkit.WindowChrome chrome))
         {
-            return true;
+            PrototypeUiToolkit.SetVisible(chrome.Root, false);
+            return chrome;
         }
 
-        RectTransform modalLayer = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.Modal);
-        if (TryInstantiateWindowPrefab(modalLayer))
-        {
-            PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
-            return true;
-        }
-        windowChrome = PrototypeUiToolkit.CreateWindowChrome(modalLayer, runtimeFont, "DialogueWindow", "对话", string.Empty, new Vector2(760f, 560f));
+        windowView = null;
+        return base.CreateWindowChrome();
+    }
 
-        VerticalLayoutGroup bodyLayout = windowChrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+    protected override void BuildWindow(PrototypeUiToolkit.WindowChrome chrome)
+    {
+        if (chrome == null || chrome.Root == null)
+        {
+            return;
+        }
+
+        if (windowView != null && windowView.Root == chrome.Root)
+        {
+            return;
+        }
+
+        VerticalLayoutGroup bodyLayout = chrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
         bodyLayout.spacing = 10f;
         bodyLayout.childAlignment = TextAnchor.UpperLeft;
         bodyLayout.childControlWidth = true;
@@ -163,8 +177,8 @@ public sealed class DialogueSystem : MonoBehaviour
         bodyLayout.childForceExpandHeight = false;
 
         PrototypeUiToolkit.CreateButton(
-            windowChrome.FooterRoot,
-            runtimeFont,
+            chrome.FooterRoot,
+            RuntimeFont,
             "结束对话",
             CloseDialogue,
             new Color(0.22f, 0.27f, 0.34f, 0.98f),
@@ -172,19 +186,25 @@ public sealed class DialogueSystem : MonoBehaviour
             new Color(0.17f, 0.21f, 0.29f, 1f),
             38f);
 
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
-        return true;
+        PrototypeUiToolkit.SetVisible(chrome.Root, false);
+    }
+
+    protected override void OnWindowRootDestroyed()
+    {
+        windowView = null;
+        optionContainer = null;
     }
 
     private void SetDialogueOpen(bool open)
     {
-        if (!EnsureWindow())
+        EnsureWindow();
+        if (!IsWindowBuilt)
         {
             return;
         }
 
         dialogueOpen = open;
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, open);
+        SetWindowVisible(open);
         if (interactionState != null)
         {
             interactionState.SetUiFocused(this, open);
@@ -301,8 +321,8 @@ public sealed class DialogueSystem : MonoBehaviour
         else
         {
             ClearChildren(windowChrome.BodyRoot);
-            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.SpeakerName, 18, FontStyle.Bold, new Color(0.96f, 0.8f, 0.44f, 1f), TextAnchor.UpperLeft);
-            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, runtimeFont, node.DialogueText, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
+            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, RuntimeFont, node.SpeakerName, 18, FontStyle.Bold, new Color(0.96f, 0.8f, 0.44f, 1f), TextAnchor.UpperLeft);
+            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, RuntimeFont, node.DialogueText, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
 
             optionContainer = PrototypeUiToolkit.CreateRectTransform("Options", windowChrome.BodyRoot);
             VerticalLayoutGroup optionLayout = optionContainer.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -328,7 +348,7 @@ public sealed class DialogueSystem : MonoBehaviour
                 createdAnyOption = true;
                 PrototypeUiToolkit.CreateButton(
                     optionContainer,
-                    runtimeFont,
+                    RuntimeFont,
                     option.OptionText,
                     () => HandleOptionSelected(option),
                     new Color(0.18f, 0.24f, 0.33f, 0.98f),
@@ -340,7 +360,7 @@ public sealed class DialogueSystem : MonoBehaviour
 
         if (!createdAnyOption)
         {
-            PrototypeUiToolkit.CreateText(optionContainer, runtimeFont, "没有可执行的对话选项。", 14, FontStyle.Normal, new Color(0.82f, 0.87f, 0.92f, 1f), TextAnchor.UpperLeft);
+            PrototypeUiToolkit.CreateText(optionContainer, RuntimeFont, "没有可执行的对话选项。", 14, FontStyle.Normal, new Color(0.82f, 0.87f, 0.92f, 1f), TextAnchor.UpperLeft);
         }
     }
 
@@ -368,8 +388,9 @@ public sealed class DialogueSystem : MonoBehaviour
         }
     }
 
-    private bool TryInstantiateWindowPrefab(RectTransform parent)
+    private bool TryInstantiateWindowPrefab(RectTransform parent, out PrototypeUiToolkit.WindowChrome chrome)
     {
+        chrome = null;
         GameObject prefabAsset = Resources.Load<GameObject>(DialoguePrefabResourcePath);
         if (prefabAsset == null)
         {
@@ -387,19 +408,20 @@ public sealed class DialogueSystem : MonoBehaviour
             return false;
         }
 
-        windowChrome = windowView.CreateWindowChrome();
-        PrototypeUiToolkit.ApplyFontRecursively(windowChrome.Root, runtimeFont);
+        chrome = windowView.CreateWindowChrome();
+        if (chrome == null || chrome.Root == null)
+        {
+            Destroy(instance);
+            windowView = null;
+            chrome = null;
+            return false;
+        }
+
+        PrototypeUiToolkit.ApplyFontRecursively(chrome.Root, RuntimeFont);
         if (windowView.CloseButton != null)
         {
             windowView.CloseButton.onClick.RemoveAllListeners();
             windowView.CloseButton.onClick.AddListener(CloseDialogue);
-        }
-
-        if (windowChrome == null || windowChrome.Root == null)
-        {
-            Destroy(instance);
-            windowView = null;
-            return false;
         }
 
         return true;

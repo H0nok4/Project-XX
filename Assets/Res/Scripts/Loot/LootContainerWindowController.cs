@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeFpsInput))]
-public class LootContainerWindowController : MonoBehaviour
+public class LootContainerWindowController : WindowBase
 {
     [SerializeField] private PlayerInteractor interactor;
     [SerializeField] private PrototypeFpsInput fpsInput;
@@ -19,7 +19,6 @@ public class LootContainerWindowController : MonoBehaviour
     private bool resetBackpackScroll = true;
     private bool resetGearScroll = true;
     private int lastContentHash;
-    private PrototypeUiToolkit.WindowChrome windowChrome;
     private Text summaryText;
     private ScrollRect lootScrollRect;
     private RectTransform lootContentRoot;
@@ -27,14 +26,20 @@ public class LootContainerWindowController : MonoBehaviour
     private RectTransform backpackContentRoot;
     private ScrollRect gearScrollRect;
     private RectTransform gearContentRoot;
+    private PrototypeUiToolkit.WindowChrome windowChrome => Chrome;
 
     public LootContainer OpenContainer => openContainer;
     public bool IsOpen => openContainer != null;
+    protected override bool VisibleOnAwake => false;
+    protected override string WindowName => "LootContainerWindow";
+    protected override string WindowTitle => "Loot Container";
+    protected override string WindowSubtitle => "Drag loot into your backpack, equip slots, special equipment, or the secure container.";
+    protected override Vector2 WindowSize => new Vector2(1540f, 760f);
 
-    private void Awake()
+    protected override void Awake()
     {
         ResolveReferences();
-        EnsureWindowUi();
+        base.Awake();
     }
 
     private void OnEnable()
@@ -168,23 +173,14 @@ public class LootContainerWindowController : MonoBehaviour
         UpdateWindowVisibility();
     }
 
-    private void EnsureWindowUi()
+    protected override void BuildWindow(PrototypeUiToolkit.WindowChrome chrome)
     {
-        if (windowChrome?.Root != null)
+        if (chrome == null || chrome.Root == null)
         {
             return;
         }
 
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        windowChrome = PrototypeUiToolkit.CreateWindowChrome(
-            manager.GetLayerRoot(PrototypeUiLayer.Window),
-            manager.RuntimeFont,
-            "LootContainerWindow",
-            "Loot Container",
-            "Drag loot into your backpack, equip slots, special equipment, or the secure container.",
-            new Vector2(1540f, 760f));
-
-        VerticalLayoutGroup bodyLayout = windowChrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        VerticalLayoutGroup bodyLayout = chrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
         bodyLayout.spacing = 14f;
         bodyLayout.padding = new RectOffset(0, 0, 0, 0);
         bodyLayout.childAlignment = TextAnchor.UpperLeft;
@@ -194,8 +190,8 @@ public class LootContainerWindowController : MonoBehaviour
         bodyLayout.childForceExpandHeight = false;
 
         summaryText = PrototypeUiToolkit.CreateText(
-            windowChrome.BodyRoot,
-            manager.RuntimeFont,
+            chrome.BodyRoot,
+            RuntimeFont,
             string.Empty,
             14,
             FontStyle.Normal,
@@ -203,7 +199,7 @@ public class LootContainerWindowController : MonoBehaviour
             TextAnchor.UpperLeft);
         summaryText.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
-        RectTransform contentRow = PrototypeUiToolkit.CreateRectTransform("ContentRow", windowChrome.BodyRoot);
+        RectTransform contentRow = PrototypeUiToolkit.CreateRectTransform("ContentRow", chrome.BodyRoot);
         HorizontalLayoutGroup contentLayout = contentRow.gameObject.AddComponent<HorizontalLayoutGroup>();
         contentLayout.spacing = 16f;
         contentLayout.childAlignment = TextAnchor.UpperLeft;
@@ -232,8 +228,8 @@ public class LootContainerWindowController : MonoBehaviour
         PrototypeUiToolkit.SetStretch(gearScrollRect.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
 
         Button takeAllButton = PrototypeUiToolkit.CreateButton(
-            windowChrome.FooterRoot,
-            manager.RuntimeFont,
+            chrome.FooterRoot,
+            RuntimeFont,
             "Take All",
             TakeAll,
             new Color(0.58f, 0.34f, 0.16f, 1f),
@@ -243,8 +239,8 @@ public class LootContainerWindowController : MonoBehaviour
         takeAllButton.GetComponent<LayoutElement>().preferredWidth = 150f;
 
         Button closeButton = PrototypeUiToolkit.CreateButton(
-            windowChrome.FooterRoot,
-            manager.RuntimeFont,
+            chrome.FooterRoot,
+            RuntimeFont,
             "Close",
             Close,
             new Color(0.2f, 0.27f, 0.36f, 0.98f),
@@ -253,12 +249,23 @@ public class LootContainerWindowController : MonoBehaviour
             38f);
         closeButton.GetComponent<LayoutElement>().preferredWidth = 140f;
 
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
+        PrototypeUiToolkit.SetVisible(chrome.Root, false);
+    }
+
+    protected override void OnWindowRootDestroyed()
+    {
+        summaryText = null;
+        lootScrollRect = null;
+        lootContentRoot = null;
+        backpackScrollRect = null;
+        backpackContentRoot = null;
+        gearScrollRect = null;
+        gearContentRoot = null;
     }
 
     private void RefreshWindowIfNeeded()
     {
-        EnsureWindowUi();
+        EnsureWindow();
         UpdateWindowVisibility();
         if (!IsOpen || interactor == null || openContainer == null || raidEquipmentController == null)
         {
@@ -644,8 +651,8 @@ public class LootContainerWindowController : MonoBehaviour
 
     private void UpdateWindowVisibility()
     {
-        EnsureWindowUi();
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, IsOpen && !IsPlayerDead());
+        EnsureWindow();
+        SetWindowVisible(IsOpen && !IsPlayerDead());
     }
 
     private void MarkDirty()
@@ -739,11 +746,4 @@ public class LootContainerWindowController : MonoBehaviour
         Cursor.visible = keepCursorFree;
     }
 
-    private void OnDestroy()
-    {
-        if (windowChrome?.Root != null)
-        {
-            Destroy(windowChrome.Root.gameObject);
-        }
-    }
 }

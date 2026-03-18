@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PrototypeFpsInput))]
-public class PlayerInventoryWindowController : MonoBehaviour
+public class PlayerInventoryWindowController : WindowBase
 {
     [SerializeField] private PlayerInteractor interactor;
     [SerializeField] private PrototypeFpsInput fpsInput;
@@ -17,19 +17,24 @@ public class PlayerInventoryWindowController : MonoBehaviour
     private bool resetBackpackScroll = true;
     private bool resetGearScroll = true;
     private int lastContentHash;
-    private PrototypeUiToolkit.WindowChrome windowChrome;
     private Text summaryText;
     private ScrollRect backpackScrollRect;
     private RectTransform backpackContentRoot;
     private ScrollRect gearScrollRect;
     private RectTransform gearContentRoot;
+    private PrototypeUiToolkit.WindowChrome windowChrome => Chrome;
 
     public bool IsOpen => isOpen;
+    protected override bool VisibleOnAwake => false;
+    protected override string WindowName => "PlayerInventoryWindow";
+    protected override string WindowTitle => "Raid Inventory";
+    protected override string WindowSubtitle => "Drag items between your backpack, equipped slots, special equipment, and the secure container.";
+    protected override Vector2 WindowSize => new Vector2(1280f, 720f);
 
-    private void Awake()
+    protected override void Awake()
     {
         ResolveReferences();
-        EnsureWindowUi();
+        base.Awake();
     }
 
     private void OnEnable()
@@ -152,23 +157,14 @@ public class PlayerInventoryWindowController : MonoBehaviour
         UpdateWindowVisibility();
     }
 
-    private void EnsureWindowUi()
+    protected override void BuildWindow(PrototypeUiToolkit.WindowChrome chrome)
     {
-        if (windowChrome?.Root != null)
+        if (chrome == null || chrome.Root == null)
         {
             return;
         }
 
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        windowChrome = PrototypeUiToolkit.CreateWindowChrome(
-            manager.GetLayerRoot(PrototypeUiLayer.Window),
-            manager.RuntimeFont,
-            "PlayerInventoryWindow",
-            "Raid Inventory",
-            "Drag items between your backpack, equipped slots, special equipment, and the secure container.",
-            new Vector2(1280f, 720f));
-
-        VerticalLayoutGroup bodyLayout = windowChrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        VerticalLayoutGroup bodyLayout = chrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
         bodyLayout.spacing = 14f;
         bodyLayout.padding = new RectOffset(0, 0, 0, 0);
         bodyLayout.childAlignment = TextAnchor.UpperLeft;
@@ -178,8 +174,8 @@ public class PlayerInventoryWindowController : MonoBehaviour
         bodyLayout.childForceExpandHeight = false;
 
         summaryText = PrototypeUiToolkit.CreateText(
-            windowChrome.BodyRoot,
-            manager.RuntimeFont,
+            chrome.BodyRoot,
+            RuntimeFont,
             string.Empty,
             14,
             FontStyle.Normal,
@@ -187,7 +183,7 @@ public class PlayerInventoryWindowController : MonoBehaviour
             TextAnchor.UpperLeft);
         summaryText.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
-        RectTransform contentRow = PrototypeUiToolkit.CreateRectTransform("ContentRow", windowChrome.BodyRoot);
+        RectTransform contentRow = PrototypeUiToolkit.CreateRectTransform("ContentRow", chrome.BodyRoot);
         HorizontalLayoutGroup contentLayout = contentRow.gameObject.AddComponent<HorizontalLayoutGroup>();
         contentLayout.spacing = 16f;
         contentLayout.padding = new RectOffset(0, 0, 0, 0);
@@ -212,8 +208,8 @@ public class PlayerInventoryWindowController : MonoBehaviour
         PrototypeUiToolkit.SetStretch(gearScrollRect.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
 
         Button closeButton = PrototypeUiToolkit.CreateButton(
-            windowChrome.FooterRoot,
-            manager.RuntimeFont,
+            chrome.FooterRoot,
+            RuntimeFont,
             "Close",
             Close,
             new Color(0.2f, 0.27f, 0.36f, 0.98f),
@@ -224,12 +220,21 @@ public class PlayerInventoryWindowController : MonoBehaviour
         closeLayout.preferredWidth = 150f;
         closeLayout.flexibleWidth = 0f;
 
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, false);
+        PrototypeUiToolkit.SetVisible(chrome.Root, false);
+    }
+
+    protected override void OnWindowRootDestroyed()
+    {
+        summaryText = null;
+        backpackScrollRect = null;
+        backpackContentRoot = null;
+        gearScrollRect = null;
+        gearContentRoot = null;
     }
 
     private void RefreshWindowIfNeeded()
     {
-        EnsureWindowUi();
+        EnsureWindow();
         UpdateWindowVisibility();
         if (!IsOpen || interactor == null || raidEquipmentController == null)
         {
@@ -508,8 +513,8 @@ public class PlayerInventoryWindowController : MonoBehaviour
 
     private void UpdateWindowVisibility()
     {
-        EnsureWindowUi();
-        PrototypeUiToolkit.SetVisible(windowChrome.Root, IsOpen && !IsPlayerDead());
+        EnsureWindow();
+        SetWindowVisible(IsOpen && !IsPlayerDead());
     }
 
     private void MarkDirty()
@@ -603,11 +608,4 @@ public class PlayerInventoryWindowController : MonoBehaviour
         Cursor.visible = keepCursorFree;
     }
 
-    private void OnDestroy()
-    {
-        if (windowChrome?.Root != null)
-        {
-            Destroy(windowChrome.Root.gameObject);
-        }
-    }
 }
