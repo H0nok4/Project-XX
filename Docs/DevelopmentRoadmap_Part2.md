@@ -1,12 +1,16 @@
 #### 2.3 商人等级系统
 **优先级**：高
 **预计时间**：3-5天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 实现商人等级数据结构
 - 实现通过交易额提升商人等级
 - 实现商人等级影响商品品质
 - 更新UI显示商人等级和进度
+- 已落地 `MerchantData + MerchantManager`，交易额会写回 Profile 并驱动商人库存等级
+- 商人运行时库存由 `PrototypeMerchantCatalog` 按商人等级重建，等级提升后会刷新装备品质池
+- 商人面板已显示等级、交易进度、起始等级和当前库存等级
 
 **技术要点**
 ```csharp
@@ -42,24 +46,32 @@ public class MerchantData
 - 商人等级、信誉、解锁状态、库存刷新的职责边界以 [MerchantProgressionMatrix.md](./MerchantProgressionMatrix.md) 为准
 
 **验收标准**
-- [ ] 商人有等级显示
-- [ ] 交易可以提升商人等级
-- [ ] 商人等级影响商品品质
-- [ ] UI显示升级进度
+- [x] 商人有等级显示
+- [x] 交易可以提升商人等级
+- [x] 商人等级影响商品品质
+- [x] UI显示升级进度
 
 **相关文件**
 - 新增：`MerchantData.cs`, `MerchantManager.cs`
 - `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMerchantCatalog.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/MetaMerchantPresenter.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
 
 #### 2.4 商人信誉系统
 **优先级**：中
 **预计时间**：3-5天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 实现信誉等级（中立、友好、尊敬、崇拜）
 - 实现完成商人任务提升信誉
 - 实现信誉影响价格折扣
 - 更新UI显示信誉状态
+- 已为四位基地商人接入重复委托交付，交付指定物资即可累计信誉点
+- 商人信誉只改价格倍率，不改库存 tier；信誉提升后会直接重算当前商店价格
+- 商人面板已显示信誉等级、信誉进度和当前折扣
 
 **技术要点**
 ```csharp
@@ -98,24 +110,32 @@ public class MerchantData
 - 商人信誉只负责价格和部分权限，不负责决定商人是否出现或库存池 tier，具体以 [MerchantProgressionMatrix.md](./MerchantProgressionMatrix.md) 为准
 
 **验收标准**
-- [ ] 商人有信誉等级显示
-- [ ] 完成任务可以提升信誉
-- [ ] 信誉影响购买价格
-- [ ] UI显示信誉进度
+- [x] 商人有信誉等级显示
+- [x] 完成任务可以提升信誉
+- [x] 信誉影响购买价格
+- [x] UI显示信誉进度
 
 **相关文件**
 - `MerchantData.cs`
 - 新增：`ReputationLevel.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMerchantCatalog.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
 
 #### 2.5 基地设施系统（基础）
 **优先级**：中
 **预计时间**：5-7天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 创建设施数据结构
 - 实现仓库、武器库、医疗站、工作台
 - 实现设施等级系统
 - 实现设施升级功能
+- 已新增 `BaseFacilityManager`，统一管理仓库、武器库、医疗站、工作台四类设施
+- 仓库升级会提升仓库格数，武器库升级会提升武器柜容量
+- 医疗站会在基地重生返场时自动补给恢复物资，工作台会提高出售收益
+- 基地主页已显示设施等级、效果说明和升级入口
 
 **技术要点**
 ```csharp
@@ -162,23 +182,31 @@ public class BaseFacilityManager : MonoBehaviour
 ```
 
 **验收标准**
-- [ ] 基地有设施系统
-- [ ] 可以升级设施
-- [ ] 设施等级影响功能
-- [ ] UI显示设施状态
+- [x] 基地有设施系统
+- [x] 可以升级设施
+- [x] 设施等级影响功能
+- [x] UI显示设施状态
 
 **相关文件**
 - 新增：`FacilityType.cs`, `FacilityData.cs`, `BaseFacilityManager.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
+- `Assets/Res/Scripts/Base/BaseHubDirector.cs`
+- `Assets/Res/Scripts/Base/Editor/BaseHubSceneBuilder.cs`
 
 #### 2.6 局外入口迁移与兼容层
 **优先级**：高
 **预计时间**：5-7天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 明确 `MainMenu` 与 `BaseScene` 的最终职责边界，避免正式局外功能长期双维护
 - 为原型入口增加兼容层，保证旧调试流程和新正式流程可以并存一段时间
 - 让 `MainMenu` 逐步退化为启动壳、调试入口与跳转页，而不是继续承载正式商店、成长、任务等业务
 - 为后续基地正式化预留统一入口路由、返回逻辑与快速调试通道
+- `BaseScene` 已成为正式局外入口，保留完整仓库 / 商人 / 设施能力
+- `MainMenu` 已切换为 `DebugShell` 模式，只保留启动、跳转与调试入口
+- 两个场景均通过 scene builder 固化职责边界，避免手工布线再次回流
 
 **技术要点**
 - 新增 `MetaEntryRouter`，统一处理从启动到基地、从基地到战斗、从结算回基地的入口流转
@@ -187,16 +215,18 @@ public class BaseFacilityManager : MonoBehaviour
 - 入口流转、Profile读写、世界状态切换规则遵循 [StateOwnershipAndPersistenceRules.md](./StateOwnershipAndPersistenceRules.md)
 
 **验收标准**
-- [ ] `MainMenu` 与 `BaseScene` 的职责边界清晰并已文档化
-- [ ] 正式局外流程可从 `BaseScene` 进入，不依赖旧主菜单业务面板
-- [ ] 调试入口仍可快速进入基地、战斗、测试流程
-- [ ] 不再出现同一套局外功能在两个入口各维护一份
+- [x] `MainMenu` 与 `BaseScene` 的职责边界清晰并已文档化
+- [x] 正式局外流程可从 `BaseScene` 进入，不依赖旧主菜单业务面板
+- [x] 调试入口仍可快速进入基地、战斗、测试流程
+- [x] 不再出现同一套局外功能在两个入口各维护一份
 
 **相关文件**
 - `Assets/Scenes/MainMenu.unity`
 - `Assets/Scenes/BaseScene.unity`
 - `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
 - 新增：`MetaEntryRouter.cs`, `BaseHubDirector.cs`
+- `Assets/Res/Scripts/UI/Editor/PrototypeMainMenuSceneBuilder.cs`
+- `Assets/Res/Scripts/Base/Editor/BaseHubSceneBuilder.cs`
 
 ---
 

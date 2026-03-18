@@ -565,7 +565,12 @@ public sealed class MetaInventoryPresenter
                     continue;
                 }
 
-                host.WeaponLocker.Add(weaponInstance);
+                if (!host.TryAddWeaponToLocker(weaponInstance, $"武器柜容量不足，无法存放 {weaponInstance.DisplayName}。"))
+                {
+                    host.RaidBackpackInventory.TryAddItemInstance(extractedItem);
+                    continue;
+                }
+
                 movedAnything = true;
                 movedToStorage = true;
                 continue;
@@ -618,7 +623,12 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.WeaponLocker.Add(weaponInstance);
+        if (!host.TryAddWeaponToLocker(weaponInstance, $"武器柜容量不足，无法存放 {weaponInstance.DisplayName}。"))
+        {
+            source.TryAddItemInstance(extractedItem);
+            return;
+        }
+
         host.SetFeedback($"已将 {weaponInstance.DisplayName} 存入武器柜。");
         host.AutoSaveIfNeeded();
     }
@@ -693,7 +703,11 @@ public sealed class MetaInventoryPresenter
         ItemInstance replacedWeapon = GetEquippedWeapon(slotType);
         if (replacedWeapon != null)
         {
-            host.WeaponLocker.Add(replacedWeapon);
+            if (!host.TryAddWeaponToLocker(replacedWeapon, "武器柜容量不足，无法放入被替换的武器。"))
+            {
+                host.WeaponLocker.Insert(Mathf.Clamp(lockerIndex, 0, host.WeaponLocker.Count), weaponInstance);
+                return;
+            }
         }
 
         SetEquippedWeapon(slotType, weaponInstance);
@@ -709,7 +723,11 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        host.WeaponLocker.Add(weaponInstance);
+        if (!host.TryAddWeaponToLocker(weaponInstance, $"武器柜容量不足，无法存放 {weaponInstance.DisplayName}。"))
+        {
+            return;
+        }
+
         SetEquippedWeapon(slotType, null);
         host.SetFeedback($"已将 {weaponInstance.DisplayName} 存入武器柜。");
         host.AutoSaveIfNeeded();
@@ -794,7 +812,7 @@ public sealed class MetaInventoryPresenter
             return;
         }
 
-        int sellPrice = merchantCatalog.GetSellPrice(item.CloneWithQuantity(quantity));
+        int sellPrice = host.GetSellPrice(item.CloneWithQuantity(quantity));
         if (sellPrice <= 0)
         {
             return;
@@ -813,6 +831,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.SetFeedback($"{successPrefix}：{extractedItem.DisplayName} x{extractedItem.Quantity}，获得 {sellPrice}。");
+        host.RecordFocusedMerchantTrade(sellPrice);
         host.AutoSaveIfNeeded();
     }
 
@@ -826,7 +845,7 @@ public sealed class MetaInventoryPresenter
 
         ItemInstance weaponInstance = host.WeaponLocker[lockerIndex];
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
+        int sellPrice = host.GetSellPrice(weaponInstance);
         if (weaponDefinition == null || sellPrice <= 0)
         {
             return;
@@ -841,6 +860,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.SetFeedback($"已出售 {weaponDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
+        host.RecordFocusedMerchantTrade(sellPrice);
         host.AutoSaveIfNeeded();
     }
 
@@ -854,7 +874,7 @@ public sealed class MetaInventoryPresenter
 
         ItemInstance weaponInstance = GetEquippedWeapon(slotType);
         PrototypeWeaponDefinition weaponDefinition = weaponInstance != null ? weaponInstance.WeaponDefinition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(weaponInstance);
+        int sellPrice = host.GetSellPrice(weaponInstance);
         if (weaponDefinition == null || sellPrice <= 0)
         {
             return;
@@ -869,6 +889,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.SetFeedback($"已出售 {weaponDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
+        host.RecordFocusedMerchantTrade(sellPrice);
         host.AutoSaveIfNeeded();
     }
 
@@ -882,7 +903,7 @@ public sealed class MetaInventoryPresenter
 
         ArmorInstance armorInstance = host.EquippedArmor[armorIndex];
         ArmorDefinition armorDefinition = armorInstance != null ? armorInstance.Definition : null;
-        int sellPrice = merchantCatalog.GetSellPrice(ItemInstance.Create(armorInstance));
+        int sellPrice = host.GetSellPrice(ItemInstance.Create(armorInstance));
         if (armorDefinition == null || sellPrice <= 0)
         {
             return;
@@ -897,6 +918,7 @@ public sealed class MetaInventoryPresenter
         }
 
         host.SetFeedback($"已出售 {armorDefinition.DisplayNameWithLevel}，获得 {sellPrice}。");
+        host.RecordFocusedMerchantTrade(sellPrice);
         host.AutoSaveIfNeeded();
     }
 }

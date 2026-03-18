@@ -162,10 +162,12 @@ public static class BaseHubSceneBuilder
         GameObject systems = new GameObject("BaseHubSystems");
         BaseHubDirector director = systems.AddComponent<BaseHubDirector>();
         MerchantUIManager merchantUiManager = systems.AddComponent<MerchantUIManager>();
+        BaseFacilityManager facilityManager = systems.AddComponent<BaseFacilityManager>();
         SetSerializedReference(director, "fpsController", fpsController);
         SetSerializedReference(director, "fpsInput", fpsInput);
         SetSerializedReference(director, "interactionState", interactionState);
         SetSerializedReference(director, "menuController", menuController);
+        SetSerializedReference(director, "facilityManager", facilityManager);
         SetSerializedReference(director, "departureArrivalPoint", departureArrivalPoint);
         SetSerializedReference(director, "respawnArrivalPoint", respawnArrivalPoint);
         SetSerializedString(director, "hubTitle", "幸存者基地");
@@ -173,6 +175,9 @@ public static class BaseHubSceneBuilder
         SetSerializedString(director, "navigationLegend", "← 商人区  ·  ↑ 准备区  ·  → 仓库区  ·  ↓ 任务区");
         SetSerializedReference(merchantUiManager, "director", director);
         SetSerializedReference(merchantUiManager, "menuController", menuController);
+        SetSerializedReference(facilityManager, "menuController", menuController);
+        SetSerializedReference(facilityManager, "director", director);
+        SetSerializedReference(facilityManager, "itemCatalog", itemCatalog);
 
         CreateMerchantLayout(merchantRoot, gameplayRoot, wallMaterial, accentMaterial, merchantMaterial, signMaterial, merchantUiManager);
 
@@ -277,6 +282,7 @@ public static class BaseHubSceneBuilder
         serializedObject.FindProperty("itemCatalog").objectReferenceValue = itemCatalog;
         serializedObject.FindProperty("uiVisible").boolValue = false;
         serializedObject.FindProperty("allowBaseHubEntryButton").boolValue = false;
+        serializedObject.FindProperty("shellMode").intValue = (int)PrototypeMainMenuController.MetaShellMode.FullBaseHub;
         serializedObject.FindProperty("raidSceneName").stringValue = "SampleScene";
         serializedObject.FindProperty("selectedRaidSceneIndex").intValue = 0;
 

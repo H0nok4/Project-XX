@@ -30,12 +30,13 @@ public class PrototypeMerchantCatalog : ScriptableObject
     [Serializable]
     public sealed class RuntimeOffer
     {
+        public string merchantId = string.Empty;
         public string offerId = string.Empty;
         public ItemInstance itemInstance;
         [Min(1)]
         public int price = 1;
 
-        public bool IsValid => itemInstance != null && itemInstance.IsDefined() && price > 0;
+        public bool IsValid => !string.IsNullOrWhiteSpace(merchantId) && itemInstance != null && itemInstance.IsDefined() && price > 0;
     }
 
     public readonly struct MerchantOfferView
@@ -46,6 +47,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
         }
 
         public RuntimeOffer RuntimeOffer { get; }
+        public string MerchantId => RuntimeOffer != null ? RuntimeOffer.merchantId : string.Empty;
         public ItemInstance ItemInstance => RuntimeOffer != null ? RuntimeOffer.itemInstance : null;
         public string OfferId => RuntimeOffer != null ? RuntimeOffer.offerId : string.Empty;
         public ItemDefinitionBase DefinitionBase => ItemInstance != null ? ItemInstance.DefinitionBase : null;
@@ -187,7 +189,9 @@ public class PrototypeMerchantCatalog : ScriptableObject
         runtimeInventoriesDirty = true;
     }
 
-    public void EnsureRuntimeInventories()
+    public void EnsureRuntimeInventories(
+        Func<MerchantDefinition, int> levelResolver = null,
+        Func<MerchantDefinition, float> priceMultiplierResolver = null)
     {
         EnsureSanitized();
         if (merchants == null)
@@ -203,10 +207,15 @@ public class PrototypeMerchantCatalog : ScriptableObject
                 continue;
             }
 
+            int effectiveLevel = levelResolver != null ? Mathf.Clamp(levelResolver(merchant), 1, 5) : merchant.MerchantLevel;
+            float priceMultiplier = priceMultiplierResolver != null ? Mathf.Max(0.01f, priceMultiplierResolver(merchant)) : 1f;
             if (runtimeInventoriesDirty || !merchant.HasRuntimeOffers)
             {
-                RegenerateMerchantInventory(merchant);
+                RegenerateMerchantInventory(merchant, effectiveLevel, priceMultiplier);
+                continue;
             }
+
+            RepriceMerchantInventory(merchant, priceMultiplier);
         }
 
         runtimeInventoriesDirty = false;
@@ -252,7 +261,9 @@ public class PrototypeMerchantCatalog : ScriptableObject
         return -1;
     }
 
-    public void RegenerateRuntimeInventories()
+    public void RegenerateRuntimeInventories(
+        Func<MerchantDefinition, int> levelResolver = null,
+        Func<MerchantDefinition, float> priceMultiplierResolver = null)
     {
         EnsureSanitized();
         if (merchants == null)
@@ -265,14 +276,42 @@ public class PrototypeMerchantCatalog : ScriptableObject
             MerchantDefinition merchant = merchants[index];
             if (merchant != null)
             {
-                RegenerateMerchantInventory(merchant);
+                int effectiveLevel = levelResolver != null ? Mathf.Clamp(levelResolver(merchant), 1, 5) : merchant.MerchantLevel;
+                float priceMultiplier = priceMultiplierResolver != null ? Mathf.Max(0.01f, priceMultiplierResolver(merchant)) : 1f;
+                RegenerateMerchantInventory(merchant, effectiveLevel, priceMultiplier);
             }
         }
 
         runtimeInventoriesDirty = false;
     }
 
+    public void RepriceRuntimeInventories(Func<MerchantDefinition, float> priceMultiplierResolver = null)
+    {
+        EnsureSanitized();
+        if (merchants == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < merchants.Count; index++)
+        {
+            MerchantDefinition merchant = merchants[index];
+            if (merchant == null || !merchant.HasRuntimeOffers)
+            {
+                continue;
+            }
+
+            float priceMultiplier = priceMultiplierResolver != null ? Mathf.Max(0.01f, priceMultiplierResolver(merchant)) : 1f;
+            RepriceMerchantInventory(merchant, priceMultiplier);
+        }
+    }
+
     public void RegenerateMerchantInventory(MerchantDefinition merchant)
+    {
+        RegenerateMerchantInventory(merchant, merchant != null ? merchant.MerchantLevel : 1, 1f);
+    }
+
+    public void RegenerateMerchantInventory(MerchantDefinition merchant, int merchantLevel, float priceMultiplier = 1f)
     {
         if (merchant == null)
         {
@@ -282,6 +321,8 @@ public class PrototypeMerchantCatalog : ScriptableObject
         merchant.Sanitize();
         var runtimeOffers = new List<RuntimeOffer>();
         int nextOfferIndex = 0;
+        int effectiveLevel = Mathf.Clamp(merchantLevel, 1, 5);
+        float effectivePriceMultiplier = Mathf.Max(0.01f, priceMultiplier);
 
         if (merchant.weaponOffers != null)
         {
@@ -293,7 +334,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
                     continue;
                 }
 
-                RuntimeOffer runtimeOffer = CreateRuntimeOffer(merchant, offer.definition, 1, offer.price, nextOfferIndex++);
+                RuntimeOffer runtimeOffer = CreateRuntimeOffer(merchant, offer.definition, 1, offer.price, nextOfferIndex++, effectiveLevel, effectivePriceMultiplier);
                 if (runtimeOffer != null && runtimeOffer.IsValid)
                 {
                     runtimeOffers.Add(runtimeOffer);
@@ -312,7 +353,7 @@ public class PrototypeMerchantCatalog : ScriptableObject
                 }
 
                 int quantity = offer.definition is ArmorDefinition ? 1 : Mathf.Max(1, offer.quantity);
-                RuntimeOffer runtimeOffer = CreateRuntimeOffer(merchant, offer.definition, quantity, offer.price, nextOfferIndex++);
+                RuntimeOffer runtimeOffer = CreateRuntimeOffer(merchant, offer.definition, quantity, offer.price, nextOfferIndex++, effectiveLevel, effectivePriceMultiplier);
                 if (runtimeOffer != null && runtimeOffer.IsValid)
                 {
                     runtimeOffers.Add(runtimeOffer);
@@ -447,21 +488,50 @@ public class PrototypeMerchantCatalog : ScriptableObject
         ItemDefinitionBase definition,
         int quantity,
         int basePrice,
-        int offerIndex)
+        int offerIndex,
+        int merchantLevel,
+        float priceMultiplier)
     {
-        ItemInstance templateInstance = CreateMerchantItemInstance(definition, quantity, merchant != null ? merchant.MerchantLevel : 1);
+        ItemInstance templateInstance = CreateMerchantItemInstance(definition, quantity, merchantLevel);
         if (templateInstance == null || !templateInstance.IsDefined())
         {
             return null;
         }
 
         string offerSuffix = definition != null ? definition.ItemId : $"offer_{offerIndex + 1}";
+        int runtimePrice = Mathf.Max(
+            1,
+            Mathf.RoundToInt(CalculateInstancePriceRaw(templateInstance, Mathf.Max(1f, basePrice)) * Mathf.Max(0.01f, priceMultiplier)));
         return new RuntimeOffer
         {
+            merchantId = merchant != null ? merchant.MerchantId : string.Empty,
             offerId = $"{merchant?.MerchantId ?? "merchant"}_{offerSuffix}_{offerIndex + 1}",
             itemInstance = templateInstance,
-            price = Mathf.Max(1, Mathf.RoundToInt(CalculateInstancePriceRaw(templateInstance, Mathf.Max(1f, basePrice))))
+            price = runtimePrice
         };
+    }
+
+    private void RepriceMerchantInventory(MerchantDefinition merchant, float priceMultiplier)
+    {
+        if (merchant == null || merchant.RuntimeOffers == null)
+        {
+            return;
+        }
+
+        float effectivePriceMultiplier = Mathf.Max(0.01f, priceMultiplier);
+        for (int index = 0; index < merchant.RuntimeOffers.Count; index++)
+        {
+            RuntimeOffer runtimeOffer = merchant.RuntimeOffers[index];
+            if (runtimeOffer == null || runtimeOffer.itemInstance == null || !runtimeOffer.itemInstance.IsDefined())
+            {
+                continue;
+            }
+
+            runtimeOffer.merchantId = merchant.MerchantId;
+            runtimeOffer.price = Mathf.Max(
+                1,
+                Mathf.RoundToInt(GetBuyPrice(runtimeOffer.itemInstance) * effectivePriceMultiplier));
+        }
     }
 
     private static ItemInstance CreateMerchantItemInstance(ItemDefinitionBase definition, int quantity, int merchantLevel)

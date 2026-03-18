@@ -75,10 +75,30 @@ public sealed class MetaMerchantPresenter
         }
 
         string subtitle = host.IsMerchantFocused(merchant.MerchantId)
-            ? $"当前交互  ·  等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}"
-            : $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}";
+            ? host.BuildMerchantPanelSubtitle(merchant, true)
+            : host.BuildMerchantPanelSubtitle(merchant, false);
         host.BeginPanel(rect, merchant.DisplayName, accent, subtitle);
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(rect.height - 130f));
+
+        string progressDetail = host.BuildMerchantProgressDetail(merchant);
+        if (!string.IsNullOrWhiteSpace(progressDetail))
+        {
+            GUILayout.Label(progressDetail, host.BodyStyle);
+            GUILayout.Space(8f);
+        }
+
+        string supplyRequestDetail = host.BuildMerchantSupplyRequestText(merchant.MerchantId);
+        if (!string.IsNullOrWhiteSpace(supplyRequestDetail))
+        {
+            GUILayout.Label(supplyRequestDetail, host.BodyStyle);
+            if (GUILayout.Button("交付委托", host.ButtonStyle, GUILayout.Width(112f)))
+            {
+                host.TryCompleteMerchantSupplyRequest(merchant.MerchantId);
+                GUIUtility.ExitGUI();
+            }
+
+            GUILayout.Space(10f);
+        }
 
         bool drewAnyOffer = false;
         foreach (PrototypeMerchantCatalog.MerchantOfferView offer in merchant.EnumerateOffers())
@@ -192,8 +212,7 @@ public sealed class MetaMerchantPresenter
         bool addedSuccessfully;
         if (purchasedItem.IsWeapon)
         {
-            host.WeaponLocker.Add(purchasedItem);
-            addedSuccessfully = true;
+            addedSuccessfully = host.TryAddWeaponToLocker(purchasedItem, $"武器柜容量不足，无法存放 {purchasedItem.DisplayName}。");
         }
         else
         {
@@ -211,6 +230,7 @@ public sealed class MetaMerchantPresenter
             ? $"{purchasedItem.DisplayName} x{purchasedItem.Quantity}"
             : purchasedItem.DisplayName;
         host.SetFeedback($"已购买 {purchasedLabel}。");
+        host.RecordMerchantTrade(offer.MerchantId, offer.Price);
         host.AutoSaveIfNeeded();
     }
 

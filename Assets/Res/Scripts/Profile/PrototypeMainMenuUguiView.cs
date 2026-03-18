@@ -441,9 +441,26 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
 
     private void UpdateNavigationState()
     {
+        if (warehouseButton != null)
+        {
+            warehouseButton.gameObject.SetActive(host.SupportsWarehousePage);
+        }
+
+        if (merchantButton != null)
+        {
+            merchantButton.gameObject.SetActive(host.SupportsMerchantDirectory);
+        }
+
         ApplyNavigationButtonState(homeButton, host.CurrentPage == PrototypeMainMenuController.MenuPage.Home);
-        ApplyNavigationButtonState(warehouseButton, host.CurrentPage == PrototypeMainMenuController.MenuPage.Warehouse);
-        ApplyNavigationButtonState(merchantButton, host.CurrentPage == PrototypeMainMenuController.MenuPage.Merchants);
+        if (host.SupportsWarehousePage)
+        {
+            ApplyNavigationButtonState(warehouseButton, host.CurrentPage == PrototypeMainMenuController.MenuPage.Warehouse);
+        }
+
+        if (host.SupportsMerchantDirectory)
+        {
+            ApplyNavigationButtonState(merchantButton, host.CurrentPage == PrototypeMainMenuController.MenuPage.Merchants);
+        }
     }
 
     private void RebuildCurrentPage()
@@ -483,10 +500,12 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         contentLayout.spacing = 16f;
 
         RectTransform introCard = CreateCard(scrollContent, false, 0f);
-        CreateSectionTitle(introCard, "战备室");
+        CreateSectionTitle(introCard, host.IsDebugShellMode ? "启动壳" : "战备室");
         CreateBodyText(
             introCard,
-            "仓库物品和武器柜中的武器是安全的。战局背包、已装备枪械和护甲存在丢失风险。近战槽、安全箱和特殊装备槽属于保护栏位，角色在战斗中死亡后仍会保留。");
+            host.IsDebugShellMode
+                ? "当前 MainMenu 只保留启动、跳转和调试职责。正式局外整备、商人、仓库与设施升级已经迁移到 BaseScene。"
+                : "仓库物品和武器柜中的武器是安全的。战局背包、已装备枪械和护甲存在丢失风险。近战槽、安全箱和特殊装备槽属于保护栏位，角色在战斗中死亡后仍会保留。");
 
         RectTransform mapCard = CreateCard(scrollContent, false, 0f);
         CreateSectionTitle(mapCard, "出击地图");
@@ -529,10 +548,18 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         CreateSectionTitle(actionCard, "行动");
         List<ButtonSpec> actions = new List<ButtonSpec>
         {
-            new ButtonSpec("进入战斗", host.StartRaid),
-            new ButtonSpec("打开仓库", () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse),
-            new ButtonSpec("拜访商人", host.ShowMerchantDirectory)
+            new ButtonSpec("进入战斗", host.StartRaid)
         };
+
+        if (host.SupportsWarehousePage)
+        {
+            actions.Add(new ButtonSpec("打开仓库", () => host.CurrentPage = PrototypeMainMenuController.MenuPage.Warehouse));
+        }
+
+        if (host.SupportsMerchantDirectory)
+        {
+            actions.Add(new ButtonSpec("拜访商人", host.ShowMerchantDirectory));
+        }
 
         if (host.ShouldShowBaseHubEntry())
         {
@@ -540,6 +567,33 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         }
 
         CreateButtonRows(actionCard, actions, 2, 44f);
+
+        if (host.HasFacilityManager)
+        {
+            RectTransform facilityCard = CreateCard(scrollContent, false, 0f);
+            CreateSectionTitle(facilityCard, "基地设施");
+
+            IReadOnlyList<FacilityData> facilities = host.GetFacilities();
+            for (int index = 0; index < facilities.Count; index++)
+            {
+                FacilityData facility = facilities[index];
+                if (facility == null)
+                {
+                    continue;
+                }
+
+                RectTransform entryCard = CreateCard(facilityCard, false, 0f);
+                CreateSectionTitle(entryCard, host.GetFacilityDisplayName(facility.type), 18);
+                CreateBodyText(entryCard, host.BuildFacilityDetail(facility));
+                if (facility.CanUpgrade())
+                {
+                    CreateButtonRows(entryCard, new List<ButtonSpec>
+                    {
+                        new ButtonSpec("升级设施", () => host.TryUpgradeFacility(facility.type))
+                    }, 1, 34f);
+                }
+            }
+        }
     }
 
     private void BuildWarehousePage(RectTransform pageRoot)
@@ -577,7 +631,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         PanelRefs lockerPanel = CreateScrollablePanel(
             columns,
             "武器柜",
-            $"已存武器 {host.WeaponLocker.Count}",
+            $"已存武器 {host.WeaponLocker.Count}/{host.GetWeaponLockerCapacity()}",
             host.LockerColor);
         BuildLockerPanelContent(lockerPanel.content);
 
@@ -627,10 +681,30 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             PanelRefs panel = CreateScrollablePanel(
                 columns,
                 merchant.DisplayName,
-                isFocusedMerchant
-                    ? $"当前交互  ·  等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}"
-                    : $"等级 {merchant.MerchantLevel}  资金 {host.GetAvailableFunds()} {host.GetCurrencyLabel()}",
+                host.BuildMerchantPanelSubtitle(merchant, isFocusedMerchant),
                 accent);
+
+            string progressDetail = host.BuildMerchantProgressDetail(merchant);
+            if (!string.IsNullOrWhiteSpace(progressDetail))
+            {
+                CreateBodyText(panel.content, progressDetail, 14, FontStyle.Normal, new Color(0.86f, 0.9f, 0.95f));
+            }
+
+            string supplyRequestText = host.BuildMerchantSupplyRequestText(merchant.MerchantId);
+            if (!string.IsNullOrWhiteSpace(supplyRequestText))
+            {
+                RectTransform commissionCard = CreateCard(panel.content, false, 0f);
+                CreateSectionTitle(commissionCard, "商人委托", 18);
+                CreateBodyText(commissionCard, supplyRequestText, 14, FontStyle.Normal, new Color(0.86f, 0.9f, 0.95f));
+                CreateButtonRows(commissionCard, new List<ButtonSpec>
+                {
+                    new ButtonSpec("交付委托", () =>
+                    {
+                        host.TryCompleteMerchantSupplyRequest(merchant.MerchantId);
+                        RequestRefresh();
+                    })
+                }, 1, 34f);
+            }
 
             bool drewOffer = false;
             foreach (PrototypeMerchantCatalog.MerchantOfferView offer in merchant.EnumerateOffers())

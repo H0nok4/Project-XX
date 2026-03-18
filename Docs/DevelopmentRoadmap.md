@@ -646,3 +646,33 @@ public enum MerchantType
 - `Assets/Res/Scripts/Interaction/IInteractable.cs`
 - `Assets/Res/Scripts/Interaction/PlayerInteractor.cs`
 
+#### 2.3-2.6 第二部分完成情况
+**当前状态**：已完成（2026-03-18）
+
+- [x] 商人等级系统：交易额已写回 `MerchantData`，等级会驱动运行时库存品质，并在商人页显示等级与交易进度
+- [x] 商人信誉系统：已接入重复委托交付，信誉可提升至友好 / 尊敬 / 崇敬，并实时影响商店价格
+- [x] 基地设施系统：仓库、武器库、医疗站、工作台已接入 `BaseFacilityManager`，支持升级与效果生效
+- [x] 局外入口迁移：`BaseScene` 已作为正式局外入口，`MainMenu` 已切换为 `DebugShell` 启动 / 调试壳
+
+**验证记录**
+- 在 `BaseScene` 运行态完成了商人购买、委托交付、设施升级验证
+- 武器商人交易额从 `0` 增长到 `94`，随后补足交易额后可升至 `Lv.5`
+- 武器商人信誉在重复交付后达到 `Friendly`，同一商品价格从 `94` 降至 `89`
+- 武器库升级后容量从 `6` 提升到 `8`，仓库升级后仓库格数提升到 `40`
+- 工作台升级后示例武器出售收益从 `43` 提升到 `47`
+- `MainMenu` 运行态下仓库 / 商人导航按钮已隐藏，但仍保留进入基地与战斗的调试入口
+
+**相关文件**
+- `Assets/Res/Scripts/Profile/MerchantData.cs`
+- `Assets/Res/Scripts/Profile/MerchantManager.cs`
+- `Assets/Res/Scripts/Profile/ReputationLevel.cs`
+- `Assets/Res/Scripts/Base/FacilityType.cs`
+- `Assets/Res/Scripts/Base/FacilityData.cs`
+- `Assets/Res/Scripts/Base/BaseFacilityManager.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMerchantCatalog.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
+- `Assets/Res/Scripts/UI/Editor/PrototypeMainMenuSceneBuilder.cs`
+- `Assets/Res/Scripts/Base/Editor/BaseHubSceneBuilder.cs`
+- 详细阶段说明同步见 `Docs/DevelopmentRoadmap_Part2.md`
+

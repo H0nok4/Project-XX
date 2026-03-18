@@ -50,6 +50,12 @@ public class PrototypeMainMenuController : MonoBehaviour
         Ugui = 1
     }
 
+    public enum MetaShellMode
+    {
+        FullBaseHub = 0,
+        DebugShell = 1
+    }
+
     [Header("Profile")]
     [SerializeField] private PrototypeItemCatalog itemCatalog;
     [SerializeField] private PrototypeMerchantCatalog merchantCatalog;
@@ -74,6 +80,7 @@ public class PrototypeMainMenuController : MonoBehaviour
     [Header("UI")]
     [SerializeField] private MenuUiMode menuUiMode = MenuUiMode.Ugui;
     [SerializeField] private GameObject uguiViewPrefab;
+    [SerializeField] private MetaShellMode shellMode = MetaShellMode.FullBaseHub;
 
     [Header("Scene Dressing")]
     [SerializeField] private Color stashColor = new Color(0.2f, 0.65f, 0.38f, 1f);
@@ -108,12 +115,15 @@ public class PrototypeMainMenuController : MonoBehaviour
     private MetaInventoryPresenter inventoryPresenter;
     private MetaMerchantPresenter merchantPresenter;
     private PrototypeMainMenuUguiView uguiView;
+    private MerchantManager merchantManager;
+    private BaseFacilityManager facilityManager;
 
     internal MenuPage CurrentPage
     {
         get => currentPage;
         set
         {
+            value = SanitizePageForShell(value);
             if (currentPage == value)
             {
                 return;
@@ -147,6 +157,11 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal ItemDefinition CashDefinition => cashDefinition;
     internal System.Collections.Generic.List<ItemInstance> WeaponLocker => weaponLocker;
     internal System.Collections.Generic.List<ArmorInstance> EquippedArmor => equippedArmor;
+    internal WorldStateData ProfileWorldState => profile != null ? profile.worldState : null;
+    internal bool IsDebugShellMode => shellMode == MetaShellMode.DebugShell;
+    internal bool SupportsWarehousePage => !IsDebugShellMode;
+    internal bool SupportsMerchantDirectory => !IsDebugShellMode;
+    internal bool HasFacilityManager => facilityManager != null && !IsDebugShellMode;
     internal ItemInstance EquippedPrimaryWeapon
     {
         get => equippedPrimaryWeapon;
@@ -684,6 +699,260 @@ public class PrototypeMainMenuController : MonoBehaviour
             $"重量 {item.TotalWeight:0.00}"
         });
     }
+
+    internal MerchantData GetMerchantData(string merchantId)
+    {
+        ResolveCatalog();
+        EnsureRuntimeStateInitialized();
+        PrototypeMerchantCatalog.MerchantDefinition merchant = merchantCatalog != null ? merchantCatalog.GetMerchantById(merchantId) : null;
+        return merchantManager != null
+            ? merchantManager.GetMerchantData(merchantId, merchant != null ? merchant.MerchantLevel : MerchantData.MinLevel)
+            : null;
+    }
+
+    internal MerchantManager.SupplyRequest GetMerchantSupplyRequest(string merchantId)
+    {
+        EnsureRuntimeStateInitialized();
+        return merchantManager != null ? merchantManager.GetSupplyRequest(merchantId) : default;
+    }
+
+    internal string BuildMerchantPanelSubtitle(PrototypeMerchantCatalog.MerchantDefinition merchant, bool isFocusedMerchant)
+    {
+        MerchantData data = GetMerchantData(merchant != null ? merchant.MerchantId : null);
+        int level = data != null ? data.Level : (merchant != null ? merchant.MerchantLevel : MerchantData.MinLevel);
+        string focusPrefix = isFocusedMerchant ? "当前交互  ·  " : string.Empty;
+        string reputationLabel = data != null ? GetReputationDisplayName(data.Reputation) : GetReputationDisplayName(ReputationLevel.Neutral);
+        return $"{focusPrefix}等级 {level}  ·  信誉 {reputationLabel}  ·  资金 {GetAvailableFunds()} {GetCurrencyLabel()}";
+    }
+
+    internal string BuildMerchantProgressDetail(PrototypeMerchantCatalog.MerchantDefinition merchant)
+    {
+        MerchantData data = GetMerchantData(merchant != null ? merchant.MerchantId : null);
+        if (merchant == null || data == null)
+        {
+            return string.Empty;
+        }
+
+        string tradeProgress = data.Level >= MerchantData.MaxLevel
+            ? "已达到最高库存等级"
+            : $"交易进度 {data.GetTradeProgressIntoCurrentLevel():0}/{data.GetLevelUpRequirement():0}";
+        string reputationProgress = data.Reputation == ReputationLevel.Revered
+            ? $"信誉 {GetReputationDisplayName(data.Reputation)} · 已达到最高折扣"
+            : $"信誉进度 {data.GetReputationProgressIntoCurrentTier():0}/{data.GetReputationRequirementForNextTier():0}";
+        int discountPercent = Mathf.RoundToInt((1f - data.GetPriceMultiplier()) * 100f);
+        return
+            $"库存等级 Lv.{data.Level}  ·  起始等级 Lv.{data.StartingLevel}\n" +
+            $"{tradeProgress}\n" +
+            $"{reputationProgress}\n" +
+            $"当前折扣 {discountPercent}%";
+    }
+
+    internal string BuildMerchantSupplyRequestText(string merchantId)
+    {
+        MerchantManager.SupplyRequest request = GetMerchantSupplyRequest(merchantId);
+        if (!request.IsValid)
+        {
+            return string.Empty;
+        }
+
+        int availableCount = CountItemInStorage(request.RequestedItemId);
+        string itemLabel = GetItemDisplayName(request.RequestedItemId);
+        return $"{request.Title}\n提交 {itemLabel} x{request.RequestedQuantity}\n仓库库存 {availableCount}/{request.RequestedQuantity}  ·  奖励信誉 +{request.ReputationReward}";
+    }
+
+    internal bool TryCompleteMerchantSupplyRequest(string merchantId)
+    {
+        MerchantManager.SupplyRequest request = GetMerchantSupplyRequest(merchantId);
+        if (!request.IsValid)
+        {
+            SetFeedback("当前没有可交付的商人委托。");
+            return false;
+        }
+
+        if (!TryConsumeStorageItem(request.RequestedItemId, request.RequestedQuantity))
+        {
+            string itemLabel = GetItemDisplayName(request.RequestedItemId);
+            SetFeedback($"仓库库存不足，无法交付 {itemLabel} x{request.RequestedQuantity}。");
+            return false;
+        }
+
+        EnsureRuntimeStateInitialized();
+        MerchantManager.TradeUpdateResult result = merchantManager != null
+            ? merchantManager.AddReputation(request.MerchantId, request.ReputationReward)
+            : default;
+        RefreshMerchantRuntimeInventories(false);
+
+        MerchantData data = GetMerchantData(request.MerchantId);
+        string reputationLabel = data != null ? GetReputationDisplayName(data.Reputation) : GetReputationDisplayName(ReputationLevel.Neutral);
+        string levelUpSuffix = result.ReputationChanged ? $" 信誉提升至 {reputationLabel}。" : "。";
+        SetFeedback($"已完成委托“{request.Title}”，获得信誉 +{request.ReputationReward}。{levelUpSuffix}".Trim());
+        AutoSaveIfNeeded();
+        return true;
+    }
+
+    internal int GetSellPrice(ItemInstance instance)
+    {
+        ResolveCatalog();
+        if (instance == null || !instance.IsDefined() || merchantCatalog == null)
+        {
+            return 0;
+        }
+
+        int basePrice = merchantCatalog.GetSellPrice(instance);
+        return Mathf.Max(0, Mathf.RoundToInt(basePrice * GetWorkbenchSellBonusMultiplier()));
+    }
+
+    internal void RecordMerchantTrade(string merchantId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(merchantId))
+        {
+            return;
+        }
+
+        EnsureRuntimeStateInitialized();
+        MerchantManager.TradeUpdateResult result = merchantManager != null
+            ? merchantManager.RecordTrade(merchantId, amount)
+            : default;
+        if (result.LevelChanged)
+        {
+            RefreshMerchantRuntimeInventories(true);
+        }
+        else
+        {
+            RefreshMerchantRuntimeInventories(false);
+        }
+    }
+
+    internal void RecordFocusedMerchantTrade(int amount)
+    {
+        RecordMerchantTrade(focusedMerchantId, amount);
+    }
+
+    internal IReadOnlyList<FacilityData> GetFacilities()
+    {
+        return facilityManager != null ? facilityManager.GetFacilities() : Array.Empty<FacilityData>();
+    }
+
+    internal bool TryUpgradeFacility(FacilityType type)
+    {
+        return facilityManager != null && facilityManager.UpgradeFacility(type);
+    }
+
+    internal string GetFacilityDisplayName(FacilityType type)
+    {
+        switch (type)
+        {
+            case FacilityType.Warehouse:
+                return "仓库";
+
+            case FacilityType.Armory:
+                return "武器库";
+
+            case FacilityType.MedicalStation:
+                return "医疗站";
+
+            case FacilityType.Workbench:
+                return "工作台";
+
+            default:
+                return type.ToString();
+        }
+    }
+
+    internal string BuildFacilityDetail(FacilityData facility)
+    {
+        if (facility == null)
+        {
+            return string.Empty;
+        }
+
+        string upgradeText = facility.CanUpgrade()
+            ? $"下一级花费 {facility.GetUpgradeCost()} {GetCurrencyLabel()}"
+            : "已达到最高等级";
+        string effectSummary = facilityManager != null ? facilityManager.BuildFacilityEffectSummary(facility.type) : string.Empty;
+        return $"等级 Lv.{facility.Level}/{facility.MaxLevelValue}\n{effectSummary}\n{upgradeText}";
+    }
+
+    internal int GetWeaponLockerCapacity()
+    {
+        return facilityManager != null ? facilityManager.GetWeaponLockerCapacity() : 6;
+    }
+
+    internal bool TryAddWeaponToLocker(ItemInstance weaponInstance, string failureMessage)
+    {
+        if (weaponInstance == null || weaponInstance.WeaponDefinition == null)
+        {
+            return false;
+        }
+
+        int capacity = Mathf.Max(1, GetWeaponLockerCapacity());
+        if (weaponLocker.Count >= capacity)
+        {
+            SetFeedback(failureMessage);
+            return false;
+        }
+
+        weaponLocker.Add(weaponInstance);
+        RequestUiRefresh();
+        return true;
+    }
+
+    internal float GetWorkbenchSellBonusMultiplier()
+    {
+        return facilityManager != null ? facilityManager.GetWorkbenchSellBonusMultiplier() : 1f;
+    }
+
+    internal void RegisterFacilityManager(BaseFacilityManager manager)
+    {
+        facilityManager = manager;
+        ApplyFacilityManagerRuntime(manager);
+    }
+
+    internal void ApplyFacilityManagerRuntime(BaseFacilityManager manager)
+    {
+        facilityManager = manager;
+        if (stashInventory != null)
+        {
+            int effectiveSlots = facilityManager != null ? facilityManager.GetWarehouseSlotCapacity(stashSlots) : stashSlots;
+            float effectiveWeight = facilityManager != null ? facilityManager.GetWarehouseWeightCapacity(stashMaxWeight) : stashMaxWeight;
+            stashInventory.Configure("仓库", effectiveSlots, effectiveWeight);
+        }
+
+        RequestUiRefresh();
+    }
+
+    private void EnsureRuntimeStateInitialized()
+    {
+        if (profile == null)
+        {
+            return;
+        }
+
+        profile.worldState ??= new WorldStateData();
+        merchantManager ??= new MerchantManager(profile.worldState);
+        merchantManager.EnsureMerchantsFromCatalog(merchantCatalog);
+    }
+
+    private void RefreshMerchantRuntimeInventories(bool forceRegenerate)
+    {
+        if (merchantCatalog == null)
+        {
+            return;
+        }
+
+        if (forceRegenerate)
+        {
+            merchantCatalog.RegenerateRuntimeInventories(
+                merchant => merchantManager != null ? merchantManager.GetEffectiveMerchantLevel(merchant) : merchant.MerchantLevel,
+                merchant => merchantManager != null ? merchantManager.GetPriceMultiplier(merchant.MerchantId) : 1f);
+            return;
+        }
+
+        merchantCatalog.EnsureRuntimeInventories(
+            merchant => merchantManager != null ? merchantManager.GetEffectiveMerchantLevel(merchant) : merchant.MerchantLevel,
+            merchant => merchantManager != null ? merchantManager.GetPriceMultiplier(merchant.MerchantId) : 1f);
+    }
+
     private void ResolveCatalog()
     {
         if (itemCatalog == null)
@@ -701,9 +970,11 @@ public class PrototypeMainMenuController : MonoBehaviour
             merchantCatalog = MetaMerchantPresenter.CreateRuntimeMerchantCatalog(itemCatalog);
         }
 
-        merchantCatalog?.EnsureRuntimeInventories();
-
         cashDefinition = itemCatalog != null ? itemCatalog.FindByItemId("cash_bundle") : null;
+        if (merchantCatalog != null)
+        {
+            RefreshMerchantRuntimeInventories(false);
+        }
     }
 
     private void EnsureContainers()
@@ -712,12 +983,17 @@ public class PrototypeMainMenuController : MonoBehaviour
         raidBackpackInventory = EnsureContainer(raidBackpackInventory, "Profile_RaidBackpack", "战局背包", raidBackpackSlots, raidBackpackMaxWeight);
         secureContainerInventory = EnsureContainer(secureContainerInventory, "Profile_SecureContainer", "安全箱", secureContainerSlots, secureContainerMaxWeight);
         specialEquipmentInventory = EnsureContainer(specialEquipmentInventory, "Profile_SpecialEquipment", "特殊装备", specialEquipmentSlots, specialEquipmentMaxWeight);
+        ApplyFacilityManagerRuntime(facilityManager);
     }
 
     private void LoadProfileIntoContainers()
     {
         profile = PrototypeProfileService.LoadProfile(itemCatalog);
+        merchantManager = null;
+        EnsureRuntimeStateInitialized();
         ApplyProfileToContainers(profile);
+        ApplyFacilityManagerRuntime(facilityManager);
+        RefreshMerchantRuntimeInventories(false);
         RequestUiRefresh();
     }
 
@@ -730,6 +1006,9 @@ public class PrototypeMainMenuController : MonoBehaviour
         {
             profile = new PrototypeProfileService.ProfileData();
         }
+
+        profile.worldState ??= new WorldStateData();
+        EnsureRuntimeStateInitialized();
 
         DepositStashCurrencyIntoFunds();
 
@@ -790,7 +1069,11 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal void ResetProfile()
     {
         profile = PrototypeProfileService.CreateDefaultProfile(itemCatalog);
+        merchantManager = null;
+        EnsureRuntimeStateInitialized();
         ApplyProfileToContainers(profile);
+        ApplyFacilityManagerRuntime(facilityManager);
+        RefreshMerchantRuntimeInventories(true);
         SaveProfileFromContainers();
         SetFeedback("档案已重置为默认配置。");
     }
@@ -804,12 +1087,26 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal void ShowMerchantDirectory()
     {
+        if (!SupportsMerchantDirectory)
+        {
+            SetFeedback("启动壳仅保留跳转入口，请进入基地后使用商人目录。");
+            ShowPage(MenuPage.Home);
+            return;
+        }
+
         focusedMerchantId = string.Empty;
         ShowPage(MenuPage.Merchants);
     }
 
     internal bool ShowMerchant(string merchantId, string merchantDisplayName = null)
     {
+        if (!SupportsMerchantDirectory)
+        {
+            SetFeedback("启动壳不承载正式商人业务，请进入基地后交互。");
+            ShowPage(MenuPage.Home);
+            return false;
+        }
+
         if (!TryFocusMerchant(merchantId))
         {
             ShowMerchantDirectory();
@@ -866,7 +1163,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal void ShowPage(MenuPage page)
     {
-        currentPage = page;
+        currentPage = SanitizePageForShell(page);
         uiVisible = true;
         EnsureMenuCursorState();
         EnsureRuntimeUi();
@@ -929,7 +1226,7 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string BuildHomePageSummaryText()
     {
-        return
+        string summary =
             $"已选地图：{GetSelectedRaidSceneDisplayName()}\n" +
             $"资金：{GetAvailableFunds()} {GetCurrencyLabel()}\n" +
             $"仓库：物品堆叠 {GetInventoryStackCount(StashInventory)}  武器 {WeaponLocker.Count}\n" +
@@ -938,6 +1235,147 @@ public class PrototypeMainMenuController : MonoBehaviour
             $"近战：{(EquippedMeleeWeapon != null ? EquippedMeleeWeapon.DisplayName : "空")}\n" +
             $"主武器：{(EquippedPrimaryWeapon != null ? EquippedPrimaryWeapon.DisplayName : "空")}\n" +
             $"副武器：{(EquippedSecondaryWeapon != null ? EquippedSecondaryWeapon.DisplayName : "空")}";
+
+        if (facilityManager != null && !IsDebugShellMode)
+        {
+            summary += $"\n设施：仓库 {GetFacilityLevel(FacilityType.Warehouse)} / 武器库 {GetFacilityLevel(FacilityType.Armory)} / 医疗站 {GetFacilityLevel(FacilityType.MedicalStation)} / 工作台 {GetFacilityLevel(FacilityType.Workbench)}";
+        }
+
+        return summary;
+    }
+
+    private int GetFacilityLevel(FacilityType type)
+    {
+        IReadOnlyList<FacilityData> facilities = GetFacilities();
+        for (int index = 0; index < facilities.Count; index++)
+        {
+            FacilityData facility = facilities[index];
+            if (facility != null && facility.type == type)
+            {
+                return facility.Level;
+            }
+        }
+
+        return FacilityData.MinLevel;
+    }
+
+    private MenuPage SanitizePageForShell(MenuPage page)
+    {
+        if (page == MenuPage.Warehouse && !SupportsWarehousePage)
+        {
+            return MenuPage.Home;
+        }
+
+        if (page == MenuPage.Merchants && !SupportsMerchantDirectory)
+        {
+            return MenuPage.Home;
+        }
+
+        return page;
+    }
+
+    private int CountItemInStorage(string itemId)
+    {
+        return CountItemInInventory(stashInventory, itemId);
+    }
+
+    private static int CountItemInInventory(InventoryContainer inventory, string itemId)
+    {
+        if (inventory == null || inventory.Items == null || string.IsNullOrWhiteSpace(itemId))
+        {
+            return 0;
+        }
+
+        int total = 0;
+        string sanitizedItemId = itemId.Trim();
+        for (int index = 0; index < inventory.Items.Count; index++)
+        {
+            ItemInstance item = inventory.Items[index];
+            if (item == null || !item.IsDefined() || item.IsWeapon || item.Definition == null)
+            {
+                continue;
+            }
+
+            if (string.Equals(item.Definition.ItemId, sanitizedItemId, StringComparison.OrdinalIgnoreCase))
+            {
+                total += Mathf.Max(0, item.Quantity);
+            }
+        }
+
+        return total;
+    }
+
+    private bool TryConsumeStorageItem(string itemId, int quantity)
+    {
+        return TryConsumeInventoryItem(stashInventory, itemId, quantity);
+    }
+
+    private static bool TryConsumeInventoryItem(InventoryContainer inventory, string itemId, int quantity)
+    {
+        if (inventory == null || quantity <= 0 || string.IsNullOrWhiteSpace(itemId))
+        {
+            return false;
+        }
+
+        string sanitizedItemId = itemId.Trim();
+        if (CountItemInInventory(inventory, sanitizedItemId) < quantity)
+        {
+            return false;
+        }
+
+        int remaining = quantity;
+        for (int index = inventory.Items.Count - 1; index >= 0 && remaining > 0; index--)
+        {
+            ItemInstance item = inventory.Items[index];
+            if (item == null || !item.IsDefined() || item.IsWeapon || item.Definition == null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(item.Definition.ItemId, sanitizedItemId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            int extractQuantity = Mathf.Min(remaining, Mathf.Max(0, item.Quantity));
+            if (extractQuantity <= 0 || !inventory.TryExtractItem(index, extractQuantity, out _))
+            {
+                continue;
+            }
+
+            remaining -= extractQuantity;
+        }
+
+        return remaining <= 0;
+    }
+
+    private string GetItemDisplayName(string itemId)
+    {
+        if (itemCatalog == null || string.IsNullOrWhiteSpace(itemId))
+        {
+            return "物资";
+        }
+
+        ItemDefinition definition = itemCatalog.FindByItemId(itemId.Trim());
+        return definition != null ? definition.DisplayName : itemId.Trim();
+    }
+
+    private static string GetReputationDisplayName(ReputationLevel reputationLevel)
+    {
+        switch (reputationLevel)
+        {
+            case ReputationLevel.Friendly:
+                return "友好";
+
+            case ReputationLevel.Honored:
+                return "尊敬";
+
+            case ReputationLevel.Revered:
+                return "崇敬";
+
+            default:
+                return "中立";
+        }
     }
 
     private static void EnsureMenuCursorState()

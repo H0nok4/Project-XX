@@ -11,6 +11,7 @@ public static class PrototypeMainMenuSceneBuilder
     // Trigger-based build keeps the menu scene reproducible without relying on a live MCP session.
     private const string TriggerAssetPath = "Assets/Res/PrototypeMainMenuScene.trigger.txt";
     private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
+    private const string BaseScenePath = "Assets/Scenes/BaseScene.unity";
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
     private const string ResourcesFolder = "Assets/Resources";
     private const string CatalogAssetPath = "Assets/Resources/PrototypeItemCatalog.asset";
@@ -78,6 +79,7 @@ public static class PrototypeMainMenuSceneBuilder
         PrototypeMainMenuController controller = systems.AddComponent<PrototypeMainMenuController>();
         SetSerializedReference(controller, "itemCatalog", catalog);
         SetSerializedReference(controller, "merchantCatalog", merchantCatalog);
+        SetSerializedEnum(controller, "shellMode", (int)PrototypeMainMenuController.MetaShellMode.DebugShell);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, MainMenuScenePath);
@@ -238,6 +240,7 @@ public static class PrototypeMainMenuSceneBuilder
             {
                 merchantId = "weapons_trader",
                 displayName = "武器商人",
+                merchantLevel = 4,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = rifleAmmo, quantity = 30, price = 6 },
@@ -254,6 +257,7 @@ public static class PrototypeMainMenuSceneBuilder
             {
                 merchantId = "medical_trader",
                 displayName = "医疗商人",
+                merchantLevel = 3,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = medkit, quantity = 1, price = 10 },
@@ -267,6 +271,7 @@ public static class PrototypeMainMenuSceneBuilder
             {
                 merchantId = "armor_trader",
                 displayName = "护甲商人",
+                merchantLevel = 4,
                 itemOffers = new List<PrototypeMerchantCatalog.ItemOffer>
                 {
                     new PrototypeMerchantCatalog.ItemOffer { definition = helmet, quantity = 1, price = 14 },
@@ -443,6 +448,7 @@ public static class PrototypeMainMenuSceneBuilder
     {
         var scenes = new List<EditorBuildSettingsScene>();
         AddSceneIfExists(scenes, MainMenuScenePath);
+        AddSceneIfExists(scenes, BaseScenePath);
         AddSceneIfExists(scenes, SampleScenePath);
         EditorBuildSettings.scenes = scenes.ToArray();
     }
@@ -472,6 +478,14 @@ public static class PrototypeMainMenuSceneBuilder
         SerializedObject serializedObject = new SerializedObject(target);
         SerializedProperty property = serializedObject.FindProperty(propertyName);
         property.objectReferenceValue = reference;
+        serializedObject.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetSerializedEnum(Object target, string propertyName, int value)
+    {
+        SerializedObject serializedObject = new SerializedObject(target);
+        SerializedProperty property = serializedObject.FindProperty(propertyName);
+        property.intValue = value;
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 }

@@ -908,6 +908,11 @@ public static class PrototypeProfileService
         profile.worldState.unlockedRaidNpcIds ??= new List<string>();
         profile.worldState.questChainStages ??= new List<WorldStateData.QuestChainStageRecord>();
         profile.worldState.storyFlags ??= new List<string>();
+        profile.worldState.merchantProgress ??= new List<MerchantData>();
+        profile.worldState.baseFacilities ??= new List<FacilityData>();
+
+        SanitizeMerchantProgress(profile.worldState.merchantProgress);
+        SanitizeFacilities(profile.worldState.baseFacilities);
 
         if (profile.raidBackpackWeaponInstances != null && profile.raidBackpackWeaponInstances.Count > 0)
         {
@@ -946,6 +951,56 @@ public static class PrototypeProfileService
         profile.equippedMeleeWeaponId = SanitizeWeaponId(profile.equippedMeleeWeaponId, catalog);
         profile.loadoutItems = new List<ItemStackRecord>();
         profile.extractedItems = new List<ItemStackRecord>();
+    }
+
+    private static void SanitizeMerchantProgress(List<MerchantData> merchantProgress)
+    {
+        if (merchantProgress == null)
+        {
+            return;
+        }
+
+        var seenMerchantIds = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        for (int index = merchantProgress.Count - 1; index >= 0; index--)
+        {
+            MerchantData merchantData = merchantProgress[index];
+            if (merchantData == null)
+            {
+                merchantProgress.RemoveAt(index);
+                continue;
+            }
+
+            merchantData.Sanitize(merchantData.merchantId, merchantData.startingLevel);
+            if (string.IsNullOrWhiteSpace(merchantData.MerchantId) || !seenMerchantIds.Add(merchantData.MerchantId))
+            {
+                merchantProgress.RemoveAt(index);
+            }
+        }
+    }
+
+    private static void SanitizeFacilities(List<FacilityData> facilities)
+    {
+        if (facilities == null)
+        {
+            return;
+        }
+
+        var seenTypes = new HashSet<FacilityType>();
+        for (int index = facilities.Count - 1; index >= 0; index--)
+        {
+            FacilityData facility = facilities[index];
+            if (facility == null)
+            {
+                facilities.RemoveAt(index);
+                continue;
+            }
+
+            facility.Sanitize(facility.type);
+            if (!seenTypes.Add(facility.type))
+            {
+                facilities.RemoveAt(index);
+            }
+        }
     }
 
     private static void MigrateStashCurrencyToFunds(ProfileData profile)

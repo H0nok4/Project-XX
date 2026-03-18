@@ -24,6 +24,7 @@ public class BaseHubDirector : MonoBehaviour
     [SerializeField] private PrototypeFpsInput fpsInput;
     [SerializeField] private PlayerInteractionState interactionState;
     [SerializeField] private PrototypeMainMenuController menuController;
+    [SerializeField] private BaseFacilityManager facilityManager;
     [SerializeField] private Transform departureArrivalPoint;
     [SerializeField] private Transform respawnArrivalPoint;
     [SerializeField] private BaseHubZoneMarker[] zoneMarkers;
@@ -186,13 +187,15 @@ public class BaseHubDirector : MonoBehaviour
             return;
         }
 
-        Transform spawnPoint = ResolveArrivalSpawnPoint(MetaEntryRouter.ConsumeBaseHubArrivalMode());
+        BaseHubArrivalMode arrivalMode = MetaEntryRouter.ConsumeBaseHubArrivalMode();
+        Transform spawnPoint = ResolveArrivalSpawnPoint(arrivalMode);
         if (spawnPoint == null)
         {
             return;
         }
 
         fpsController.ApplySpawnPose(spawnPoint.position, spawnPoint.rotation);
+        facilityManager?.HandleArrival(arrivalMode);
     }
 
     private Transform ResolveArrivalSpawnPoint(BaseHubArrivalMode arrivalMode)
@@ -266,6 +269,11 @@ public class BaseHubDirector : MonoBehaviour
         if (menuController == null)
         {
             menuController = FindFirstObjectByType<PrototypeMainMenuController>();
+        }
+
+        if (facilityManager == null)
+        {
+            facilityManager = FindFirstObjectByType<BaseFacilityManager>();
         }
 
         if (zoneMarkers == null || zoneMarkers.Length == 0)
