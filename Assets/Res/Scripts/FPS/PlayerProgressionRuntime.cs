@@ -103,6 +103,7 @@ public class PlayerProgressionRuntime : MonoBehaviour
 
         EnsureProgressionData();
         runtimeProgression.killCount = Mathf.Max(0, runtimeProgression.killCount) + 1;
+        QuestEventHub.RaiseKill(targetBot.gameObject.name, targetBot.Archetype.ToString(), targetBot.IsBossProfile);
 
         int reward = Mathf.Max(0, targetBot.ExperienceReward);
         string sourceLabel = $"击杀 {targetBot.name} (Lv {targetBot.EnemyLevel})";

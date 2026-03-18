@@ -16,6 +16,7 @@ public sealed class WorldStateData
     public List<string> unlockedRaidNpcIds = new List<string>();
     public List<QuestChainStageRecord> questChainStages = new List<QuestChainStageRecord>();
     public List<string> storyFlags = new List<string>();
+    public List<QuestRuntimeState> questStates = new List<QuestRuntimeState>();
     public List<MerchantData> merchantProgress = new List<MerchantData>();
     public List<FacilityData> baseFacilities = new List<FacilityData>();
 }

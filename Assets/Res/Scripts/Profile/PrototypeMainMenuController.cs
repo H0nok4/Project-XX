@@ -749,6 +749,16 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string BuildMerchantSupplyRequestText(string merchantId)
     {
+        QuestManager questManager = GetQuestManagerIfReady();
+        if (questManager != null)
+        {
+            string merchantQuestSummary = questManager.BuildMerchantQuestSummary(merchantId);
+            if (!string.IsNullOrWhiteSpace(merchantQuestSummary))
+            {
+                return merchantQuestSummary;
+            }
+        }
+
         MerchantManager.SupplyRequest request = GetMerchantSupplyRequest(merchantId);
         if (!request.IsValid)
         {
@@ -762,6 +772,18 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal bool TryCompleteMerchantSupplyRequest(string merchantId)
     {
+        QuestManager questManager = GetQuestManagerIfReady();
+        if (questManager != null && questManager.HasMerchantQuestAction(merchantId))
+        {
+            bool executed = questManager.ExecutePrimaryMerchantQuestAction(merchantId);
+            if (executed)
+            {
+                AutoSaveIfNeeded();
+            }
+
+            return executed;
+        }
+
         MerchantManager.SupplyRequest request = GetMerchantSupplyRequest(merchantId);
         if (!request.IsValid)
         {
@@ -788,6 +810,32 @@ public class PrototypeMainMenuController : MonoBehaviour
         SetFeedback($"已完成委托“{request.Title}”，获得信誉 +{request.ReputationReward}。{levelUpSuffix}".Trim());
         AutoSaveIfNeeded();
         return true;
+    }
+
+    internal bool HasMerchantPrimaryAction(string merchantId)
+    {
+        QuestManager questManager = GetQuestManagerIfReady();
+        if (questManager != null)
+        {
+            return questManager.HasMerchantQuestAction(merchantId);
+        }
+
+        return GetMerchantSupplyRequest(merchantId).IsValid;
+    }
+
+    internal string GetMerchantPrimaryActionLabel(string merchantId)
+    {
+        QuestManager questManager = GetQuestManagerIfReady();
+        if (questManager != null)
+        {
+            string label = questManager.GetMerchantQuestActionLabel(merchantId);
+            if (!string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+        }
+
+        return "交付委托";
     }
 
     internal int GetSellPrice(ItemInstance instance)
@@ -1165,6 +1213,11 @@ public class PrototypeMainMenuController : MonoBehaviour
     {
         currentPage = SanitizePageForShell(page);
         uiVisible = true;
+        if (currentPage == MenuPage.Warehouse)
+        {
+            QuestEventHub.RaiseExplore("base_warehouse");
+        }
+
         EnsureMenuCursorState();
         EnsureRuntimeUi();
         RequestUiRefresh();
@@ -1376,6 +1429,14 @@ public class PrototypeMainMenuController : MonoBehaviour
             default:
                 return "中立";
         }
+    }
+
+    private static QuestManager GetQuestManagerIfReady()
+    {
+        QuestManager questManager = QuestManager.Instance != null
+            ? QuestManager.Instance
+            : FindFirstObjectByType<QuestManager>();
+        return questManager != null && questManager.TryInitialize() ? questManager : null;
     }
 
     private static void EnsureMenuCursorState()

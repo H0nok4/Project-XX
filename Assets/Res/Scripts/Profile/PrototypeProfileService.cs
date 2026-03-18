@@ -908,9 +908,11 @@ public static class PrototypeProfileService
         profile.worldState.unlockedRaidNpcIds ??= new List<string>();
         profile.worldState.questChainStages ??= new List<WorldStateData.QuestChainStageRecord>();
         profile.worldState.storyFlags ??= new List<string>();
+        profile.worldState.questStates ??= new List<QuestRuntimeState>();
         profile.worldState.merchantProgress ??= new List<MerchantData>();
         profile.worldState.baseFacilities ??= new List<FacilityData>();
 
+        SanitizeQuestStates(profile.worldState.questStates);
         SanitizeMerchantProgress(profile.worldState.merchantProgress);
         SanitizeFacilities(profile.worldState.baseFacilities);
 
@@ -974,6 +976,31 @@ public static class PrototypeProfileService
             if (string.IsNullOrWhiteSpace(merchantData.MerchantId) || !seenMerchantIds.Add(merchantData.MerchantId))
             {
                 merchantProgress.RemoveAt(index);
+            }
+        }
+    }
+
+    private static void SanitizeQuestStates(List<QuestRuntimeState> questStates)
+    {
+        if (questStates == null)
+        {
+            return;
+        }
+
+        var seenQuestIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = questStates.Count - 1; index >= 0; index--)
+        {
+            QuestRuntimeState questState = questStates[index];
+            if (questState == null)
+            {
+                questStates.RemoveAt(index);
+                continue;
+            }
+
+            questState.Sanitize(questState.questId, questState.objectiveProgress != null ? questState.objectiveProgress.Count : -1);
+            if (string.IsNullOrWhiteSpace(questState.QuestId) || !seenQuestIds.Add(questState.QuestId))
+            {
+                questStates.RemoveAt(index);
             }
         }
     }

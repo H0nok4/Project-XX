@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -67,6 +68,11 @@ public class LootContainer : MonoBehaviour, IInteractable
         }
 
         EnsureGeneratedLoot();
+        QuestEventHub.RaiseCustom("loot_container_opened");
+        if (IsWeaponCrate())
+        {
+            QuestEventHub.RaiseCustom("weapon_crate_opened");
+        }
 
         LootContainerWindowController windowController = interactor.GetComponent<LootContainerWindowController>();
         if (windowController == null)
@@ -109,6 +115,19 @@ public class LootContainer : MonoBehaviour, IInteractable
         }
 
         lootGenerated = true;
+    }
+
+    private bool IsWeaponCrate()
+    {
+        string label = ContainerLabel;
+        if (label.IndexOf("weapon", StringComparison.OrdinalIgnoreCase) >= 0
+            || label.IndexOf("武器", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        string tableName = lootTable != null ? lootTable.name : string.Empty;
+        return tableName.IndexOf("weapon", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private void ResolveReferences()

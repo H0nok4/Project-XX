@@ -155,6 +155,7 @@ public class RaidGameMode : MonoBehaviour
         remainingSeconds = raidDurationSeconds;
         lastResultMessage = string.Empty;
         SetState(RaidState.Running);
+        QuestEventHub.RaiseCustom("raid_started");
     }
 
     public bool CanExtract(PlayerInteractor interactor, ExtractionZone zone)
@@ -173,6 +174,7 @@ public class RaidGameMode : MonoBehaviour
             return false;
         }
 
+        QuestEventHub.RaiseExtract(zone != null ? zone.ExtractionName : string.Empty);
         lastResultMessage = $"Extracted via {zone.ExtractionName}";
         SetState(RaidState.Extracted);
         return true;

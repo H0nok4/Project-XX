@@ -116,6 +116,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
                 return;
             }
 
+            RaiseCollectEvent(itemInstance, itemInstance.Quantity);
             HandleCollected();
             return;
         }
@@ -125,6 +126,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             return;
         }
 
+        RaiseCollectEvent(itemInstance, addedQuantity);
         int remainingQuantity = Mathf.Max(0, Quantity - addedQuantity);
         if (remainingQuantity <= 0)
         {
@@ -268,6 +270,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             InventoryContainer specialInventory = interactor != null ? interactor.SpecialInventory : null;
             if (specialInventory != null && specialInventory.TryAddItemInstance(weaponInstance))
             {
+                RaiseCollectEvent(weaponInstance, 1);
                 HandleCollected();
                 return true;
             }
@@ -275,6 +278,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             InventoryContainer fallbackInventory = interactor != null ? interactor.PrimaryInventory : null;
             if (fallbackInventory != null && fallbackInventory.TryAddItemInstance(itemInstance.Clone()))
             {
+                RaiseCollectEvent(weaponInstance, 1);
                 HandleCollected();
                 return true;
             }
@@ -291,6 +295,7 @@ public class GroundLootItem : MonoBehaviour, IInteractable
                 SpawnDroppedItem(dropOrigin, droppedWeapon, interactionVerb);
             }
 
+            RaiseCollectEvent(weaponInstance, 1);
             HandleCollected();
             return true;
         }
@@ -301,8 +306,27 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             return false;
         }
 
+        RaiseCollectEvent(weaponInstance, 1);
         HandleCollected();
         return true;
+    }
+
+    private static void RaiseCollectEvent(ItemInstance instance, int amount)
+    {
+        if (instance == null || !instance.IsDefined() || amount <= 0)
+        {
+            return;
+        }
+
+        string definitionId = instance.IsWeapon && instance.WeaponDefinition != null
+            ? instance.WeaponDefinition.WeaponId
+            : instance.Definition != null ? instance.Definition.ItemId : string.Empty;
+        if (string.IsNullOrWhiteSpace(definitionId))
+        {
+            return;
+        }
+
+        QuestEventHub.RaiseCollect(definitionId, amount);
     }
 
     private string GetWeaponInteractionLabel(PlayerInteractor interactor, PrototypeWeaponDefinition weaponDefinition)

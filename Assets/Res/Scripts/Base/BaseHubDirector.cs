@@ -48,6 +48,8 @@ public class BaseHubDirector : MonoBehaviour
     private void Start()
     {
         ResolveReferences();
+        EnsureQuestRuntime();
+        EnsureQuestNpcs();
         DisableConflictingUi();
         ApplyArrivalSpawn();
         SetUiFocus(false);
@@ -346,6 +348,116 @@ public class BaseHubDirector : MonoBehaviour
             float height = ResolveCurrentZoneMarker() != null ? 176f : 148f;
             overlayRoot.sizeDelta = new Vector2(width, height);
         }
+    }
+
+    private void EnsureQuestRuntime()
+    {
+        PlayerInteractor interactor = fpsController != null
+            ? fpsController.GetComponent<PlayerInteractor>()
+            : FindFirstObjectByType<PlayerInteractor>();
+        QuestManager questManager = QuestManager.GetOrCreate();
+        questManager.ConfigureRuntime(null, menuController, interactor, true);
+        questManager.TryInitialize();
+        DialogueSystem.GetOrCreate();
+    }
+
+    private void EnsureQuestNpcs()
+    {
+        EnsureQuestNpc("NPC_Commander_Anchor", "commander", "指挥官", "主线协调", "先把基地跑一遍，再谈下一步行动。", new Color(0.84f, 0.55f, 0.24f, 1f));
+        EnsureQuestNpc("NPC_IntelOfficer_Anchor", "intel_officer", "情报官", "情报整理", "所有补给和情报都得按流程归档。", new Color(0.42f, 0.68f, 0.92f, 1f));
+        EnsureQuestNpc("NPC_Trainer_Anchor", "trainer", "训练官", "训练任务", "危险区不会等你准备好，先把动作做扎实。", new Color(0.72f, 0.42f, 0.86f, 1f));
+    }
+
+    private void EnsureQuestNpc(
+        string anchorName,
+        string npcId,
+        string npcName,
+        string npcTitle,
+        string greeting,
+        Color accentColor)
+    {
+        Transform anchor = FindAnchor(anchorName);
+        if (anchor == null)
+        {
+            return;
+        }
+
+        QuestNPC questNpc = anchor.GetComponent<QuestNPC>();
+        if (questNpc == null)
+        {
+            questNpc = anchor.gameObject.AddComponent<QuestNPC>();
+        }
+
+        questNpc.Configure(npcId, npcName, npcTitle, greeting);
+        EnsureQuestNpcVisual(anchor, accentColor);
+    }
+
+    private void EnsureQuestNpcVisual(Transform anchor, Color accentColor)
+    {
+        if (anchor == null || anchor.Find("RuntimeNpcVisual") != null)
+        {
+            return;
+        }
+
+        GameObject visualRoot = new GameObject("RuntimeNpcVisual");
+        visualRoot.transform.SetParent(anchor, false);
+
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        body.name = "Body";
+        body.transform.SetParent(visualRoot.transform, false);
+        body.transform.localPosition = new Vector3(0f, 1f, 0f);
+        body.transform.localScale = new Vector3(0.72f, 1.08f, 0.72f);
+        ApplyNpcColor(body, accentColor * 0.78f);
+
+        GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        head.name = "Head";
+        head.transform.SetParent(visualRoot.transform, false);
+        head.transform.localPosition = new Vector3(0f, 2.05f, 0f);
+        head.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+        ApplyNpcColor(head, accentColor);
+
+        GameObject backpack = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        backpack.name = "Pack";
+        backpack.transform.SetParent(visualRoot.transform, false);
+        backpack.transform.localPosition = new Vector3(-0.18f, 1.12f, -0.24f);
+        backpack.transform.localScale = new Vector3(0.24f, 0.42f, 0.22f);
+        ApplyNpcColor(backpack, new Color(0.14f, 0.16f, 0.2f, 1f));
+    }
+
+    private static void ApplyNpcColor(GameObject target, Color color)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Renderer renderer = target.GetComponent<Renderer>();
+        if (renderer == null)
+        {
+            return;
+        }
+
+        renderer.material.color = color;
+    }
+
+    private static Transform FindAnchor(string anchorName)
+    {
+        if (string.IsNullOrWhiteSpace(anchorName))
+        {
+            return null;
+        }
+
+        Transform[] transforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform candidate = transforms[index];
+            if (candidate != null && string.Equals(candidate.name, anchorName, System.StringComparison.Ordinal))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private void OnDestroy()

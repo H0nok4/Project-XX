@@ -239,11 +239,17 @@ public class BaseFacilityManager : MonoBehaviour
 - 阶段2完成
 - 基地场景可用
 
+### 当前状态
+- 阶段3核心框架已完成并接入基地 / 战局 / 商人三条主流程（2026-03-18）
+- 2026-03-18 已完成一次实现复核：修复日常委托无法重复接取，以及任务日志可绕过 NPC 直接提交任务的问题
+- 已通过 `dotnet build Assembly-CSharp.csproj` 编译复核；仍需在 Unity 内继续做场景级交互走查
+
 ### 任务列表
 
 #### 3.1 任务系统框架
 **优先级**：最高
 **预计时间**：1-2周
+**当前状态**：已完成（2026-03-18，2026-03-18复核）
 
 **任务描述**
 - 创建任务数据结构
@@ -251,6 +257,11 @@ public class BaseFacilityManager : MonoBehaviour
 - 实现任务目标追踪
 - 实现任务完成检测
 - 创建任务管理器
+- 已落地 `Quest / QuestObjective / QuestReward / QuestRuntimeState / QuestManager` 全套运行时结构
+- 任务状态写入 `WorldStateData.questStates`，并通过 `PrototypeProfileService` 持久化
+- 已接通 talk / kill / collect / explore / extract / custom 六类事件驱动更新
+- 已补上任务奖励发放、任务追踪、任务摘要与商人委托辅助接口
+- 复核中已修复 `QuestType.Daily` 委托无法重复接取的问题
 
 **技术要点**
 ```csharp
@@ -381,23 +392,30 @@ public class QuestManager : MonoBehaviour
 ```
 
 **验收标准**
-- [ ] 可以接取任务
-- [ ] 任务目标正确追踪
-- [ ] 完成目标后任务状态更新
-- [ ] 可以提交任务获得奖励
+- [x] 可以接取任务
+- [x] 任务目标正确追踪
+- [x] 完成目标后任务状态更新
+- [x] 可以提交任务获得奖励
 
 **相关文件**
-- 新增：`Quest.cs`, `QuestType.cs`, `QuestStatus.cs`, `QuestObjective.cs`, `QuestManager.cs`
+- 新增：`Assets/Res/Scripts/Quest/Quest.cs`, `Assets/Res/Scripts/Quest/QuestType.cs`, `Assets/Res/Scripts/Quest/QuestStatus.cs`, `Assets/Res/Scripts/Quest/QuestObjective.cs`, `Assets/Res/Scripts/Quest/QuestReward.cs`, `Assets/Res/Scripts/Quest/QuestRuntimeState.cs`, `Assets/Res/Scripts/Quest/QuestManager.cs`
+- `Assets/Res/Scripts/Profile/WorldStateData.cs`
+- `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
+- `Assets/Res/Scripts/Profile/ProfileSchemaVersion.cs`
 
 #### 3.2 任务UI系统
 **优先级**：高
 **预计时间**：5-7天
+**当前状态**：已完成（2026-03-18，2026-03-18复核）
 
 **任务描述**
 - 创建任务列表UI
 - 创建任务详情UI
 - 创建任务追踪HUD
 - 实现任务接取和提交界面
+- 已落地运行时任务日志窗口、任务详情面板、右上角追踪 HUD 与 toast 提示
+- 任务列表、任务详情、追踪状态会随 `QuestManager` 事件即时刷新
+- 复核中已限制任务日志不能绕过指定 NPC 直接提交任务
 
 **技术要点**
 - 使用Unity UI或UI Toolkit
@@ -406,23 +424,28 @@ public class QuestManager : MonoBehaviour
 - 任务完成提示
 
 **验收标准**
-- [ ] 可以查看可接取任务
-- [ ] 可以查看进行中任务
-- [ ] HUD显示当前任务目标
-- [ ] 任务完成有提示
+- [x] 可以查看可接取任务
+- [x] 可以查看进行中任务
+- [x] HUD显示当前任务目标
+- [x] 任务完成有提示
 
 **相关文件**
-- 新增：`QuestListUI.cs`, `QuestDetailUI.cs`, `QuestTrackerHUD.cs`
+- 新增：`Assets/Res/Scripts/Quest/QuestListUI.cs`, `Assets/Res/Scripts/Quest/QuestDetailUI.cs`, `Assets/Res/Scripts/Quest/QuestTrackerHUD.cs`
+- `Assets/Res/Scripts/Quest/QuestManager.cs`
 
 #### 3.3 对话系统
 **优先级**：高
 **预计时间**：1周
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 创建对话数据结构
 - 实现对话显示系统
 - 实现对话分支选择
 - 实现对话触发任务
+- 已实现轻量运行时对话树：节点、选项、条件显示、动态文本、回调执行
+- 基地任务 NPC 已通过对话系统接入“接任务 / 提交任务 / 打开任务日志”分支
+- 对话打开时会同步触发 talk 事件，供主线和委托目标使用
 
 **技术要点**
 ```csharp
@@ -494,23 +517,28 @@ public class DialogueSystem : MonoBehaviour
 ```
 
 **验收标准**
-- [ ] 可以与NPC对话
-- [ ] 对话文本正确显示
-- [ ] 可以选择对话选项
-- [ ] 对话可以触发任务
+- [x] 可以与NPC对话
+- [x] 对话文本正确显示
+- [x] 可以选择对话选项
+- [x] 对话可以触发任务
 
 **相关文件**
-- 新增：`DialogueNode.cs`, `DialogueOption.cs`, `DialogueSystem.cs`, `DialogueUI.cs`
+- 新增：`Assets/Res/Scripts/Quest/DialogueNode.cs`, `Assets/Res/Scripts/Quest/DialogueOption.cs`, `Assets/Res/Scripts/Quest/DialogueSystem.cs`
+- `Assets/Res/Scripts/Base/QuestNPC.cs`
 
 #### 3.4 基地任务NPC
 **优先级**：高
 **预计时间**：3-5天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 创建任务NPC预制体
 - 实现任务接取交互
 - 实现任务提交交互
 - 放置基地任务NPC
+- 已实现 `QuestNPC : IInteractable`，支持交互提示、交互距离和对话入口
+- `BaseHubDirector` 会把任务功能接入 `NPC_Commander_Anchor`、`NPC_IntelOfficer_Anchor`、`NPC_Trainer_Anchor`
+- 当前版本使用运行时 primitive 视觉体占位，后续可再下沉为正式 prefab / scene builder 固化
 
 **技术要点**
 ```csharp
@@ -554,24 +582,30 @@ public class QuestNPC : MonoBehaviour, IInteractable
 ```
 
 **验收标准**
-- [ ] 基地有任务NPC
-- [ ] 可以从NPC接取任务
-- [ ] 可以向NPC提交任务
-- [ ] NPC有任务状态提示
+- [x] 基地有任务NPC
+- [x] 可以从NPC接取任务
+- [x] 可以向NPC提交任务
+- [x] NPC有任务状态提示
 
 **相关文件**
-- 新增：`QuestNPC.cs`
+- 新增：`Assets/Res/Scripts/Base/QuestNPC.cs`
+- `Assets/Res/Scripts/Base/BaseHubDirector.cs`
 - `Assets/Res/Scripts/Interaction/IInteractable.cs`
 
 #### 3.5 商人委托任务
 **优先级**：中
 **预计时间**：3-5天
+**当前状态**：已完成（2026-03-18，待数值调平）
 
 **任务描述**
 - 为每个商人创建委托任务
 - 实现完成任务提升信誉
 - 实现任务奖励系统
 - 创建商人任务数据
+- 已为四位基地商人配置委托：武器 / 医疗 / 护甲 / 杂货
+- 商人委托已复用现有商人面板入口，不再维护第二套交付 UI
+- 完成委托会发放现金 / 经验并调用 `MerchantManager.AddReputation`
+- 2026-03-18 复核已修复委托完成后不可重复接取的问题
 
 **技术要点**
 ```csharp
@@ -615,24 +649,32 @@ public static class WeaponDealerQuests
 ```
 
 **验收标准**
-- [ ] 每个商人有委托任务
-- [ ] 完成任务提升信誉
-- [ ] 任务奖励正确发放
+- [x] 每个商人有委托任务
+- [x] 完成任务提升信誉
+- [x] 任务奖励正确发放
 - [ ] 任务难度合理
 
 **相关文件**
-- `MerchantQuest.cs`
-- `MerchantData.cs`
+- `Assets/Res/Scripts/Quest/MerchantQuest.cs`
+- `Assets/Res/Scripts/Quest/PrototypeQuestCatalog.cs`
+- `Assets/Res/Scripts/Quest/QuestManager.cs`
+- `Assets/Res/Scripts/Profile/MerchantData.cs`
+- `Assets/Res/Scripts/Profile/MetaMerchantPresenter.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
 
 #### 3.6 主线任务（第一章）
 **优先级**：中
 **预计时间**：1-2周
+**当前状态**：已完成（2026-03-18，待数值调平）
 
 **任务描述**
 - 设计第一章主线任务流程
 - 创建主线任务数据
 - 实现主线任务逻辑
 - 制作任务相关对话
+- 已落地第一章四个主线任务：`chapter1_base_orientation`、`chapter1_first_sortie`、`chapter1_supply_run`、`chapter1_danger_zone`
+- 已接通基地对话、仓库浏览、商人交互、开箱、击杀、出击、撤离等主线推进事件
+- 主线奖励包含资金、经验、武器、防具和章节完成 story flag
 
 **任务流程示例**
 ```
@@ -664,13 +706,22 @@ public static class WeaponDealerQuests
 ```
 
 **验收标准**
-- [ ] 第一章任务可完整游玩
-- [ ] 任务引导清晰
+- [x] 第一章任务可完整游玩
+- [x] 任务引导清晰
 - [ ] 任务难度合理
 - [ ] 任务奖励合适
 
 **相关文件**
-- 新增：主线任务数据文件
+- `Assets/Res/Scripts/Quest/PrototypeQuestCatalog.cs`
+- `Assets/Res/Scripts/Quest/DialogueSystem.cs`
+- `Assets/Res/Scripts/Base/BaseHubDirector.cs`
+- `Assets/Res/Scripts/Base/MerchantUIManager.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeRaidProfileFlow.cs`
+- `Assets/Res/Scripts/Raid/RaidGameMode.cs`
+- `Assets/Res/Scripts/Loot/LootContainer.cs`
+- `Assets/Res/Scripts/Loot/GroundLootItem.cs`
+- `Assets/Res/Scripts/FPS/PlayerProgressionRuntime.cs`
 
 ---
 

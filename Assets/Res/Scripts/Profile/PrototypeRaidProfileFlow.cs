@@ -31,6 +31,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         ResolveReferences();
         ResolveCatalog();
         ApplyLoadoutToRaidState();
+        EnsureQuestRuntime();
         EnsureReturnButtonUi();
     }
 
@@ -268,6 +269,13 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
         inventory.Configure(label, Mathf.Max(1, slots), Mathf.Max(0f, maxWeight));
         return inventory;
+    }
+
+    private void EnsureQuestRuntime()
+    {
+        QuestManager questManager = QuestManager.GetOrCreate();
+        questManager.ConfigureRuntime(itemCatalog, null, playerInteractor, true);
+        questManager.TryInitialize();
     }
 
     private void ResolveCatalog()

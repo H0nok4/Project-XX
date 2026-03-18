@@ -696,14 +696,17 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
                 RectTransform commissionCard = CreateCard(panel.content, false, 0f);
                 CreateSectionTitle(commissionCard, "商人委托", 18);
                 CreateBodyText(commissionCard, supplyRequestText, 14, FontStyle.Normal, new Color(0.86f, 0.9f, 0.95f));
-                CreateButtonRows(commissionCard, new List<ButtonSpec>
+                if (host.HasMerchantPrimaryAction(merchant.MerchantId))
                 {
-                    new ButtonSpec("交付委托", () =>
+                    CreateButtonRows(commissionCard, new List<ButtonSpec>
                     {
-                        host.TryCompleteMerchantSupplyRequest(merchant.MerchantId);
-                        RequestRefresh();
-                    })
-                }, 1, 34f);
+                        new ButtonSpec(host.GetMerchantPrimaryActionLabel(merchant.MerchantId), () =>
+                        {
+                            host.TryCompleteMerchantSupplyRequest(merchant.MerchantId);
+                            RequestRefresh();
+                        })
+                    }, 1, 34f);
+                }
             }
 
             bool drewOffer = false;

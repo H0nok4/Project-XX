@@ -49,6 +49,7 @@ public sealed class MerchantUIManager : MonoBehaviour
             return false;
         }
 
+        QuestEventHub.RaiseTalk(merchantNpc.MerchantId, merchantNpc.MerchantName);
         if (showGreetingFeedback && menuController != null)
         {
             string feedback = string.IsNullOrWhiteSpace(merchantNpc.GreetingLine)

@@ -91,7 +91,8 @@ public sealed class MetaMerchantPresenter
         if (!string.IsNullOrWhiteSpace(supplyRequestDetail))
         {
             GUILayout.Label(supplyRequestDetail, host.BodyStyle);
-            if (GUILayout.Button("交付委托", host.ButtonStyle, GUILayout.Width(112f)))
+            if (host.HasMerchantPrimaryAction(merchant.MerchantId)
+                && GUILayout.Button(host.GetMerchantPrimaryActionLabel(merchant.MerchantId), host.ButtonStyle, GUILayout.Width(112f)))
             {
                 host.TryCompleteMerchantSupplyRequest(merchant.MerchantId);
                 GUIUtility.ExitGUI();
