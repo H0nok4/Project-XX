@@ -102,6 +102,7 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private PlayerSkillManager skillManager;
+    private PlayerProgressionRuntime progressionRuntime;
     private readonly WeaponRuntime primaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Primary };
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
@@ -114,6 +115,13 @@ public class PlayerWeaponController : MonoBehaviour
     private PrototypeWeaponDefinition meleeViewModelSource;
     private float hitMarkerTimer;
     private float characterDamageMultiplier = 1f;
+    private float characterFireRateMultiplier = 1f;
+    private float characterReloadSpeedMultiplier = 1f;
+    private float characterCritChance;
+    private float characterCritDamageMultiplier = 1f;
+    private float characterArmorPenetrationBonus;
+    private float characterSpreadMultiplier = 1f;
+    private float characterRangeMultiplier = 1f;
     private float feedbackTimer;
     private string feedbackMessage = string.Empty;
 
@@ -144,6 +152,7 @@ public class PlayerWeaponController : MonoBehaviour
     {
         playerVitals = vitals;
         inventory = inventoryContainer;
+        progressionRuntime = GetComponent<PlayerProgressionRuntime>();
         skillManager = GetComponent<PlayerSkillManager>();
         skillManager?.SetPlayerDependencies(playerVitals, this);
     }
@@ -203,6 +212,26 @@ public class PlayerWeaponController : MonoBehaviour
     public void SetCharacterDamageMultiplier(float damageMultiplier)
     {
         characterDamageMultiplier = Mathf.Max(0.1f, damageMultiplier);
+    }
+
+    public void SetCharacterCombatModifiers(
+        float damageMultiplier,
+        float fireRateMultiplier,
+        float reloadSpeedMultiplier,
+        float critChance,
+        float critDamageMultiplier,
+        float armorPenetrationBonus,
+        float spreadMultiplier,
+        float rangeMultiplier)
+    {
+        characterDamageMultiplier = Mathf.Max(0.1f, damageMultiplier);
+        characterFireRateMultiplier = Mathf.Clamp(fireRateMultiplier, 0.25f, 3f);
+        characterReloadSpeedMultiplier = Mathf.Clamp(reloadSpeedMultiplier, 0.25f, 3f);
+        characterCritChance = Mathf.Clamp01(critChance);
+        characterCritDamageMultiplier = Mathf.Clamp(critDamageMultiplier, 1f, 5f);
+        characterArmorPenetrationBonus = Mathf.Max(0f, armorPenetrationBonus);
+        characterSpreadMultiplier = Mathf.Clamp(spreadMultiplier, 0.1f, 3f);
+        characterRangeMultiplier = Mathf.Clamp(rangeMultiplier, 0.5f, 3f);
     }
 
     public void TickVisuals(float deltaTime)
@@ -282,6 +311,11 @@ public class PlayerWeaponController : MonoBehaviour
     public ItemInstance GetMeleeItemInstance()
     {
         return BuildItemInstance(meleeRuntime);
+    }
+
+    public ItemInstance GetActiveItemInstance()
+    {
+        return BuildItemInstance(GetActiveWeapon());
     }
 
     public WeaponInstance GetPrimaryWeaponInstance()
@@ -649,7 +683,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.MagazineAmmo--;
-        float secondsPerShot = runtime.Definition.SecondsPerShot / (runtime.FireRateMultiplier * GetPassiveFireRateMultiplier());
+        float secondsPerShot = runtime.Definition.SecondsPerShot / GetPassiveFireRateMultiplier();
         runtime.NextAttackTime = Time.time + Mathf.Max(0.01f, secondsPerShot);
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
 
@@ -657,8 +691,8 @@ public class PlayerWeaponController : MonoBehaviour
         float shotDamage = GetFirearmBaseDamage(runtime, ammo);
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
         float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
-        float shotRange = baseRange * runtime.RangeMultiplier;
-        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * runtime.SpreadMultiplier);
+        float shotRange = baseRange * characterRangeMultiplier;
+        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * characterSpreadMultiplier);
         PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
 
         if (TryGetCombatHit(viewCamera.transform.position, direction, shotRange, out RaycastHit hit))
@@ -760,18 +794,16 @@ public class PlayerWeaponController : MonoBehaviour
     {
         float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
         float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
-        float damage = Mathf.Max(1f, defaultDamage * rarityMultiplier * affixDamageMultiplier * characterDamageMultiplier);
+        float damage = Mathf.Max(1f, defaultDamage * rarityMultiplier * characterDamageMultiplier);
         float armorDamage = (ammo != null ? ammo.ArmorDamage : Mathf.Max(8f, defaultDamage * 0.5f)) * rarityMultiplier * affixDamageMultiplier;
         float penetrationPower = (ammo != null ? ammo.PenetrationPower : runtime.Definition.PenetrationPower) * rarityMultiplier;
-        float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
-        penetrationPower = Mathf.Max(0f, penetrationPower + armorPenetrationBonus);
+        penetrationPower = Mathf.Max(0f, penetrationPower + characterArmorPenetrationBonus);
 
-        bool isCrit = runtime != null
-            && runtime.AffixSummary.CritChance > 0f
-            && UnityEngine.Random.value < runtime.AffixSummary.CritChance;
+        bool isCrit = characterCritChance > 0f
+            && UnityEngine.Random.value < characterCritChance;
         if (isCrit)
         {
-            damage *= Mathf.Max(1f, runtime.AffixSummary.CritDamageMultiplier);
+            damage *= characterCritDamageMultiplier;
         }
 
         return new PrototypeUnitVitals.DamageInfo
@@ -795,18 +827,16 @@ public class PlayerWeaponController : MonoBehaviour
         PrototypeWeaponDefinition weaponDefinition = runtime != null ? runtime.Definition : null;
         float rarityMultiplier = runtime != null ? runtime.StatMultiplier : 1f;
         float affixDamageMultiplier = runtime != null ? runtime.AffixSummary.DamageMultiplier : 1f;
-        float damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier * affixDamageMultiplier * characterDamageMultiplier;
+        float damage = (weaponDefinition != null ? weaponDefinition.MeleeDamage : baseDamage) * rarityMultiplier * characterDamageMultiplier;
         float armorDamage = (weaponDefinition != null ? Mathf.Max(6f, weaponDefinition.MeleeDamage * 0.28f) : 6f) * rarityMultiplier * affixDamageMultiplier;
         float penetrationPower = (weaponDefinition != null ? weaponDefinition.PenetrationPower : 6f) * rarityMultiplier;
-        float armorPenetrationBonus = runtime != null ? runtime.AffixSummary.ArmorPenetrationBonus : 0f;
-        penetrationPower = Mathf.Max(0f, penetrationPower + armorPenetrationBonus);
+        penetrationPower = Mathf.Max(0f, penetrationPower + characterArmorPenetrationBonus);
 
-        bool isCrit = runtime != null
-            && runtime.AffixSummary.CritChance > 0f
-            && UnityEngine.Random.value < runtime.AffixSummary.CritChance;
+        bool isCrit = characterCritChance > 0f
+            && UnityEngine.Random.value < characterCritChance;
         if (isCrit)
         {
-            damage *= Mathf.Max(1f, runtime.AffixSummary.CritDamageMultiplier);
+            damage *= characterCritDamageMultiplier;
         }
 
         return new PrototypeUnitVitals.DamageInfo
@@ -890,7 +920,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         runtime.IsReloading = true;
-        float reloadDuration = runtime.Definition.ReloadDuration / (runtime.ReloadSpeedMultiplier * GetPassiveReloadSpeedMultiplier());
+        float reloadDuration = runtime.Definition.ReloadDuration / GetPassiveReloadSpeedMultiplier();
         runtime.ReloadEndTime = Time.time + Mathf.Max(0.05f, reloadDuration);
         runtime.PendingBurstShots = 0;
     }
@@ -961,6 +991,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         activeWeaponSlot = slot;
         RefreshWeaponViewModels();
+        progressionRuntime?.RefreshDerivedStats();
     }
 
     private void ConfigureRuntimeWeapons()
@@ -1259,12 +1290,14 @@ public class PlayerWeaponController : MonoBehaviour
 
     private float GetPassiveFireRateMultiplier()
     {
-        return Mathf.Max(0.1f, skillManager != null ? skillManager.GetFireRateMultiplier() : 1f);
+        float equipmentMultiplier = skillManager != null ? skillManager.GetFireRateMultiplier() : 1f;
+        return Mathf.Max(0.1f, characterFireRateMultiplier * equipmentMultiplier);
     }
 
     private float GetPassiveReloadSpeedMultiplier()
     {
-        return Mathf.Max(0.1f, skillManager != null ? skillManager.GetReloadSpeedMultiplier() : 1f);
+        float equipmentMultiplier = skillManager != null ? skillManager.GetReloadSpeedMultiplier() : 1f;
+        return Mathf.Max(0.1f, characterReloadSpeedMultiplier * equipmentMultiplier);
     }
 
     private int GetReserveAmmoCount(WeaponRuntime runtime)
@@ -1492,6 +1525,11 @@ public class PlayerWeaponController : MonoBehaviour
         if (skillManager == null)
         {
             skillManager = GetComponent<PlayerSkillManager>();
+        }
+
+        if (progressionRuntime == null)
+        {
+            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
         }
 
     }

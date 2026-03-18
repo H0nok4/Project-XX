@@ -423,6 +423,8 @@ public class PrototypeUnitVitals : MonoBehaviour
     [SerializeField] private float characterBonusStamina;
     [Min(0.1f)]
     [SerializeField] private float medicalEffectivenessMultiplier = 1f;
+    [Min(0.1f)]
+    [SerializeField] private float characterMoveSpeedMultiplier = 1f;
     [Header("Runtime State")]
     [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
@@ -454,7 +456,9 @@ public class PrototypeUnitVitals : MonoBehaviour
     public bool HasFracture => statusEffects != null && statusEffects.HasFracture;
     public bool IsPainkillerActive => statusEffects != null && statusEffects.IsPainkillerActive;
     public float PainkillerRemaining => statusEffects != null ? statusEffects.PainkillerRemaining : 0f;
-    public float MovementPenaltyMultiplier => (statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f) * EquipmentMoveSpeedMultiplier;
+    public float MovementPenaltyMultiplier => (statusEffects != null ? statusEffects.MovementPenaltyMultiplier : 1f)
+        * EquipmentMoveSpeedMultiplier
+        * Mathf.Clamp(characterMoveSpeedMultiplier, 0.4f, 1.8f);
     public float EquipmentMoveSpeedMultiplier => equipmentMoveSpeedMultiplier;
     public float JumpPenaltyMultiplier => statusEffects != null ? statusEffects.JumpPenaltyMultiplier : 1f;
     public float MedicalEffectivenessMultiplier => Mathf.Max(0.1f, medicalEffectivenessMultiplier);
@@ -702,6 +706,11 @@ public class PrototypeUnitVitals : MonoBehaviour
         characterBonusStamina = Mathf.Max(0f, staminaBonus);
         medicalEffectivenessMultiplier = Mathf.Max(0.1f, healingMultiplier);
         EnsureBodyPartSetup(resetResourcesToFull);
+    }
+
+    public void SetCharacterMovementMultiplier(float moveSpeedMultiplier)
+    {
+        characterMoveSpeedMultiplier = Mathf.Clamp(moveSpeedMultiplier, 0.4f, 1.8f);
     }
 
     /// <summary>
@@ -1457,22 +1466,9 @@ public class PrototypeUnitVitals : MonoBehaviour
 
     private void RecalculateEquipmentModifiers()
     {
-        float moveBonus = 0f;
-        if (equippedArmor != null)
-        {
-            for (int index = 0; index < equippedArmor.Count; index++)
-            {
-                ArmorState armorState = equippedArmor[index];
-                if (armorState == null)
-                {
-                    continue;
-                }
-
-                moveBonus += armorState.MoveSpeedMultiplier - 1f;
-            }
-        }
-
-        equipmentMoveSpeedMultiplier = Mathf.Clamp(1f + moveBonus, 0.4f, 1.8f);
+        // 护甲词条的移速收益已经并入 CharacterStatAggregator，这里保留 1x 基线，
+        // 避免装备词条和成长汇总在局内被重复计算。
+        equipmentMoveSpeedMultiplier = 1f;
     }
 
     private void SanitizeArmorLoadout()
@@ -1613,6 +1609,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         characterBonusHealth = Mathf.Max(0f, characterBonusHealth);
         characterBonusStamina = Mathf.Max(0f, characterBonusStamina);
         medicalEffectivenessMultiplier = Mathf.Max(0.1f, medicalEffectivenessMultiplier);
+        characterMoveSpeedMultiplier = Mathf.Clamp(characterMoveSpeedMultiplier, 0.4f, 1.8f);
         staminaRecoveryPerSecond = Mathf.Max(0f, staminaRecoveryPerSecond);
         staminaActionThresholdNormalized = Mathf.Clamp01(staminaActionThresholdNormalized);
         staminaRecoveryDelay = Mathf.Max(0f, staminaRecoveryDelay);

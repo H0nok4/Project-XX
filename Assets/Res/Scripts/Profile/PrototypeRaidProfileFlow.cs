@@ -172,11 +172,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         }
         else if (profile != null && profile.progression != null)
         {
-            latestProfile.progression.progressionDataVersion = profile.progression.progressionDataVersion;
-            latestProfile.progression.playerLevel = profile.progression.playerLevel;
-            latestProfile.progression.currentExperience = profile.progression.currentExperience;
-            latestProfile.progression.lifetimeExperience = profile.progression.lifetimeExperience;
-            latestProfile.progression.killCount = profile.progression.killCount;
+            PrototypePlayerProgressionUtility.Copy(profile.progression, latestProfile.progression);
         }
         InventoryContainer secureContainer = playerInteractor != null ? playerInteractor.SecureInventory : null;
         InventoryContainer specialEquipment = playerInteractor != null ? playerInteractor.SpecialInventory : null;

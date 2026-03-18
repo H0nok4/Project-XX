@@ -532,16 +532,101 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         }
 
         RectTransform statsCard = CreateCard(scrollContent, false, 0f);
-        CreateSectionTitle(statsCard, "角色状态");
+        CreateSectionTitle(statsCard, "角色成长");
         CreateBodyText(statsCard, $"资金：{host.GetAvailableFunds()} {host.GetCurrencyLabel()}", 16, FontStyle.Bold, Color.white);
         CreateBodyText(statsCard, $"等级：{host.PlayerLevel}", 16, FontStyle.Bold, Color.white);
-        CreateSectionTitle(statsCard, "Character Growth", 18);
+        CreateSectionTitle(statsCard, "成长进度", 18);
         CreateBodyText(statsCard, host.BuildPlayerProgressionSummaryText());
-        CreateSectionTitle(statsCard, "Attributes", 18);
+        CreateSectionTitle(statsCard, "基础属性", 18);
         CreateBodyText(statsCard, host.BuildPlayerAttributeSummaryText());
+        CreateSectionTitle(statsCard, "派生构筑", 18);
+        CreateBodyText(statsCard, host.BuildPlayerDerivedStatSummaryText());
+        CreateSectionTitle(statsCard, "已解锁专精", 18);
+        CreateBodyText(statsCard, host.BuildPlayerSkillTreeSummaryText());
+
+        RectTransform attributeCard = CreateCard(scrollContent, false, 0f);
+        CreateSectionTitle(attributeCard, "属性分配");
+        CreateBodyText(attributeCard, $"未分配属性点：{host.PlayerUnspentAttributePoints}", 16, FontStyle.Bold, Color.white);
+        Array attributeValues = Enum.GetValues(typeof(PlayerAttributeType));
+        for (int index = 0; index < attributeValues.Length; index++)
+        {
+            PlayerAttributeType attributeType = (PlayerAttributeType)attributeValues.GetValue(index);
+            RectTransform entryCard = CreateCard(attributeCard, false, 0f);
+            CreateSectionTitle(
+                entryCard,
+                $"{PrototypePlayerProgressionUtility.GetAttributeDisplayName(attributeType)}  {host.GetPlayerAttributeValue(attributeType)}",
+                18);
+            CreateBodyText(entryCard, host.BuildPlayerAttributeDetail(attributeType));
+            if (host.PlayerUnspentAttributePoints > 0)
+            {
+                CreateButtonRows(entryCard, new List<ButtonSpec>
+                {
+                    new ButtonSpec("分配 1 点", () => host.TryAllocateAttribute(attributeType))
+                }, 1, 34f);
+            }
+        }
+
+        RectTransform skillTreeCard = CreateCard(scrollContent, false, 0f);
+        CreateSectionTitle(skillTreeCard, "专精树");
+        CreateBodyText(skillTreeCard, $"未分配技能点：{host.PlayerUnspentSkillPoints}", 16, FontStyle.Bold, Color.white);
+        IReadOnlyList<SkillNodeDefinition> skillNodeDefinitions = host.GetSkillNodeDefinitions();
+        for (int index = 0; index < skillNodeDefinitions.Count; index++)
+        {
+            SkillNodeDefinition definition = skillNodeDefinitions[index];
+            if (definition == null)
+            {
+                continue;
+            }
+
+            bool unlocked = host.IsSkillNodeUnlocked(definition.nodeId);
+            bool canUnlock = !unlocked && host.CanUnlockSkillNode(definition.nodeId);
+            RectTransform entryCard = CreateCard(skillTreeCard, false, 0f);
+            CreateSectionTitle(entryCard, $"{PlayerSkillTreeCatalog.GetBranchDisplayName(definition.branch)} / {definition.displayName}", 18);
+            CreateBodyText(
+                entryCard,
+                $"状态：{host.GetSkillNodeStatusText(definition.nodeId)}",
+                15,
+                unlocked ? FontStyle.Bold : FontStyle.Normal,
+                unlocked ? new Color(0.49f, 0.92f, 0.62f) : new Color(0.92f, 0.86f, 0.56f));
+            CreateBodyText(entryCard, host.BuildSkillNodeDetail(definition.nodeId));
+            if (canUnlock)
+            {
+                CreateButtonRows(entryCard, new List<ButtonSpec>
+                {
+                    new ButtonSpec("解锁节点", () => host.TryUnlockSkillNode(definition.nodeId))
+                }, 1, 34f);
+            }
+        }
+
+        RectTransform respecCard = CreateCard(scrollContent, false, 0f);
+        CreateSectionTitle(respecCard, "重置服务");
+        CreateBodyText(respecCard, host.BuildRespecSummaryText());
+        List<ButtonSpec> respecActions = new List<ButtonSpec>();
+        if (host.CanRespecAttributes())
+        {
+            respecActions.Add(new ButtonSpec($"重置属性（{host.GetAttributeRespecCost()}）", () => host.TryRespecAttributes()));
+        }
+
+        if (host.CanRespecSkills())
+        {
+            respecActions.Add(new ButtonSpec($"重置专精（{host.GetSkillRespecCost()}）", () => host.TryRespecSkills()));
+        }
+
+        if (respecActions.Count > 0)
+        {
+            CreateButtonRows(respecCard, respecActions, 2, 36f);
+        }
+        else
+        {
+            CreateBodyText(respecCard, "当前没有可重置内容。", 14, FontStyle.Italic, new Color(0.76f, 0.81f, 0.87f));
+        }
 
         RectTransform summaryCard = CreateCard(scrollContent, false, 0f);
-        CreateSectionTitle(summaryCard, "当前整备");
+        CreateSectionTitle(summaryCard, "构筑回显");
+        CreateBodyText(summaryCard, host.BuildPlayerModifierBreakdownText());
+        CreateSectionTitle(summaryCard, "装备词条与技能贡献", 18);
+        CreateBodyText(summaryCard, host.BuildEquipmentContributionSummaryText());
+        CreateSectionTitle(summaryCard, "当前整备", 18);
         CreateBodyText(summaryCard, host.BuildHomePageSummaryText());
 
         RectTransform actionCard = CreateCard(scrollContent, false, 0f);

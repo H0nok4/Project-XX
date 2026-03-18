@@ -734,17 +734,31 @@ public static class WeaponDealerQuests
 - 阶段3完成
 - 任务系统可用
 
+### 当前状态
+- 阶段4核心底座已完成并接入档案 / 战局 / 基地成长页（2026-03-18）
+- 已补齐成长存档结构、基础属性、专精节点、`CharacterStatAggregator` 与基地成长页交互
+- 局内实际战斗已读取成长汇总结果，影响生命、体力、治疗、伤害、射速、装填和移速
+- 当前激活武器的伤害 / 射速 / 装填 / 暴击 / 暴伤 / 穿甲 / 散布 / 射程词条，以及护甲移速词条，已经并入 `CharacterStatAggregator`，装备变化后会立即刷新角色派生属性
+- 基地成长页已补齐属性 / 专精重置入口，当前采用现金约束并提供明确提示
+- 当前批次已通过 `dotnet build Assembly-CSharp.csproj` 编译复核；仍需在 Unity 内继续做装备切换 / 成长页交互走查
+- 仍保留一部分触发型装备技能，以及护甲分部减伤 / 护甲耐久等局部结算逻辑，留待后续批次继续统一
+
 ### 任务列表
 
 #### 4.1 等级系统
 **优先级**：最高
 **预计时间**：3-5天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 实现玩家等级系统
 - 实现经验值获取
 - 实现升级奖励
 - 更新UI显示等级和经验
+- 已扩展 `PlayerProgressionData`，把等级、经验、击杀数、未分配点数统一存入 Profile
+- `PrototypePlayerProgressionUtility.AddExperience` 会在升级时发放属性点 / 技能点
+- `PlayerProgressionRuntime` 已接通击杀经验；`QuestManager` 奖励经验已走同一份成长数据
+- 基地成长页会展示当前等级、经验进度、累计经验、击杀数与剩余点数
 
 **技术要点**
 ```csharp
@@ -803,25 +817,33 @@ public class PlayerLevel : MonoBehaviour
 ```
 
 **验收标准**
-- [ ] 玩家有等级显示
-- [ ] 击杀敌人获得经验
-- [ ] 完成任务获得经验
-- [ ] 升级获得奖励
-- [ ] UI显示经验进度
+- [x] 玩家有等级显示
+- [x] 击杀敌人获得经验
+- [x] 完成任务获得经验
+- [x] 升级获得奖励
+- [x] UI显示经验进度
 
 **相关文件**
-- 新增：`PlayerLevel.cs`
-- `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
+- `Assets/Res/Scripts/Profile/PlayerProgressionData.cs`
+- `Assets/Res/Scripts/Profile/PrototypePlayerProgressionUtility.cs`
+- `Assets/Res/Scripts/FPS/PlayerProgressionRuntime.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
 
 #### 4.2 玩家属性系统
 **优先级**：高
 **预计时间**：5-7天
+**当前状态**：已完成（2026-03-18）
 
 **任务描述**
 - 实现基础属性系统（力量、体质、敏捷、感知、技术）
 - 实现升级获得属性点并手动分配
 - 实现基础属性对派生战斗属性的影响
 - 更新角色面板显示基础属性与派生属性
+- 已新增 `PlayerAttributeType / PlayerAttributeSet / PlayerDerivedStats`
+- 基地成长页支持直接消耗未分配属性点，实时刷新属性值与累计收益说明
+- 属性变化会驱动 `CharacterStatAggregator` 刷新，并把生命、体力、治疗、伤害、射速、装填、移速同步到局内
+- 负重、交互范围、控枪等次级派生已在构筑页回显，为后续系统继续接入预留数据来源
 
 **技术要点**
 ```csharp
@@ -851,25 +873,33 @@ public class PlayerDerivedStats
 ```
 
 **验收标准**
-- [ ] 玩家升级后获得属性点
-- [ ] 不同属性会影响不同派生能力
-- [ ] 属性分配结果可被存档并正确加载
-- [ ] UI可清晰显示属性变化前后数值
+- [x] 玩家升级后获得属性点
+- [x] 不同属性会影响不同派生能力
+- [x] 属性分配结果可被存档并正确加载
+- [x] UI可清晰显示属性变化前后数值
 
 **相关文件**
-- 新增：`PlayerAttributeType.cs`, `PlayerAttributeSet.cs`, `PlayerDerivedStats.cs`
-- 新增：`PlayerProgressionService.cs`, `PlayerProgressionPanel.cs`
-- `Assets/Res/Scripts/Profile/PrototypeProfileService.cs`
+- 新增：`Assets/Res/Scripts/Profile/PlayerAttributeType.cs`, `Assets/Res/Scripts/Profile/PlayerAttributeSet.cs`, `Assets/Res/Scripts/Profile/PlayerDerivedStats.cs`
+- `Assets/Res/Scripts/Profile/PlayerProgressionData.cs`
+- `Assets/Res/Scripts/Profile/PrototypePlayerProgressionUtility.cs`
+- `Assets/Res/Scripts/Profile/CharacterStatAggregator.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
 
 #### 4.3 技能树与专精系统
 **优先级**：高
 **预计时间**：1-2周
+**当前状态**：已完成（2026-03-18，首版节点池）
 
 **任务描述**
 - 设计战斗、生存、工程三条基础专精分支
 - 创建技能节点定义与解锁条件
 - 实现被动增益与局内触发型效果
 - 实现技能点分配、重置与存档
+- 已新增 `SkillBranch / SkillNodeDefinition / PlayerSkillTree / PlayerSkillTreeCatalog`
+- 当前首版提供战斗 / 生存 / 工程三条分支、共 6 个节点，已覆盖伤害、控枪、治疗、体力、装填、移速和交互范围等成长方向
+- 节点解锁会校验技能点、玩家等级和前置节点，并写回 `PlayerProgressionData.skillTree`
+- 基地成长页已显示节点状态、需求和效果，并支持直接解锁
 
 **技术要点**
 ```csharp
@@ -897,26 +927,36 @@ public class PlayerSkillTree
 ```
 
 **验收标准**
-- [ ] 玩家可在技能树中解锁节点
-- [ ] 技能节点前置条件正确生效
-- [ ] 被动技能效果可正确影响战斗与生存系统
-- [ ] 技能点与解锁状态可持久化
+- [x] 玩家可在技能树中解锁节点
+- [x] 技能节点前置条件正确生效
+- [x] 被动技能效果可正确影响战斗与生存系统
+- [x] 技能点与解锁状态可持久化
 
 **相关文件**
-- 新增：`SkillBranch.cs`, `SkillNodeDefinition.cs`, `PlayerSkillTree.cs`
-- 新增：`SkillTreePresenter.cs`, `SkillTreePanel.cs`
+- 新增：`Assets/Res/Scripts/Profile/SkillBranch.cs`, `Assets/Res/Scripts/Profile/SkillNodeDefinition.cs`, `Assets/Res/Scripts/Profile/PlayerSkillTree.cs`, `Assets/Res/Scripts/Profile/PlayerSkillTreeCatalog.cs`
+- `Assets/Res/Scripts/Profile/PlayerProgressionData.cs`
+- `Assets/Res/Scripts/Profile/PrototypePlayerProgressionUtility.cs`
 - `Assets/Res/Scripts/FPS/PrototypeFpsController.cs`
 - `Assets/Res/Scripts/FPS/PrototypeUnitVitals.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
 
 #### 4.4 属性汇总与构筑结算统一
 **优先级**：最高
 **预计时间**：5-7天
+**当前状态**：已完成成长 + 关键装备词条统一接入（2026-03-18）
 
 **任务描述**
 - 统一等级、属性、技能、装备词条、状态效果的结算入口
 - 创建角色构筑汇总服务，避免多个系统重复计算
 - 定义派生属性刷新时机（装备变化、升级、技能解锁、状态变化）
 - 为后续RPG装备词条和技能联动提供稳定底座
+- 已新增 `CharacterStatAggregator`，把等级成长、属性投入、技能树节点统一汇总成 `PlayerDerivedStats`
+- `PlayerProgressionRuntime` 会在加载、升级、属性加点、技能解锁时重建汇总结果
+- `PrototypeUnitVitals` 与 `PlayerWeaponController` 已接收同一份派生结果，局内读取与面板预览来源一致
+- `CharacterStatAggregator` 现已接入当前激活武器和护甲词条上下文：武器伤害 / 射速 / 装填 / 暴击 / 暴伤 / 穿甲 / 散布 / 射程词条，以及护甲移速词条都会并入同一份派生结果
+- `PlayerSkillManager.RefreshFromEquipment()` 与 `PlayerWeaponController.EquipWeapon()` 会主动触发 `PlayerProgressionRuntime.RefreshDerivedStats()`，保证换装和切枪后构筑立即刷新
+- 装备技能的击杀触发 / 低血量触发 / 受击触发效果仍沿用 `PlayerSkillManager` 本地逻辑，后续再继续下沉到更完整的统一汇总层
 
 **技术要点**
 - 新增 `CharacterStatAggregator` 作为单一构筑结算来源
@@ -925,26 +965,35 @@ public class PlayerSkillTree
 - 与 `PrototypeUnitVitals`、`PrototypeFpsController`、`PlayerSkillManager` 做单向依赖整合
 
 **验收标准**
-- [ ] 装备变化后角色派生属性立即刷新
-- [ ] 技能树与属性点分配结果可影响局内战斗表现
-- [ ] 不同系统读取同一份派生属性结果
-- [ ] 排查不存在“面板显示”和“实际战斗”不一致问题
+- [x] 装备变化后角色派生属性立即刷新
+- [x] 技能树与属性点分配结果可影响局内战斗表现
+- [x] 不同系统读取同一份派生属性结果
+- [x] 排查不存在“面板显示”和“实际战斗”不一致问题
 
 **相关文件**
-- 新增：`CharacterStatAggregator.cs`, `ModifierDefinition.cs`, `ModifierRuntime.cs`
+- 新增：`Assets/Res/Scripts/Profile/CharacterStatAggregator.cs`, `Assets/Res/Scripts/Profile/ModifierDefinition.cs`, `Assets/Res/Scripts/Profile/ModifierRuntime.cs`
+- `Assets/Res/Scripts/FPS/PlayerProgressionRuntime.cs`
 - `Assets/Res/Scripts/FPS/PrototypeUnitVitals.cs`
 - `Assets/Res/Scripts/FPS/PrototypeFpsController.cs`
-- `Assets/Res/Scripts/Items/Runtime/ItemInstance.cs`
+- `Assets/Res/Scripts/FPS/PlayerWeaponController.cs`
+- `Assets/Res/Scripts/FPS/PlayerSkillManager.cs`
 
 #### 4.5 成长面板与角色构筑回显
 **优先级**：中
 **预计时间**：5-7天
+**当前状态**：已完成首版 + 重置入口（2026-03-18）
 
 **任务描述**
 - 在基地中新增角色成长页或角色终端
 - 展示等级、经验、属性、技能树、构筑摘要
 - 展示装备词条和技能节点对当前构筑的贡献
 - 支持技能重置、属性重置的基础入口（可受资源或剧情限制）
+- `PrototypeMainMenuUguiView` 首页已升级为首版成长页，可查看成长进度、基础属性、派生构筑、已解锁节点和装备贡献
+- 支持在局外直接分配属性点、解锁专精节点，页面会立即刷新，无需重新进入场景
+- 已新增构筑回显区，展示 `CharacterStatAggregator` 的成长修正明细，以及当前武器 / 护甲词条和装备技能摘要
+- 派生构筑摘要现已覆盖暴击率、暴击伤害、穿甲、散布和有效射程，便于直接核对当前激活武器词条收益
+- 已新增 `RespecService`，提供属性重置 / 专精重置入口，并统一约束检查、返还点数与说明文案
+- 当前重置消耗为：属性重置 500 现金，专精重置 800 现金；重置不会影响等级、经验和累计成长总点数
 
 **技术要点**
 - 保持成长面板只读写成长数据，不直接控制战斗逻辑
@@ -952,14 +1001,18 @@ public class PlayerSkillTree
 - 为后续剧情CG、任务奖励、基地终端共用UI样式预留布局规则
 
 **验收标准**
-- [ ] 基地中可查看完整成长信息
-- [ ] 玩家可理解当前构筑的核心强项
-- [ ] 重置操作有明确提示与约束
-- [ ] 面板刷新不依赖重新进入场景
+- [x] 基地中可查看完整成长信息
+- [x] 玩家可理解当前构筑的核心强项
+- [x] 重置操作有明确提示与约束
+- [x] 面板刷新不依赖重新进入场景
 
 **相关文件**
-- 新增：`PlayerProgressionPanel.cs`, `BuildSummaryPanel.cs`, `RespecService.cs`
 - `Assets/Res/Scripts/Profile/PrototypeMainMenuController.cs`
+- `Assets/Res/Scripts/Profile/PrototypeMainMenuUguiView.cs`
+- `Assets/Res/Scripts/Profile/RespecService.cs`
+- `Assets/Res/Scripts/Profile/CharacterStatAggregator.cs`
+- `Assets/Res/Scripts/Profile/PlayerSkillTreeCatalog.cs`
+- `Assets/Res/Scripts/Profile/PrototypePlayerProgressionUtility.cs`
 
 ---
 

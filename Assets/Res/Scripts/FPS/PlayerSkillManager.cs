@@ -80,6 +80,7 @@ public class PlayerSkillManager : MonoBehaviour
 
         ItemSkillUtility.SanitizeSkills(activeSkills);
         RebuildSkillTotals();
+        progressionRuntime?.RefreshDerivedStats();
     }
 
     public PrototypeUnitVitals.DamageInfo AdjustIncomingDamage(string partId, PrototypeUnitVitals.DamageInfo damageInfo)

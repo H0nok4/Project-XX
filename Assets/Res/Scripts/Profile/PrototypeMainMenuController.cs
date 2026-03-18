@@ -151,6 +151,12 @@ public class PrototypeMainMenuController : MonoBehaviour
     internal int PlayerKillCount => profile != null && profile.progression != null
         ? Mathf.Max(0, profile.progression.killCount)
         : 0;
+    internal int PlayerUnspentAttributePoints => profile != null && profile.progression != null
+        ? Mathf.Max(0, profile.progression.unspentAttributePoints)
+        : 0;
+    internal int PlayerUnspentSkillPoints => profile != null && profile.progression != null
+        ? Mathf.Max(0, profile.progression.unspentSkillPoints)
+        : 0;
     internal PrototypeItemCatalog ItemCatalog => itemCatalog;
     internal PrototypeMerchantCatalog MerchantCatalog => merchantCatalog;
     internal string FocusedMerchantId => focusedMerchantId;
@@ -379,27 +385,347 @@ public class PrototypeMainMenuController : MonoBehaviour
 
     internal string BuildPlayerProgressionSummaryText()
     {
-        return $"Level: {PlayerLevel}\nXP: {PlayerCurrentExperience}/{PlayerExperienceToNextLevel}\nLifetime XP: {PlayerLifetimeExperience}  Kills: {PlayerKillCount}";
+        return $"等级 {PlayerLevel}\n经验 {PlayerCurrentExperience}/{PlayerExperienceToNextLevel}\n累计经验 {PlayerLifetimeExperience}  击杀 {PlayerKillCount}\n未分配属性点 {PlayerUnspentAttributePoints}  未分配技能点 {PlayerUnspentSkillPoints}";
     }
 
     internal string BuildPlayerAttributeSummaryText()
     {
-        int level = PlayerLevel;
-        int vitality = PrototypePlayerProgressionUtility.GetVitality(level);
-        int endurance = PrototypePlayerProgressionUtility.GetEndurance(level);
-        int combat = PrototypePlayerProgressionUtility.GetCombat(level);
-        int medicine = PrototypePlayerProgressionUtility.GetMedicine(level);
-        float bonusHealth = PrototypePlayerProgressionUtility.GetHealthBonus(level);
-        float bonusStamina = PrototypePlayerProgressionUtility.GetStaminaBonus(level);
-        float damageBonusPercent = (PrototypePlayerProgressionUtility.GetDamageMultiplier(level) - 1f) * 100f;
-        float healingBonusPercent = (PrototypePlayerProgressionUtility.GetHealingMultiplier(level) - 1f) * 100f;
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (progression == null)
+        {
+            return "成长数据未初始化。";
+        }
+
+        PrototypePlayerProgressionUtility.Sanitize(progression);
+        PlayerAttributeSet attributes = progression.attributeSet ?? new PlayerAttributeSet();
 
         var builder = new StringBuilder(160);
-        builder.Append($"Vitality {vitality}  Endurance {endurance}\n");
-        builder.Append($"Combat {combat}  Medicine {medicine}\n");
-        builder.Append($"Health +{Mathf.RoundToInt(bonusHealth)}  Stamina +{Mathf.RoundToInt(bonusStamina)}\n");
-        builder.Append($"Damage +{damageBonusPercent:0.#}%  Healing +{healingBonusPercent:0.#}%");
+        builder.Append($"力量 {attributes.GetValue(PlayerAttributeType.Strength)}  体质 {attributes.GetValue(PlayerAttributeType.Endurance)}\n");
+        builder.Append($"敏捷 {attributes.GetValue(PlayerAttributeType.Agility)}  感知 {attributes.GetValue(PlayerAttributeType.Perception)}\n");
+        builder.Append($"技术 {attributes.GetValue(PlayerAttributeType.Tech)}");
         return builder.ToString();
+    }
+
+    internal string BuildPlayerDerivedStatSummaryText()
+    {
+        CharacterStatAggregator aggregator = BuildPlayerStatPreview();
+        return aggregator != null ? aggregator.BuildDerivedSummary() : "构筑汇总不可用。";
+    }
+
+    internal string BuildPlayerModifierBreakdownText()
+    {
+        CharacterStatAggregator aggregator = BuildPlayerStatPreview();
+        return aggregator != null ? aggregator.BuildModifierBreakdown() : "当前没有成长修正。";
+    }
+
+    internal string BuildPlayerSkillTreeSummaryText()
+    {
+        return PrototypePlayerProgressionUtility.BuildUnlockedSkillSummary(GetPlayerProgressionData());
+    }
+
+    internal int GetPlayerAttributeValue(PlayerAttributeType type)
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (progression == null)
+        {
+            return PrototypePlayerProgressionUtility.DefaultAttributeValue;
+        }
+
+        PrototypePlayerProgressionUtility.Sanitize(progression);
+        return progression.attributeSet.GetValue(type);
+    }
+
+    internal string BuildPlayerAttributeDetail(PlayerAttributeType type)
+    {
+        return PrototypePlayerProgressionUtility.BuildAttributeDetail(GetPlayerProgressionData(), type);
+    }
+
+    internal bool TryAllocateAttribute(PlayerAttributeType type)
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (!PrototypePlayerProgressionUtility.TryAllocateAttributePoint(progression, type, out string errorMessage))
+        {
+            SetFeedback(errorMessage);
+            return false;
+        }
+
+        SetFeedback($"{PrototypePlayerProgressionUtility.GetAttributeDisplayName(type)} +1");
+        AutoSaveIfNeeded();
+        return true;
+    }
+
+    internal IReadOnlyList<SkillNodeDefinition> GetSkillNodeDefinitions()
+    {
+        return PlayerSkillTreeCatalog.GetDefinitions();
+    }
+
+    internal bool IsSkillNodeUnlocked(string nodeId)
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        return progression != null && progression.skillTree != null && progression.skillTree.IsUnlocked(nodeId);
+    }
+
+    internal bool CanUnlockSkillNode(string nodeId)
+    {
+        return PlayerSkillTreeCatalog.CanUnlock(GetPlayerProgressionData(), nodeId, out _);
+    }
+
+    internal string GetSkillNodeStatusText(string nodeId)
+    {
+        if (IsSkillNodeUnlocked(nodeId))
+        {
+            return "已解锁";
+        }
+
+        return PlayerSkillTreeCatalog.CanUnlock(GetPlayerProgressionData(), nodeId, out string reason)
+            ? "可解锁"
+            : reason;
+    }
+
+    internal string BuildSkillNodeDetail(string nodeId)
+    {
+        SkillNodeDefinition definition = PlayerSkillTreeCatalog.GetDefinition(nodeId);
+        if (definition == null)
+        {
+            return "节点定义缺失。";
+        }
+
+        var builder = new StringBuilder(192);
+        builder.Append(definition.description);
+        builder.Append('\n');
+        builder.Append("需求：Lv ");
+        builder.Append(Mathf.Max(1, definition.requiredPlayerLevel));
+        if (definition.prerequisiteNodeIds != null && definition.prerequisiteNodeIds.Count > 0)
+        {
+            builder.Append("  前置 ");
+            for (int index = 0; index < definition.prerequisiteNodeIds.Count; index++)
+            {
+                if (index > 0)
+                {
+                    builder.Append(" / ");
+                }
+
+                builder.Append(PlayerSkillTreeCatalog.GetDisplayName(definition.prerequisiteNodeIds[index]));
+            }
+        }
+
+        builder.Append("\n效果：");
+        builder.Append(PlayerSkillTreeCatalog.BuildModifierSummary(definition));
+        return builder.ToString();
+    }
+
+    internal bool TryUnlockSkillNode(string nodeId)
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (!PrototypePlayerProgressionUtility.TryUnlockSkillNode(progression, nodeId, out string errorMessage))
+        {
+            SetFeedback(errorMessage);
+            return false;
+        }
+
+        SetFeedback($"已解锁 {PlayerSkillTreeCatalog.GetDisplayName(nodeId)}");
+        AutoSaveIfNeeded();
+        return true;
+    }
+
+    internal int GetAttributeRespecCost()
+    {
+        return RespecService.AttributeRespecCost;
+    }
+
+    internal int GetSkillRespecCost()
+    {
+        return RespecService.SkillRespecCost;
+    }
+
+    internal string BuildRespecSummaryText()
+    {
+        return RespecService.BuildRespecSummaryText();
+    }
+
+    internal bool CanRespecAttributes()
+    {
+        return RespecService.CanResetAttributes(GetPlayerProgressionData(), out _);
+    }
+
+    internal bool CanRespecSkills()
+    {
+        return RespecService.CanResetSkills(GetPlayerProgressionData(), out _);
+    }
+
+    internal bool TryRespecAttributes()
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (!RespecService.CanResetAttributes(progression, out string reason))
+        {
+            SetFeedback(reason);
+            return false;
+        }
+
+        int cost = RespecService.AttributeRespecCost;
+        if (!TrySpendFunds(cost, $"资金不足，需要 {cost} 现金重置属性。"))
+        {
+            return false;
+        }
+
+        int refundedPoints = RespecService.ResetAttributes(progression);
+        SetFeedback($"已重置属性，返还 {refundedPoints} 点属性点。");
+        AutoSaveIfNeeded();
+        return true;
+    }
+
+    internal bool TryRespecSkills()
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        if (!RespecService.CanResetSkills(progression, out string reason))
+        {
+            SetFeedback(reason);
+            return false;
+        }
+
+        int cost = RespecService.SkillRespecCost;
+        if (!TrySpendFunds(cost, $"资金不足，需要 {cost} 现金重置专精。"))
+        {
+            return false;
+        }
+
+        int refundedPoints = RespecService.ResetSkills(progression);
+        SetFeedback($"已重置专精，返还 {refundedPoints} 点技能点。");
+        AutoSaveIfNeeded();
+        return true;
+    }
+
+    internal string BuildEquipmentContributionSummaryText()
+    {
+        var builder = new StringBuilder(512);
+        AppendItemContribution(builder, "主武器", equippedPrimaryWeapon);
+        AppendItemContribution(builder, "副武器", equippedSecondaryWeapon);
+        AppendItemContribution(builder, "近战", equippedMeleeWeapon);
+
+        if (equippedArmor != null && equippedArmor.Count > 0)
+        {
+            for (int index = 0; index < equippedArmor.Count; index++)
+            {
+                ArmorInstance armor = equippedArmor[index];
+                if (armor == null || armor.Definition == null)
+                {
+                    continue;
+                }
+
+                if (builder.Length > 0)
+                {
+                    builder.Append("\n\n");
+                }
+
+                builder.Append($"护甲 {index + 1}：{armor.DisplayName}");
+                string affixSummary = ItemAffixUtility.BuildAffixSummary(armor.Affixes);
+                string skillSummary = ItemSkillUtility.BuildSkillSummary(armor.Skills);
+                if (!string.IsNullOrWhiteSpace(affixSummary))
+                {
+                    builder.Append("\n词条：");
+                    builder.Append(affixSummary);
+                }
+
+                if (!string.IsNullOrWhiteSpace(skillSummary))
+                {
+                    builder.Append("\n技能：");
+                    builder.Append(skillSummary);
+                }
+            }
+        }
+
+        return builder.Length > 0 ? builder.ToString() : "当前没有装备词条或装备技能贡献。";
+    }
+
+    private PlayerProgressionData GetPlayerProgressionData()
+    {
+        if (profile == null)
+        {
+            profile = new PrototypeProfileService.ProfileData();
+        }
+
+        profile.progression ??= new PlayerProgressionData();
+        PrototypePlayerProgressionUtility.Sanitize(profile.progression);
+        return profile.progression;
+    }
+
+    private CharacterStatAggregator BuildPlayerStatPreview()
+    {
+        PlayerProgressionData progression = GetPlayerProgressionData();
+        return progression != null
+            ? PrototypePlayerProgressionUtility.BuildPreviewAggregator(
+                progression,
+                GetPreviewActiveWeapon(),
+                BuildPreviewArmorAffixSummaries())
+            : null;
+    }
+
+    private ItemInstance GetPreviewActiveWeapon()
+    {
+        if (equippedPrimaryWeapon != null && equippedPrimaryWeapon.IsDefined())
+        {
+            return equippedPrimaryWeapon;
+        }
+
+        if (equippedSecondaryWeapon != null && equippedSecondaryWeapon.IsDefined())
+        {
+            return equippedSecondaryWeapon;
+        }
+
+        return equippedMeleeWeapon != null && equippedMeleeWeapon.IsDefined() ? equippedMeleeWeapon : null;
+    }
+
+    private List<ItemAffixSummary> BuildPreviewArmorAffixSummaries()
+    {
+        var summaries = new List<ItemAffixSummary>();
+        if (equippedArmor == null)
+        {
+            return summaries;
+        }
+
+        for (int index = 0; index < equippedArmor.Count; index++)
+        {
+            ArmorInstance armor = equippedArmor[index];
+            if (armor == null)
+            {
+                continue;
+            }
+
+            summaries.Add(ItemAffixUtility.BuildSummary(armor.Affixes));
+        }
+
+        return summaries;
+    }
+
+    private static void AppendItemContribution(StringBuilder builder, string slotLabel, ItemInstance item)
+    {
+        if (item == null || !item.IsDefined())
+        {
+            return;
+        }
+
+        if (builder.Length > 0)
+        {
+            builder.Append("\n\n");
+        }
+
+        builder.Append(slotLabel);
+        builder.Append("：");
+        builder.Append(item.DisplayName);
+
+        string affixSummary = ItemAffixUtility.BuildAffixSummary(item.Affixes);
+        if (!string.IsNullOrWhiteSpace(affixSummary))
+        {
+            builder.Append("\n词条：");
+            builder.Append(affixSummary);
+        }
+
+        string skillSummary = ItemSkillUtility.BuildSkillSummary(item.Skills);
+        if (!string.IsNullOrWhiteSpace(skillSummary))
+        {
+            builder.Append("\n技能：");
+            builder.Append(skillSummary);
+        }
     }
 
     internal bool CanReceiveFunds(int amount)
