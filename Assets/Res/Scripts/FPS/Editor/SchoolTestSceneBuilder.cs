@@ -530,6 +530,11 @@ public static class SchoolTestSceneBuilder
         GameObject player = GameObject.Find("FpsPlayer");
         if (player == null)
         {
+            player = GameObject.Find("RaidPlayerBootstrap");
+        }
+
+        if (player == null)
+        {
             player = GameObject.Find("BaseHubPlayer");
         }
 

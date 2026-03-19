@@ -284,12 +284,14 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
     private void ResolveReferences()
     {
+        bool allowSceneSearch = Application.isPlaying;
+
         if (raidGameMode == null)
         {
             raidGameMode = FindFirstObjectByType<RaidGameMode>();
         }
 
-        if (playerInteractor == null)
+        if (playerInteractor == null && allowSceneSearch)
         {
             playerInteractor = FindFirstObjectByType<PlayerInteractor>();
         }
@@ -298,21 +300,21 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         {
             fpsController = playerInteractor != null
                 ? playerInteractor.GetComponent<PrototypeFpsController>()
-                : FindFirstObjectByType<PrototypeFpsController>();
+                : allowSceneSearch ? FindFirstObjectByType<PrototypeFpsController>() : null;
         }
 
         if (playerVitals == null)
         {
             playerVitals = playerInteractor != null
                 ? playerInteractor.GetComponent<PrototypeUnitVitals>()
-                : FindFirstObjectByType<PrototypeUnitVitals>();
+                : allowSceneSearch ? FindFirstObjectByType<PrototypeUnitVitals>() : null;
         }
 
         if (raidEquipmentController == null)
         {
             raidEquipmentController = playerInteractor != null
                 ? playerInteractor.GetComponent<PrototypeRaidEquipmentController>()
-                : FindFirstObjectByType<PrototypeRaidEquipmentController>();
+                : allowSceneSearch ? FindFirstObjectByType<PrototypeRaidEquipmentController>() : null;
         }
 
         if (raidEquipmentController == null && playerInteractor != null && Application.isPlaying)

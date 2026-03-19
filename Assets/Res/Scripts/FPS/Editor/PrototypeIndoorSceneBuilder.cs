@@ -14,6 +14,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string DataFolder = "Assets/Res/Data";
     private const string PrototypeDataFolder = "Assets/Res/Data/PrototypeFPS";
     private const string EnemyPrefabFolder = "Assets/Res/Prefabs/Enemy";
+    private const string PlayerPrefabFolder = "Assets/Res/Prefabs/Player";
     private const string UnitDefinitionFolder = "Assets/Res/Data/PrototypeFPS/UnitDefinitions";
     private const string ItemDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Items";
     private const string WeaponDefinitionFolder = "Assets/Res/Data/PrototypeFPS/Weapons";
@@ -50,6 +51,7 @@ public static class PrototypeIndoorSceneBuilder
     private const string PoliceZombiePrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_PoliceZombie.prefab";
     private const string SoldierZombiePrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_SoldierZombie.prefab";
     private const string ZombieDogPrefabPath = "Assets/Res/Prefabs/Enemy/Enemy_ZombieDog.prefab";
+    private const string PlayerPrefabPath = "Assets/Res/Prefabs/Player/FpsPlayer.prefab";
     private const string HeadPartId = "head";
     private const string TorsoPartId = "torso";
     private const string LegsPartId = "legs";
@@ -336,6 +338,7 @@ public static class PrototypeIndoorSceneBuilder
 
         DeleteIfExists("PrototypeIndoorRange");
         DeleteIfExists("FpsPlayer");
+        DeleteIfExists("RaidPlayerBootstrap");
         DeleteIfExists("Main Camera");
 
         ConfigureDirectionalLight();
@@ -512,7 +515,19 @@ public static class PrototypeIndoorSceneBuilder
 
         CreatePointLight(root.transform, new Vector3(6.25f, 2.4f, 7.1f), new Color(0.31f, 1f, 0.66f), 5f, 9f);
 
-        Selection.activeGameObject = player;
+        GameObject playerPrefab = CreateOrUpdatePlayerPrefab(player);
+        CreatePlayerBootstrap(new Vector3(0f, 1.05f, -6.2f), Quaternion.identity, playerPrefab);
+        Object.DestroyImmediate(player);
+        SetSerializedReference(raidGameMode, "playerInteractor", null);
+        SetSerializedReference(raidGameMode, "playerVitals", null);
+        SetSerializedReference(raidGameMode, "interactionState", null);
+        SetSerializedReference(raidProfileFlow, "playerInteractor", null);
+        SetSerializedReference(raidProfileFlow, "fpsController", null);
+        SetSerializedReference(raidProfileFlow, "playerVitals", null);
+        SetSerializedReference(raidProfileFlow, "raidEquipmentController", null);
+        SetSerializedReference(encounterDirector, "combatTarget", null);
+
+        Selection.activeGameObject = root;
         EditorSceneManager.MarkSceneDirty(scene);
         AssetDatabase.SaveAssets();
         EditorSceneManager.SaveScene(scene);
@@ -1482,6 +1497,22 @@ public static class PrototypeIndoorSceneBuilder
         return material;
     }
 
+    private static GameObject CreateOrUpdatePlayerPrefab(GameObject player)
+    {
+        EnsureFolder(PlayerPrefabFolder);
+        return PrefabUtility.SaveAsPrefabAsset(player, PlayerPrefabPath);
+    }
+
+    private static void CreatePlayerBootstrap(Vector3 position, Quaternion rotation, GameObject playerPrefab)
+    {
+        GameObject bootstrapObject = new GameObject("RaidPlayerBootstrap");
+        bootstrapObject.transform.position = position;
+        bootstrapObject.transform.rotation = rotation;
+
+        RaidScenePlayerBootstrap bootstrap = bootstrapObject.AddComponent<RaidScenePlayerBootstrap>();
+        SetSerializedReference(bootstrap, "playerPrefab", playerPrefab);
+    }
+
     private static void EnsureFolder(string assetPath)
     {
         if (AssetDatabase.IsValidFolder(assetPath))
@@ -1491,7 +1522,11 @@ public static class PrototypeIndoorSceneBuilder
 
         string parent = Path.GetDirectoryName(assetPath)?.Replace("\\", "/");
         string folderName = Path.GetFileName(assetPath);
-        AssetDatabase.CreateFolder(parent, folderName);
+        EnsureFolder(parent);
+        if (!AssetDatabase.IsValidFolder(assetPath))
+        {
+            AssetDatabase.CreateFolder(parent, folderName);
+        }
     }
 
     private static void SetSerializedReference(Object target, string propertyName, Object reference)
