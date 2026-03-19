@@ -134,5 +134,7 @@ public abstract class WindowBase : MonoBehaviour
     {
     }
 
+    // New runtime UI should bind or initialize an authored UGUI prefab here,
+    // rather than constructing a new gameplay hierarchy in code.
     protected abstract void BuildWindow(PrototypeUiToolkit.WindowChrome chrome);
 }

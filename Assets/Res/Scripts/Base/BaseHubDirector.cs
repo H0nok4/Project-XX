@@ -34,6 +34,7 @@ public class BaseHubDirector : MonoBehaviour
     private Text overlayTitleText;
     private Text overlayBodyText;
     private Transform playerTransform;
+    private BaseHubZoneMarker activeContainedZoneMarker;
 
     private void Awake()
     {
@@ -52,11 +53,13 @@ public class BaseHubDirector : MonoBehaviour
         EnsureQuestNpcs();
         DisableConflictingUi();
         ApplyArrivalSpawn();
+        UpdateZoneVisitEvents();
         SetUiFocus(false);
     }
 
     private void Update()
     {
+        UpdateZoneVisitEvents();
         UpdateOverlayUi();
         if (!uiOpen || fpsInput == null)
         {
@@ -71,6 +74,7 @@ public class BaseHubDirector : MonoBehaviour
 
     private void OnDisable()
     {
+        activeContainedZoneMarker = null;
         if (uiOpen)
         {
             CloseMenuInternal(false);
@@ -508,6 +512,27 @@ public class BaseHubDirector : MonoBehaviour
         return builder.ToString();
     }
 
+    private void UpdateZoneVisitEvents()
+    {
+        BaseHubZoneMarker containedZone = ResolveContainedZoneMarker();
+        if (ReferenceEquals(activeContainedZoneMarker, containedZone))
+        {
+            return;
+        }
+
+        activeContainedZoneMarker = containedZone;
+        if (activeContainedZoneMarker == null)
+        {
+            return;
+        }
+
+        string exploreLocationId = activeContainedZoneMarker.QuestExploreLocationId;
+        if (!string.IsNullOrWhiteSpace(exploreLocationId))
+        {
+            QuestEventHub.RaiseExplore(exploreLocationId);
+        }
+    }
+
     private BaseHubZoneMarker ResolveCurrentZoneMarker()
     {
         if (playerTransform == null)
@@ -523,9 +548,7 @@ public class BaseHubDirector : MonoBehaviour
         Vector3 playerPosition = playerTransform.position;
         BaseHubZoneMarker fallbackZone = null;
         float fallbackDistanceSqr = float.PositiveInfinity;
-
-        BaseHubZoneMarker containedZone = null;
-        float containedDistanceSqr = float.PositiveInfinity;
+        BaseHubZoneMarker containedZone = ResolveContainedZoneMarker(playerPosition);
 
         for (int index = 0; index < zoneMarkers.Length; index++)
         {
@@ -541,7 +564,40 @@ public class BaseHubDirector : MonoBehaviour
                 fallbackDistanceSqr = distanceSqr;
                 fallbackZone = zoneMarker;
             }
+        }
 
+        return containedZone != null ? containedZone : fallbackZone;
+    }
+
+    private BaseHubZoneMarker ResolveContainedZoneMarker()
+    {
+        if (playerTransform == null)
+        {
+            ResolveReferences();
+        }
+
+        return playerTransform == null ? null : ResolveContainedZoneMarker(playerTransform.position);
+    }
+
+    private BaseHubZoneMarker ResolveContainedZoneMarker(Vector3 playerPosition)
+    {
+        if (zoneMarkers == null || zoneMarkers.Length == 0)
+        {
+            return null;
+        }
+
+        BaseHubZoneMarker containedZone = null;
+        float containedDistanceSqr = float.PositiveInfinity;
+
+        for (int index = 0; index < zoneMarkers.Length; index++)
+        {
+            BaseHubZoneMarker zoneMarker = zoneMarkers[index];
+            if (zoneMarker == null || !zoneMarker.isActiveAndEnabled)
+            {
+                continue;
+            }
+
+            float distanceSqr = zoneMarker.GetPlanarDistanceSqr(playerPosition);
             if (!zoneMarker.Contains(playerPosition) || distanceSqr >= containedDistanceSqr)
             {
                 continue;
@@ -551,6 +607,6 @@ public class BaseHubDirector : MonoBehaviour
             containedZone = zoneMarker;
         }
 
-        return containedZone != null ? containedZone : fallbackZone;
+        return containedZone;
     }
 }

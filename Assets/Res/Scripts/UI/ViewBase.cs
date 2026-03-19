@@ -145,6 +145,8 @@ public abstract class ViewBase : MonoBehaviour
     {
     }
 
+    // New runtime UI should bind or initialize an authored UGUI prefab here,
+    // rather than constructing a new gameplay hierarchy in code.
     protected abstract void BuildView(RectTransform root);
 
     private void ConfigureRootGraphic()

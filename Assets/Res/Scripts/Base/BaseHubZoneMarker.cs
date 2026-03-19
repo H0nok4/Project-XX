@@ -17,11 +17,13 @@ public sealed class BaseHubZoneMarker : MonoBehaviour
     [SerializeField] private string zoneName = "中枢大厅";
     [TextArea(2, 4)]
     [SerializeField] private string zoneSummary = "基地主通路和功能分发区。";
+    [SerializeField] private string questExploreLocationId = string.Empty;
     [SerializeField] private float guidanceRadius = 5f;
 
     public BaseHubZoneType ZoneType => zoneType;
     public string ZoneName => string.IsNullOrWhiteSpace(zoneName) ? zoneType.ToString() : zoneName.Trim();
     public string ZoneSummary => string.IsNullOrWhiteSpace(zoneSummary) ? string.Empty : zoneSummary.Trim();
+    public string QuestExploreLocationId => ResolveQuestExploreLocationId();
     public float GuidanceRadius => Mathf.Max(1f, guidanceRadius);
 
     public float GetPlanarDistanceSqr(Vector3 worldPosition)
@@ -42,6 +44,24 @@ public sealed class BaseHubZoneMarker : MonoBehaviour
         guidanceRadius = Mathf.Max(1f, guidanceRadius);
         zoneName = zoneName ?? string.Empty;
         zoneSummary = zoneSummary ?? string.Empty;
+        questExploreLocationId = questExploreLocationId ?? string.Empty;
+    }
+
+    private string ResolveQuestExploreLocationId()
+    {
+        if (!string.IsNullOrWhiteSpace(questExploreLocationId))
+        {
+            return questExploreLocationId.Trim();
+        }
+
+        switch (zoneType)
+        {
+            case BaseHubZoneType.Warehouse:
+                return "base_warehouse";
+
+            default:
+                return string.Empty;
+        }
     }
 
 #if UNITY_EDITOR
