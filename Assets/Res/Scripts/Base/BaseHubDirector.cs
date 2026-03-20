@@ -1,6 +1,5 @@
 using System.Text;
 using UnityEngine;
-using UnityEngine.UI;
 
 public enum BaseHubInteractionKind
 {
@@ -30,9 +29,7 @@ public class BaseHubDirector : MonoBehaviour
     [SerializeField] private BaseHubZoneMarker[] zoneMarkers;
 
     private bool uiOpen;
-    private RectTransform overlayRoot;
-    private Text overlayTitleText;
-    private Text overlayBodyText;
+    private BaseHubOverlayView overlayView;
     private Transform playerTransform;
     private BaseHubZoneMarker activeContainedZoneMarker;
 
@@ -81,7 +78,7 @@ public class BaseHubDirector : MonoBehaviour
             return;
         }
 
-        PrototypeUiToolkit.SetVisible(overlayRoot, false);
+        overlayView?.SetContent(string.Empty, string.Empty, Vector2.zero, false);
         SetUiFocus(false);
     }
 
@@ -290,68 +287,35 @@ public class BaseHubDirector : MonoBehaviour
 
     private void EnsureOverlayUi()
     {
-        if (overlayRoot != null)
-        {
-            return;
-        }
-
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        RectTransform layerRoot = manager.GetLayerRoot(PrototypeUiLayer.Overlay);
-        overlayRoot = PrototypeUiToolkit.CreatePanel(layerRoot, "BaseHubHint", new Color(0.08f, 0.1f, 0.14f, 0.92f), new RectOffset(16, 16, 14, 14), 6f);
-        PrototypeUiToolkit.SetAnchor(overlayRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -28f), new Vector2(520f, 120f));
-
-        overlayTitleText = PrototypeUiToolkit.CreateText(
-            overlayRoot,
-            manager.RuntimeFont,
-            hubTitle,
-            20,
-            FontStyle.Bold,
-            Color.white,
-            TextAnchor.UpperLeft);
-        overlayBodyText = PrototypeUiToolkit.CreateText(
-            overlayRoot,
-            manager.RuntimeFont,
-            hubHint,
-            13,
-            FontStyle.Normal,
-            new Color(0.92f, 0.94f, 0.98f, 1f),
-            TextAnchor.UpperLeft);
-        PrototypeUiToolkit.SetVisible(overlayRoot, false);
+        overlayView ??= BaseHubOverlayView.GetOrCreate();
     }
 
     private void UpdateOverlayUi()
     {
-        if (overlayRoot == null)
+        if (overlayView == null)
         {
             EnsureOverlayUi();
         }
 
         bool visible = showOverlayHint && !uiOpen;
-        PrototypeUiToolkit.SetVisible(overlayRoot, visible);
+        string title = string.Empty;
+        string body = string.Empty;
+        Vector2 size = Vector2.zero;
         if (!visible)
         {
+            overlayView?.SetContent(title, body, size, false);
             return;
         }
 
-        if (overlayTitleText != null)
-        {
-            BaseHubZoneMarker currentZone = ResolveCurrentZoneMarker();
-            overlayTitleText.text = currentZone != null
-                ? $"{hubTitle ?? string.Empty} · {currentZone.ZoneName}"
-                : hubTitle ?? string.Empty;
-        }
-
-        if (overlayBodyText != null)
-        {
-            overlayBodyText.text = BuildOverlayBodyText();
-        }
-
-        if (overlayRoot != null)
-        {
-            float width = Mathf.Clamp(Screen.width - 56f, 320f, 560f);
-            float height = ResolveCurrentZoneMarker() != null ? 176f : 148f;
-            overlayRoot.sizeDelta = new Vector2(width, height);
-        }
+        BaseHubZoneMarker currentZone = ResolveCurrentZoneMarker();
+        title = currentZone != null
+            ? $"{hubTitle ?? string.Empty} · {currentZone.ZoneName}"
+            : hubTitle ?? string.Empty;
+        body = BuildOverlayBodyText();
+        float width = Mathf.Clamp(Screen.width - 56f, 320f, 560f);
+        float height = currentZone != null ? 176f : 148f;
+        size = new Vector2(width, height);
+        overlayView?.SetContent(title, body, size, true);
     }
 
     private void EnsureQuestRuntime()
@@ -462,14 +426,6 @@ public class BaseHubDirector : MonoBehaviour
         }
 
         return null;
-    }
-
-    private void OnDestroy()
-    {
-        if (overlayRoot != null)
-        {
-            Destroy(overlayRoot.gameObject);
-        }
     }
 
     private string BuildOverlayBodyText()

@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -8,8 +9,8 @@ public sealed class PrototypeMainMenuPanelTemplate : MonoBehaviour
     [SerializeField] private Image backgroundImage;
     [SerializeField] private LayoutElement layoutElement;
     [SerializeField] private Image accentImage;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text subtitleText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private ScrollRect scrollRect;
     [SerializeField] private RectTransform contentRoot;
     [SerializeField] private RectTransform footerRoot;
@@ -18,8 +19,8 @@ public sealed class PrototypeMainMenuPanelTemplate : MonoBehaviour
     public Image BackgroundImage => backgroundImage;
     public LayoutElement LayoutElement => layoutElement;
     public Image AccentImage => accentImage;
-    public Text TitleText => titleText;
-    public Text SubtitleText => subtitleText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text SubtitleText => subtitleText;
     public ScrollRect ScrollRect => scrollRect;
     public RectTransform ContentRoot => contentRoot;
     public RectTransform FooterRoot => footerRoot;
@@ -29,8 +30,8 @@ public sealed class PrototypeMainMenuPanelTemplate : MonoBehaviour
         Image background,
         LayoutElement element,
         Image accent,
-        Text title,
-        Text subtitle,
+        TMP_Text title,
+        TMP_Text subtitle,
         ScrollRect targetScrollRect,
         RectTransform content,
         RectTransform footer)

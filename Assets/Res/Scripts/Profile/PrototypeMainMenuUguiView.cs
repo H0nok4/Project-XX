@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -42,7 +43,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
     [SerializeField] private RectTransform warehousePage;
     [SerializeField] private RectTransform merchantPage;
 
-    [SerializeField] private Text feedbackText;
+    [SerializeField] private TMP_Text feedbackText;
     [SerializeField] private Button homeButton;
     [SerializeField] private Button warehouseButton;
     [SerializeField] private Button merchantButton;
@@ -147,7 +148,8 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
 
         if (!HasShellReferences())
         {
-            BuildShellHierarchy();
+            Debug.LogWarning($"[{GetType().Name}] Missing main menu shell references on prefab instance.", this);
+            return;
         }
 
         ApplyFontToExistingText(canvasRoot);
@@ -375,10 +377,10 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         return target != null ? target as RectTransform : null;
     }
 
-    private Text FindText(string relativePath)
+    private TMP_Text FindText(string relativePath)
     {
         Transform target = transform.Find(relativePath);
-        return target != null ? target.GetComponentInChildren<Text>(true) : null;
+        return target != null ? target.GetComponentInChildren<TMP_Text>(true) : null;
     }
 
     private Button FindButton(string relativePath)
@@ -394,13 +396,13 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             return;
         }
 
-        Text[] textComponents = root.GetComponentsInChildren<Text>(true);
+        TMP_Text[] textComponents = root.GetComponentsInChildren<TMP_Text>(true);
         for (int index = 0; index < textComponents.Length; index++)
         {
-            Text label = textComponents[index];
+            TMP_Text label = textComponents[index];
             if (label != null)
             {
-                label.font = uiFont;
+                PrototypeUiToolkit.ApplyTmpFont(label, uiFont);
             }
         }
     }
@@ -1072,7 +1074,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         string title = weaponInstance != null
             ? $"{label}：{weaponInstance.DisplayName}"
             : $"{label}：空";
-        Text titleText = CreateSectionTitle(card, title, 18);
+        TMP_Text titleText = CreateSectionTitle(card, title, 18);
         titleText.color = weaponInstance != null
             ? ItemRarityUtility.GetDisplayColor(weaponInstance.Rarity)
             : new Color(0.82f, 0.86f, 0.9f);
@@ -1107,7 +1109,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
     private void CreateArmorCard(RectTransform parent, ArmorInstance armorInstance, List<ButtonSpec> actions)
     {
         RectTransform card = CreateCard(parent, false, 0f);
-        Text titleText = CreateSectionTitle(card, armorInstance != null ? armorInstance.DisplayName : "未知护甲", 18);
+        TMP_Text titleText = CreateSectionTitle(card, armorInstance != null ? armorInstance.DisplayName : "未知护甲", 18);
         if (armorInstance != null)
         {
             titleText.color = ItemRarityUtility.GetDisplayColor(armorInstance.Rarity);
@@ -1129,7 +1131,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             : item != null
                 ? item.DisplayName
                 : "未知物品";
-        Text titleText = CreateSectionTitle(card, title, 18);
+        TMP_Text titleText = CreateSectionTitle(card, title, 18);
         if (item != null)
         {
             titleText.color = ItemRarityUtility.GetDisplayColor(item.Rarity);
@@ -1153,7 +1155,7 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
 
         RectTransform card = CreateCard(parent, false, 0f);
         string title = item.Quantity > 1 ? $"{item.DisplayName} x{item.Quantity}" : item.DisplayName;
-        Text titleText = CreateSectionTitle(card, title, 18);
+        TMP_Text titleText = CreateSectionTitle(card, title, 18);
         titleText.color = ItemRarityUtility.GetDisplayColor(item.Rarity);
         CreateBodyText(card, PrototypeMainMenuController.BuildItemInstanceDetail(item));
         CreateBodyText(card, $"价格 {offer.Price} {host.GetCurrencyLabel()}", 15, FontStyle.Bold, new Color(0.98f, 0.84f, 0.45f));
@@ -1414,17 +1416,17 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
         scrollRect.content = content;
     }
 
-    private Text CreateSectionTitle(Transform parent, string text, int fontSize = 22)
+    private TMP_Text CreateSectionTitle(Transform parent, string text, int fontSize = 22)
     {
         return CreateText(parent, text, fontSize, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
     }
 
-    private Text CreateBodyText(Transform parent, string text, int fontSize = 15, FontStyle fontStyle = FontStyle.Normal, Color? colorOverride = null)
+    private TMP_Text CreateBodyText(Transform parent, string text, int fontSize = 15, FontStyle fontStyle = FontStyle.Normal, Color? colorOverride = null)
     {
         return CreateText(parent, text, fontSize, fontStyle, colorOverride ?? new Color(0.92f, 0.94f, 0.98f, 1f), TextAnchor.UpperLeft);
     }
 
-    private Text CreateText(Transform parent, string text, int fontSize, FontStyle fontStyle, Color color, TextAnchor anchor)
+    private TMP_Text CreateText(Transform parent, string text, int fontSize, FontStyle fontStyle, Color color, TextAnchor anchor)
     {
         RectTransform rect = CreateRectTransform("Text", parent);
         if (parent.GetComponent<LayoutGroup>() == null)
@@ -1437,17 +1439,23 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             element.flexibleWidth = 1f;
         }
 
-        Text label = rect.gameObject.AddComponent<Text>();
-        label.font = uiFont;
+        TextMeshProUGUI label = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        TMP_FontAsset fontAsset = ResolveMenuFontAsset();
+        if (fontAsset != null)
+        {
+            label.font = fontAsset;
+        }
+
         label.fontSize = fontSize;
-        label.fontStyle = fontStyle;
+        label.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
         label.color = color;
-        label.alignment = anchor;
-        label.supportRichText = true;
-        label.horizontalOverflow = HorizontalWrapMode.Wrap;
-        label.verticalOverflow = VerticalWrapMode.Overflow;
+        label.alignment = PrototypeUiToolkit.ConvertTextAlignment(anchor);
+        label.richText = true;
+        label.enableWordWrapping = true;
+        label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
         label.text = text ?? string.Empty;
+        label.margin = Vector4.zero;
         return label;
     }
 
@@ -1521,17 +1529,23 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
 
         RectTransform textRoot = CreateRectTransform("Label", rect);
         SetStretch(textRoot, 12f, 12f, 6f, 6f);
-        Text buttonText = textRoot.gameObject.AddComponent<Text>();
-        buttonText.font = uiFont;
+        TextMeshProUGUI buttonText = textRoot.gameObject.AddComponent<TextMeshProUGUI>();
+        TMP_FontAsset fontAsset = ResolveMenuFontAsset();
+        if (fontAsset != null)
+        {
+            buttonText.font = fontAsset;
+        }
+
         buttonText.fontSize = 15;
-        buttonText.fontStyle = FontStyle.Bold;
+        buttonText.fontStyle = FontStyles.Bold;
         buttonText.color = Color.white;
-        buttonText.alignment = TextAnchor.MiddleCenter;
-        buttonText.supportRichText = false;
-        buttonText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        buttonText.verticalOverflow = VerticalWrapMode.Overflow;
+        buttonText.alignment = TextAlignmentOptions.Center;
+        buttonText.richText = false;
+        buttonText.enableWordWrapping = true;
+        buttonText.overflowMode = TextOverflowModes.Overflow;
         buttonText.raycastTarget = false;
         buttonText.text = label ?? string.Empty;
+        buttonText.margin = Vector4.zero;
 
         return button;
     }
@@ -1549,12 +1563,30 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
             selected ? new Color(0.98f, 0.66f, 0.28f, 1f) : new Color(0.28f, 0.34f, 0.42f, 1f),
             selected ? new Color(0.86f, 0.46f, 0.14f, 1f) : new Color(0.12f, 0.17f, 0.23f, 1f));
 
-        Text buttonText = button.GetComponentInChildren<Text>();
+        TMP_Text buttonText = button.GetComponentInChildren<TMP_Text>();
         if (buttonText != null)
         {
-            buttonText.fontStyle = selected ? FontStyle.Bold : FontStyle.Normal;
+            buttonText.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
             buttonText.color = selected ? Color.white : new Color(0.9f, 0.93f, 0.97f, 1f);
         }
+    }
+
+    private TMP_FontAsset ResolveMenuFontAsset()
+    {
+        TMP_FontAsset defaultFontAsset = TryGetDefaultTmpFontAsset();
+        if (!Application.isPlaying && defaultFontAsset != null)
+        {
+            return defaultFontAsset;
+        }
+
+        TMP_FontAsset runtimeFontAsset = PrototypeUiToolkit.ResolveTmpFontAsset(uiFont);
+        return runtimeFontAsset != null ? runtimeFontAsset : defaultFontAsset;
+    }
+
+    private static TMP_FontAsset TryGetDefaultTmpFontAsset()
+    {
+        TMP_Settings settings = TMP_Settings.instance;
+        return settings != null ? TMP_Settings.defaultFontAsset : null;
     }
 
     private static void ApplyButtonColors(Button button, Color normal, Color highlighted, Color pressed)

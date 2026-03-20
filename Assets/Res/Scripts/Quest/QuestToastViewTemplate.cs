@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -8,20 +9,20 @@ public sealed class QuestToastViewTemplate : MonoBehaviour
     [SerializeField] private Image backgroundImage;
     [SerializeField] private VerticalLayoutGroup layoutGroup;
     [SerializeField] private CanvasGroup canvasGroup;
-    [SerializeField] private Text messageText;
+    [SerializeField] private TMP_Text messageText;
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
     public Image BackgroundImage => backgroundImage;
     public VerticalLayoutGroup LayoutGroup => layoutGroup;
     public CanvasGroup CanvasGroup => canvasGroup;
-    public Text MessageText => messageText;
+    public TMP_Text MessageText => messageText;
 
     public void ConfigureReferences(
         RectTransform rectTransform,
         Image background,
         VerticalLayoutGroup layout,
         CanvasGroup targetCanvasGroup,
-        Text label)
+        TMP_Text label)
     {
         root = rectTransform;
         backgroundImage = background;

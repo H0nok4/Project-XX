@@ -1,48 +1,49 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class QuestJournalDetailTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
-    [SerializeField] private Text placeholderText;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text statusText;
-    [SerializeField] private Text descriptionText;
+    [SerializeField] private TMP_Text placeholderText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text statusText;
+    [SerializeField] private TMP_Text descriptionText;
     [SerializeField] private RectTransform objectivesRoot;
-    [SerializeField] private Text rewardsText;
-    [SerializeField] private Text turnInHintText;
+    [SerializeField] private TMP_Text rewardsText;
+    [SerializeField] private TMP_Text turnInHintText;
     [SerializeField] private Button claimButton;
     [SerializeField] private Button acceptButton;
     [SerializeField] private Button trackButton;
-    [SerializeField] private Text trackButtonLabel;
+    [SerializeField] private TMP_Text trackButtonLabel;
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
-    public Text PlaceholderText => placeholderText;
-    public Text TitleText => titleText;
-    public Text StatusText => statusText;
-    public Text DescriptionText => descriptionText;
+    public TMP_Text PlaceholderText => placeholderText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text StatusText => statusText;
+    public TMP_Text DescriptionText => descriptionText;
     public RectTransform ObjectivesRoot => objectivesRoot;
-    public Text RewardsText => rewardsText;
-    public Text TurnInHintText => turnInHintText;
+    public TMP_Text RewardsText => rewardsText;
+    public TMP_Text TurnInHintText => turnInHintText;
     public Button ClaimButton => claimButton;
     public Button AcceptButton => acceptButton;
     public Button TrackButton => trackButton;
-    public Text TrackButtonLabel => trackButtonLabel;
+    public TMP_Text TrackButtonLabel => trackButtonLabel;
 
     public void ConfigureReferences(
         RectTransform rectTransform,
-        Text placeholder,
-        Text title,
-        Text status,
-        Text description,
+        TMP_Text placeholder,
+        TMP_Text title,
+        TMP_Text status,
+        TMP_Text description,
         RectTransform objectives,
-        Text rewards,
-        Text turnInHint,
+        TMP_Text rewards,
+        TMP_Text turnInHint,
         Button claim,
         Button accept,
         Button track,
-        Text trackLabel)
+        TMP_Text trackLabel)
     {
         root = rectTransform;
         placeholderText = placeholder;

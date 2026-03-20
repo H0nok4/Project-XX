@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
-using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class PrototypeRaidProfileFlow : MonoBehaviour
@@ -23,8 +22,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
     private PrototypeProfileService.ProfileData profile;
     private bool loadoutApplied;
     private bool resultSaved;
-    private RectTransform returnButtonRoot;
-    private Button returnButton;
+    private RaidReturnButtonView returnButtonView;
 
     private void Awake()
     {
@@ -51,7 +49,7 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
             raidGameMode.StateChanged -= HandleRaidStateChanged;
         }
 
-        PrototypeUiToolkit.SetVisible(returnButtonRoot, false);
+        returnButtonView?.Configure(HandleReturnToMenu, "Return To Menu", false);
     }
 
     private void OnValidate()
@@ -325,39 +323,14 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
 
     private void EnsureReturnButtonUi()
     {
-        if (returnButtonRoot != null)
-        {
-            return;
-        }
-
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        RectTransform layerRoot = manager.GetLayerRoot(PrototypeUiLayer.Modal);
-        returnButtonRoot = PrototypeUiToolkit.CreateRectTransform("RaidReturnButton", layerRoot);
-        PrototypeUiToolkit.SetAnchor(
-            returnButtonRoot,
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-40f, 34f),
-            new Vector2(180f, 42f));
-        returnButton = PrototypeUiToolkit.CreateButton(
-            returnButtonRoot,
-            manager.RuntimeFont,
-            "Return To Menu",
-            HandleReturnToMenu,
-            new Color(0.2f, 0.27f, 0.36f, 0.98f),
-            new Color(0.29f, 0.38f, 0.49f, 1f),
-            new Color(0.16f, 0.22f, 0.3f, 1f),
-            42f);
-        PrototypeUiToolkit.SetStretch(returnButton.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
-        PrototypeUiToolkit.SetVisible(returnButtonRoot, false);
+        returnButtonView ??= RaidReturnButtonView.GetOrCreate();
     }
 
     private void UpdateReturnButtonUi()
     {
         EnsureReturnButtonUi();
         bool visible = showReturnButton && raidGameMode != null && !raidGameMode.IsRunning;
-        PrototypeUiToolkit.SetVisible(returnButtonRoot, visible);
+        returnButtonView?.Configure(HandleReturnToMenu, "Return To Menu", visible);
     }
 
     private void HandleReturnToMenu()
@@ -366,11 +339,4 @@ public class PrototypeRaidProfileFlow : MonoBehaviour
         MetaEntryRouter.ReturnFromRaid(fallbackMetaSceneName);
     }
 
-    private void OnDestroy()
-    {
-        if (returnButtonRoot != null)
-        {
-            Destroy(returnButtonRoot.gameObject);
-        }
-    }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -1193,7 +1194,7 @@ public sealed class PrototypeRaidDragService : MonoBehaviour
     private static PrototypeRaidDragService instance;
 
     private RectTransform ghostRoot;
-    private Text ghostLabel;
+    private TMP_Text ghostLabel;
     private RaidDragGhostTemplate dragGhostTemplate;
 
     public static PrototypeRaidDragService CurrentInstance => instance;

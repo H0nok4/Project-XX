@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -6,28 +7,28 @@ public sealed class RaidInventoryItemCardTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
     [SerializeField] private Image backgroundImage;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text detailText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text detailText;
     [SerializeField] private RectTransform actionRow;
     [SerializeField] private Button actionButton;
-    [SerializeField] private Text actionButtonLabel;
+    [SerializeField] private TMP_Text actionButtonLabel;
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
     public Image BackgroundImage => backgroundImage;
-    public Text TitleText => titleText;
-    public Text DetailText => detailText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text DetailText => detailText;
     public RectTransform ActionRow => actionRow;
     public Button ActionButton => actionButton;
-    public Text ActionButtonLabel => actionButtonLabel;
+    public TMP_Text ActionButtonLabel => actionButtonLabel;
 
     public void ConfigureReferences(
         RectTransform rectTransform,
         Image background,
-        Text title,
-        Text detail,
+        TMP_Text title,
+        TMP_Text detail,
         RectTransform actions,
         Button button,
-        Text buttonLabel)
+        TMP_Text buttonLabel)
     {
         root = rectTransform;
         backgroundImage = background;

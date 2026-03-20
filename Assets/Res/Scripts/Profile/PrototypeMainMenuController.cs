@@ -251,16 +251,15 @@ public class PrototypeMainMenuController : MonoBehaviour
             GameObject prefabAsset = uguiViewPrefab != null
                 ? uguiViewPrefab
                 : Resources.Load<GameObject>(MenuUiPrefabResourcePath);
-            if (prefabAsset != null)
+            if (prefabAsset == null)
             {
-                GameObject instance = Instantiate(prefabAsset, transform);
-                instance.name = prefabAsset.name;
-                uguiView = instance.GetComponent<PrototypeMainMenuUguiView>();
+                Debug.LogWarning($"[{GetType().Name}] Missing main menu prefab at Resources/{MenuUiPrefabResourcePath}.", this);
+                return;
             }
-            else
-            {
-                uguiView = gameObject.AddComponent<PrototypeMainMenuUguiView>();
-            }
+
+            GameObject instance = Instantiate(prefabAsset, transform);
+            instance.name = prefabAsset.name;
+            uguiView = instance.GetComponent<PrototypeMainMenuUguiView>();
         }
 
         uguiView.Initialize(this);

@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,11 +21,11 @@ public sealed class QuestTrackerHUD : ViewBase
     private QuestDetailUI detailView;
 
     private RectTransform trackerRoot;
-    private Text trackerText;
+    private TMP_Text trackerText;
     private Button journalButton;
     private QuestTrackerViewTemplate trackerView;
     private RectTransform toastRoot;
-    private Text toastText;
+    private TMP_Text toastText;
     private CanvasGroup toastCanvasGroup;
     private QuestToastViewTemplate toastView;
     private float toastUntil;

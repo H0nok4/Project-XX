@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -24,7 +25,7 @@ public class LootContainerWindowController : WindowBase
     private bool resetBackpackScroll = true;
     private bool resetGearScroll = true;
     private int lastContentHash;
-    private Text summaryText;
+    private TMP_Text summaryText;
     private ScrollRect lootScrollRect;
     private RectTransform lootContentRoot;
     private ScrollRect backpackScrollRect;
@@ -797,7 +798,7 @@ public class LootContainerWindowController : WindowBase
         return card;
     }
 
-    private static void SetText(Text label, string value)
+    private static void SetText(TMP_Text label, string value)
     {
         if (label != null)
         {

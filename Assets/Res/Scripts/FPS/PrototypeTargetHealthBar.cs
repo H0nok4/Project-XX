@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,6 +7,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(PrototypeUnitVitals))]
 public class PrototypeTargetHealthBar : MonoBehaviour
 {
+    private const string HealthBarPrefabResourcePath = "UI/FPS/PrototypeTargetHealthBar";
+
     [SerializeField] private PrototypeUnitVitals vitals;
     [SerializeField] private PrototypeBotController botController;
     [SerializeField] private Transform anchor;
@@ -20,7 +23,10 @@ public class PrototypeTargetHealthBar : MonoBehaviour
     [SerializeField] private Color levelTextColor = new Color(1f, 1f, 1f, 0.96f);
 
     private RectTransform uiRoot;
-    private Text levelLabelText;
+    private PrototypeTargetHealthBarTemplate viewTemplate;
+    private TMP_Text levelLabelText;
+    private RectTransform borderRect;
+    private Image backgroundImage;
     private Image fillImage;
 
     private void Awake()
@@ -127,24 +133,31 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         }
 
         PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        uiRoot = PrototypeUiToolkit.CreateRectTransform($"{name}_HealthBar", manager.GetLayerRoot(PrototypeUiLayer.World));
-        PrototypeUiToolkit.SetAnchor(uiRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(barSize.x + 24f, barSize.y + 24f));
+        GameObject prefabAsset = Resources.Load<GameObject>(HealthBarPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[{GetType().Name}] Missing target health bar prefab at Resources/{HealthBarPrefabResourcePath}.", this);
+            return;
+        }
 
-        levelLabelText = PrototypeUiToolkit.CreateText(uiRoot, manager.RuntimeFont, string.Empty, 11, FontStyle.Bold, levelTextColor, TextAnchor.MiddleCenter);
-        PrototypeUiToolkit.SetAnchor(levelLabelText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(barSize.x + 36f, 16f));
+        GameObject instanceObject = Instantiate(prefabAsset, manager.GetLayerRoot(PrototypeUiLayer.World), false);
+        instanceObject.name = prefabAsset.name;
 
-        Image borderImage = PrototypeUiToolkit.CreateImage(uiRoot, "Border", borderColor);
-        PrototypeUiToolkit.SetAnchor(borderImage.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 0f), barSize);
+        viewTemplate = instanceObject.GetComponent<PrototypeTargetHealthBarTemplate>();
+        if (viewTemplate == null || viewTemplate.Root == null || viewTemplate.LevelLabelText == null || viewTemplate.FillImage == null)
+        {
+            Destroy(instanceObject);
+            viewTemplate = null;
+            Debug.LogWarning($"[{GetType().Name}] Target health bar prefab is missing {nameof(PrototypeTargetHealthBarTemplate)}.", this);
+            return;
+        }
 
-        Image backgroundImage = PrototypeUiToolkit.CreateImage(borderImage.transform, "Background", backgroundColor);
-        PrototypeUiToolkit.SetStretch(backgroundImage.rectTransform, 1f, 1f, 1f, 1f);
-
-        fillImage = PrototypeUiToolkit.CreateImage(backgroundImage.transform, "Fill", highHealthColor);
-        fillImage.rectTransform.anchorMin = new Vector2(0f, 0f);
-        fillImage.rectTransform.anchorMax = new Vector2(0f, 1f);
-        fillImage.rectTransform.pivot = new Vector2(0f, 0.5f);
-        fillImage.rectTransform.offsetMin = Vector2.zero;
-        fillImage.rectTransform.offsetMax = Vector2.zero;
+        PrototypeUiToolkit.ApplyFontRecursively(viewTemplate.Root, manager.RuntimeFont);
+        uiRoot = viewTemplate.Root;
+        levelLabelText = viewTemplate.LevelLabelText;
+        borderRect = viewTemplate.BorderRect;
+        backgroundImage = viewTemplate.BackgroundImage;
+        fillImage = viewTemplate.FillImage;
         PrototypeUiToolkit.SetVisible(uiRoot, false);
     }
 
@@ -187,6 +200,26 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
         PrototypeUiToolkit.SetScreenPosition(manager.CanvasRoot, uiRoot, new Vector2(screenPosition.x, screenPosition.y));
         uiRoot.sizeDelta = new Vector2(barSize.x + 24f, barSize.y + 24f);
+        if (levelLabelText != null)
+        {
+            levelLabelText.rectTransform.sizeDelta = new Vector2(barSize.x + 36f, 16f);
+        }
+
+        if (borderRect != null)
+        {
+            borderRect.sizeDelta = barSize;
+            Image borderImage = borderRect.GetComponent<Image>();
+            if (borderImage != null)
+            {
+                borderImage.color = borderColor;
+            }
+
+            if (backgroundImage != null)
+            {
+                backgroundImage.color = backgroundColor;
+            }
+        }
+
         SetUiVisible(true);
 
         string levelLabel = BuildLevelLabel();
@@ -231,6 +264,12 @@ public class PrototypeTargetHealthBar : MonoBehaviour
         {
             Destroy(uiRoot.gameObject);
         }
+
+        viewTemplate = null;
+        levelLabelText = null;
+        borderRect = null;
+        backgroundImage = null;
+        fillImage = null;
     }
 
     private static string NormalizePartId(string partId)

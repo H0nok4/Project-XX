@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,6 +13,7 @@ public static class PrototypeQuestUiPrefabBuilder
     private const string ToastPrefabPath = "Assets/Resources/UI/Quest/QuestToast.prefab";
     private const string JournalPrefabPath = "Assets/Resources/UI/Quest/QuestJournal.prefab";
     private const string DialoguePrefabPath = "Assets/Resources/UI/Quest/DialogueWindow.prefab";
+    private const string DialogueOptionButtonPrefabPath = "Assets/Resources/UI/Quest/DialogueOptionButton.prefab";
 
     [MenuItem("Tools/Prototype/Build Quest UI Prefabs")]
     public static void BuildPrefabs()
@@ -32,11 +34,12 @@ public static class PrototypeQuestUiPrefabBuilder
         BuildTrackerPrefab();
         BuildToastPrefab();
         BuildJournalPrefab();
+        BuildDialogueOptionButtonPrefab();
         BuildDialoguePrefab();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        return $"Built {TrackerPrefabPath}, {ToastPrefabPath}, {JournalPrefabPath}, {DialoguePrefabPath}";
+        return $"Built {TrackerPrefabPath}, {ToastPrefabPath}, {JournalPrefabPath}, {DialogueOptionButtonPrefabPath}, {DialoguePrefabPath}";
     }
 
     public static string TryBuildPrefabs()
@@ -78,7 +81,7 @@ public static class PrototypeQuestUiPrefabBuilder
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            Text trackerText = CreateText(
+            TMP_Text trackerText = CreateText(
                 rootRect,
                 "TrackerText",
                 "\u4efb\u52a1\u8ffd\u8e2a",
@@ -136,7 +139,7 @@ public static class PrototypeQuestUiPrefabBuilder
             layout.childForceExpandHeight = false;
 
             CanvasGroup canvasGroup = root.AddComponent<CanvasGroup>();
-            Text messageText = CreateText(
+            TMP_Text messageText = CreateText(
                 rootRect,
                 "MessageText",
                 string.Empty,
@@ -181,7 +184,7 @@ public static class PrototypeQuestUiPrefabBuilder
                 Vector2.zero,
                 new Vector2(980f, 680f));
 
-            Text titleText = CreateText(
+            TMP_Text titleText = CreateText(
                 panel,
                 "Title",
                 "\u4efb\u52a1\u65e5\u5fd7",
@@ -192,7 +195,7 @@ public static class PrototypeQuestUiPrefabBuilder
             LayoutElement titleLayout = titleText.gameObject.AddComponent<LayoutElement>();
             titleLayout.flexibleWidth = 1f;
 
-            Text subtitleText = CreateText(
+            TMP_Text subtitleText = CreateText(
                 panel,
                 "Subtitle",
                 "\u67e5\u770b\u53ef\u63a5\u4efb\u52a1\u3001\u8fdb\u884c\u4e2d\u4efb\u52a1\u4e0e\u5956\u52b1\u3002",
@@ -326,7 +329,7 @@ public static class PrototypeQuestUiPrefabBuilder
                 Vector2.zero,
                 new Vector2(760f, 560f));
 
-            Text titleText = CreateText(
+            TMP_Text titleText = CreateText(
                 panel,
                 "Title",
                 "\u5bf9\u8bdd",
@@ -337,7 +340,7 @@ public static class PrototypeQuestUiPrefabBuilder
             LayoutElement titleLayout = titleText.gameObject.AddComponent<LayoutElement>();
             titleLayout.flexibleWidth = 1f;
 
-            Text subtitleText = CreateText(
+            TMP_Text subtitleText = CreateText(
                 panel,
                 "Subtitle",
                 string.Empty,
@@ -363,7 +366,7 @@ public static class PrototypeQuestUiPrefabBuilder
             bodyElement.flexibleHeight = 1f;
             bodyElement.minHeight = 0f;
 
-            Text speakerText = CreateText(
+            TMP_Text speakerText = CreateText(
                 bodyRoot,
                 "SpeakerText",
                 string.Empty,
@@ -372,7 +375,7 @@ public static class PrototypeQuestUiPrefabBuilder
                 new Color(0.96f, 0.8f, 0.44f, 1f),
                 TextAnchor.UpperLeft);
 
-            Text dialogueText = CreateText(
+            TMP_Text dialogueText = CreateText(
                 bodyRoot,
                 "DialogueText",
                 string.Empty,
@@ -389,6 +392,16 @@ public static class PrototypeQuestUiPrefabBuilder
             optionsLayout.childControlHeight = true;
             optionsLayout.childForceExpandWidth = true;
             optionsLayout.childForceExpandHeight = false;
+
+            TMP_Text emptyOptionsText = CreateText(
+                bodyRoot,
+                "EmptyOptionsText",
+                "没有可执行的对话选项。",
+                14,
+                FontStyle.Normal,
+                new Color(0.82f, 0.87f, 0.92f, 1f),
+                TextAnchor.UpperLeft);
+            emptyOptionsText.gameObject.SetActive(false);
 
             RectTransform footerRoot = CreateRectTransform("Footer", panel);
             HorizontalLayoutGroup footerLayout = footerRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -424,9 +437,55 @@ public static class PrototypeQuestUiPrefabBuilder
                 speakerText,
                 dialogueText,
                 optionsRoot,
+                emptyOptionsText,
                 closeButton);
 
             PrefabUtility.SaveAsPrefabAsset(root, DialoguePrefabPath);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void BuildDialogueOptionButtonPrefab()
+    {
+        GameObject root = new GameObject("DialogueOptionButton", typeof(RectTransform));
+        try
+        {
+            RectTransform rectTransform = root.GetComponent<RectTransform>();
+            Image background = root.AddComponent<Image>();
+            Color normalColor = new Color(0.18f, 0.24f, 0.33f, 0.98f);
+            Color highlightedColor = new Color(0.26f, 0.35f, 0.47f, 1f);
+            Color pressedColor = new Color(0.14f, 0.19f, 0.27f, 1f);
+            background.color = normalColor;
+
+            Button button = root.AddComponent<Button>();
+            button.targetGraphic = background;
+            button.transition = Selectable.Transition.ColorTint;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = normalColor;
+            colors.highlightedColor = highlightedColor;
+            colors.selectedColor = highlightedColor;
+            colors.pressedColor = pressedColor;
+            colors.disabledColor = new Color(normalColor.r * 0.65f, normalColor.g * 0.65f, normalColor.b * 0.65f, 0.7f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            LayoutElement layout = root.AddComponent<LayoutElement>();
+            layout.preferredHeight = 42f;
+            layout.flexibleWidth = 1f;
+
+            RectTransform labelRoot = CreateRectTransform("Label", rectTransform);
+            SetStretch(labelRoot, 12f, 12f, 8f, 8f);
+            TMP_Text label = CreateText(labelRoot, "Text", "对话选项", 15, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+
+            DialogueOptionButtonTemplate template = root.AddComponent<DialogueOptionButtonTemplate>();
+            template.ConfigureReferences(rectTransform, button, label);
+
+            PrefabUtility.SaveAsPrefabAsset(root, DialogueOptionButtonPrefabPath);
         }
         finally
         {
@@ -543,7 +602,7 @@ public static class PrototypeQuestUiPrefabBuilder
         return button;
     }
 
-    private static Text CreateText(
+    private static TMP_Text CreateText(
         Transform parent,
         string name,
         string text,
@@ -553,18 +612,31 @@ public static class PrototypeQuestUiPrefabBuilder
         TextAnchor anchor)
     {
         RectTransform rectTransform = CreateRectTransform(name, parent);
-        Text label = rectTransform.gameObject.AddComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        TextMeshProUGUI label = rectTransform.gameObject.AddComponent<TextMeshProUGUI>();
+        TMP_FontAsset fontAsset = ResolveFontAsset();
+        if (fontAsset != null)
+        {
+            label.font = fontAsset;
+        }
+
         label.fontSize = fontSize;
-        label.fontStyle = fontStyle;
+        label.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
         label.color = color;
-        label.alignment = anchor;
-        label.supportRichText = true;
-        label.horizontalOverflow = HorizontalWrapMode.Wrap;
-        label.verticalOverflow = VerticalWrapMode.Overflow;
+        label.alignment = PrototypeUiToolkit.ConvertTextAlignment(anchor);
+        label.richText = true;
+        label.enableWordWrapping = true;
+        label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
         label.text = text ?? string.Empty;
+        label.margin = Vector4.zero;
         return label;
+    }
+
+    private static TMP_FontAsset ResolveFontAsset()
+    {
+        TMP_Settings settings = TMP_Settings.instance;
+        TMP_FontAsset defaultFontAsset = settings != null ? TMP_Settings.defaultFontAsset : null;
+        return defaultFontAsset != null ? defaultFontAsset : PrototypeUiToolkit.ResolveTmpFontAsset(PrototypeUiToolkit.ResolveDefaultFont());
     }
 
     private static RectTransform CreateRectTransform(string name, Transform parent)

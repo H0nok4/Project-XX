@@ -1,4 +1,5 @@
 using UnityEditor;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -90,7 +91,7 @@ public static class PrototypeMainMenuUiPrefabBuilder
 
             RectTransform labelRoot = CreateRectTransform("Label", rect);
             SetStretch(labelRoot, 12f, 12f, 6f, 6f);
-            Text labelText = labelRoot.gameObject.AddComponent<Text>();
+            TextMeshProUGUI labelText = labelRoot.gameObject.AddComponent<TextMeshProUGUI>();
             ConfigureText(labelText, 15, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
 
             PrototypeMainMenuButtonTemplate template = root.AddComponent<PrototypeMainMenuButtonTemplate>();
@@ -173,11 +174,11 @@ public static class PrototypeMainMenuUiPrefabBuilder
             accentLayout.flexibleWidth = 1f;
 
             RectTransform titleRoot = CreateRectTransform("Title", rect);
-            Text titleText = titleRoot.gameObject.AddComponent<Text>();
+            TextMeshProUGUI titleText = titleRoot.gameObject.AddComponent<TextMeshProUGUI>();
             ConfigureText(titleText, 22, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
 
             RectTransform subtitleRoot = CreateRectTransform("Subtitle", rect);
-            Text subtitleText = subtitleRoot.gameObject.AddComponent<Text>();
+            TextMeshProUGUI subtitleText = subtitleRoot.gameObject.AddComponent<TextMeshProUGUI>();
             ConfigureText(subtitleText, 13, FontStyle.Normal, new Color(0.75f, 0.81f, 0.88f), TextAnchor.UpperLeft);
 
             RectTransform scrollRoot = CreateRectTransform("ScrollView", rect);
@@ -265,18 +266,31 @@ public static class PrototypeMainMenuUiPrefabBuilder
         rectTransform.offsetMax = new Vector2(-right, -top);
     }
 
-    private static void ConfigureText(Text text, int fontSize, FontStyle fontStyle, Color color, TextAnchor anchor)
+    private static void ConfigureText(TMP_Text text, int fontSize, FontStyle fontStyle, Color color, TextAnchor anchor)
     {
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        TMP_FontAsset fontAsset = ResolveFontAsset();
+        if (fontAsset != null)
+        {
+            text.font = fontAsset;
+        }
+
         text.fontSize = fontSize;
-        text.fontStyle = fontStyle;
+        text.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
         text.color = color;
-        text.alignment = anchor;
-        text.supportRichText = true;
-        text.horizontalOverflow = HorizontalWrapMode.Wrap;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.alignment = PrototypeUiToolkit.ConvertTextAlignment(anchor);
+        text.richText = true;
+        text.enableWordWrapping = true;
+        text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = false;
         text.text = string.Empty;
+        text.margin = Vector4.zero;
+    }
+
+    private static TMP_FontAsset ResolveFontAsset()
+    {
+        TMP_Settings settings = TMP_Settings.instance;
+        TMP_FontAsset defaultFontAsset = settings != null ? TMP_Settings.defaultFontAsset : null;
+        return defaultFontAsset != null ? defaultFontAsset : PrototypeUiToolkit.ResolveTmpFontAsset(PrototypeUiToolkit.ResolveDefaultFont());
     }
 
     private static void EnsureFolder(string path)

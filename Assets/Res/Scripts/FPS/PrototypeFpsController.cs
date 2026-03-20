@@ -1,6 +1,5 @@
 using System.Text;
 using UnityEngine;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(PrototypeFpsInput), typeof(PrototypeFpsMovementModule))]
 public class PrototypeFpsController : MonoBehaviour
@@ -50,16 +49,7 @@ public class PrototypeFpsController : MonoBehaviour
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private float pitch;
-    private GUIStyle hudStyle;
-    private GUIStyle centerStyle;
-    private GUIStyle barLabelStyle;
-    private RectTransform hudRoot;
-    private Text crosshairText;
-    private Text controlsText;
-    private Text weaponInfoText;
-    private RectTransform staminaBarRoot;
-    private Image staminaFillImage;
-    private Text staminaLabelText;
+    private PrototypeFpsHudView hudView;
 
     public PrototypeWeaponDefinition EquippedPrimaryWeapon => weaponController != null ? weaponController.EquippedPrimaryWeapon : null;
     public PrototypeWeaponDefinition EquippedSecondaryWeapon => weaponController != null ? weaponController.EquippedSecondaryWeapon : null;
@@ -137,7 +127,7 @@ public class PrototypeFpsController : MonoBehaviour
     private void OnDisable()
     {
         LockCursor(false);
-        SetHudUiVisible(false);
+        hudView?.SetHudVisible(false);
     }
 
     public void ConfigureWeaponLoadout(
@@ -560,131 +550,9 @@ public class PrototypeFpsController : MonoBehaviour
         return runtime;
     }
 
-    private void LegacyOnGui()
-    {
-        if (!showHud)
-        {
-            return;
-        }
-
-        EnsureHudStyles();
-
-        float centerX = Screen.width * 0.5f;
-        float centerY = Screen.height * 0.5f;
-        bool showHitMarker = weaponController != null && weaponController.ShowHitMarker;
-
-        GUI.Label(new Rect(centerX - 10f, centerY - 20f, 20f, 40f), showHitMarker ? "X" : "+", centerStyle);
-
-        GUI.Label(
-            new Rect(18f, 100f, 380f, 280f),
-            "移动 WASD\n观察 鼠标\n攻击 左键\n投掷 G\n交互 E\n背包 Tab\n切枪 1 / 2 / 3\n换弹 R\n切换射击模式 B\n快速治疗 4\n止血 5\n夹板 6\n止痛 7\n跳跃 Space\n冲刺 Shift\n切换蹲伏 C\n步速 LeftCtrl + 滚轮\n切换鼠标 Esc",
-            hudStyle);
-
-        if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
-        {
-            return;
-        }
-
-        string weaponLine = ItemRarityUtility.FormatRichText(
-            $"{hudState.Definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(hudState.Rarity)}]",
-            hudState.Rarity);
-        string stateLine;
-        if (hudState.Definition.IsMeleeWeapon)
-        {
-            float cooldownRemaining = Mathf.Max(0f, hudState.NextAttackTime - Time.time);
-            stateLine = cooldownRemaining > 0f
-                ? $"冷却 {cooldownRemaining:0.00}s"
-                : "就绪";
-        }
-        else if (hudState.IsReloading)
-        {
-            stateLine = $"换弹 {Mathf.Max(0f, hudState.ReloadEndTime - Time.time):0.0}s";
-        }
-        else
-        {
-            stateLine = $"{GetFireModeLabel(hudState.FireMode)}  弹匣 {hudState.MagazineAmmo}/{hudState.Definition.MagazineSize}  备弹 {hudState.ReserveAmmo}";
-        }
-
-        string statsLine = BuildWeaponStatsText(hudState);
-
-        DrawStaminaBar(new Rect(18f, 394f, 280f, 24f));
-        GUI.Box(
-            new Rect(Screen.width - 394f, 18f, 364f, 236f),
-            $"{weaponLine}\n{stateLine}\n{statsLine}\n{BuildCombatStatusText()}",
-            hudStyle);
-    }
-
     private void EnsureHudUi()
     {
-        if (hudRoot != null)
-        {
-            return;
-        }
-
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        Font font = manager.RuntimeFont;
-        RectTransform hudLayer = manager.GetLayerRoot(PrototypeUiLayer.Hud);
-
-        hudRoot = PrototypeUiToolkit.CreateRectTransform("PlayerHud", hudLayer);
-        PrototypeUiToolkit.SetStretch(hudRoot, 0f, 0f, 0f, 0f);
-
-        RectTransform crosshairRoot = PrototypeUiToolkit.CreateRectTransform("Crosshair", hudRoot);
-        PrototypeUiToolkit.SetAnchor(crosshairRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
-        crosshairText = PrototypeUiToolkit.CreateText(crosshairRoot, font, "+", 26, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
-        PrototypeUiToolkit.SetStretch(crosshairText.rectTransform, 0f, 0f, 0f, 0f);
-
-        RectTransform controlsPanel = PrototypeUiToolkit.CreatePanel(
-            hudRoot,
-            "ControlsPanel",
-            new Color(0.08f, 0.1f, 0.14f, 0.88f),
-            new RectOffset(12, 12, 10, 10),
-            0f);
-        PrototypeUiToolkit.SetAnchor(controlsPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -100f), new Vector2(380f, 0f));
-        ContentSizeFitter controlsFitter = controlsPanel.gameObject.AddComponent<ContentSizeFitter>();
-        controlsFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        controlsFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        controlsText = PrototypeUiToolkit.CreateText(
-            controlsPanel,
-            font,
-            "移动 WASD\n观察 鼠标\n攻击 左键\n投掷 G\n交互 E\n背包 Tab\n切枪 1 / 2 / 3\n换弹 R\n切换射击模式 B\n快速治疗 4\n止血 5\n夹板 6\n止痛 7\n跳跃 Space\n冲刺 Shift\n切换蹲伏 C\n步速 LeftCtrl + 滚轮\n切换鼠标 Esc",
-            14,
-            FontStyle.Normal,
-            Color.white,
-            TextAnchor.UpperLeft);
-        controlsText.lineSpacing = 0.9f;
-
-        RectTransform staminaPanel = PrototypeUiToolkit.CreatePanel(
-            hudRoot,
-            "StaminaPanel",
-            new Color(0.08f, 0.1f, 0.14f, 0.88f),
-            new RectOffset(3, 3, 3, 3),
-            0f);
-        PrototypeUiToolkit.SetAnchor(staminaPanel, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(18f, 18f), new Vector2(280f, 24f));
-        staminaBarRoot = PrototypeUiToolkit.CreateRectTransform("StaminaFill", staminaPanel);
-        staminaBarRoot.anchorMin = new Vector2(0f, 0f);
-        staminaBarRoot.anchorMax = new Vector2(0f, 1f);
-        staminaBarRoot.pivot = new Vector2(0f, 0.5f);
-        staminaBarRoot.offsetMin = Vector2.zero;
-        staminaBarRoot.offsetMax = Vector2.zero;
-        staminaFillImage = staminaBarRoot.gameObject.AddComponent<Image>();
-        staminaFillImage.color = new Color(0.27f, 0.82f, 0.38f, 0.95f);
-        staminaLabelText = PrototypeUiToolkit.CreateText(staminaPanel, font, string.Empty, 13, FontStyle.Normal, Color.white, TextAnchor.MiddleCenter);
-        PrototypeUiToolkit.SetStretch(staminaLabelText.rectTransform, 0f, 0f, 0f, 0f);
-
-        RectTransform weaponPanel = PrototypeUiToolkit.CreatePanel(
-            hudRoot,
-            "WeaponPanel",
-            new Color(0.08f, 0.1f, 0.14f, 0.9f),
-            new RectOffset(12, 12, 10, 10),
-            0f);
-        PrototypeUiToolkit.SetAnchor(weaponPanel, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -18f), new Vector2(364f, 0f));
-        ContentSizeFitter weaponFitter = weaponPanel.gameObject.AddComponent<ContentSizeFitter>();
-        weaponFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        weaponFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        weaponInfoText = PrototypeUiToolkit.CreateText(weaponPanel, font, string.Empty, 14, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
-        weaponInfoText.lineSpacing = 0.92f;
-
-        SetHudUiVisible(false);
+        hudView ??= PrototypeFpsHudView.GetOrCreate();
     }
 
     private void UpdateHudUi()
@@ -692,27 +560,15 @@ public class PrototypeFpsController : MonoBehaviour
         EnsureHudUi();
         if (!showHud)
         {
-            SetHudUiVisible(false);
+            hudView?.SetHudVisible(false);
             return;
         }
 
-        SetHudUiVisible(true);
-        if (crosshairText != null)
-        {
-            bool showHitMarker = weaponController != null && weaponController.ShowHitMarker;
-            crosshairText.text = showHitMarker ? "X" : "+";
-        }
-
-        UpdateStaminaBarUi();
-
-        if (weaponInfoText == null)
-        {
-            return;
-        }
-
+        bool showHitMarker = weaponController != null && weaponController.ShowHitMarker;
+        BuildStaminaHudState(out float staminaNormalized, out Color staminaColor, out string staminaLabel);
         if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
         {
-            weaponInfoText.text = BuildCombatStatusText();
+            hudView?.UpdateHud(true, showHitMarker, staminaNormalized, staminaColor, staminaLabel, BuildCombatStatusText());
             return;
         }
 
@@ -737,44 +593,40 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         string statsLine = BuildWeaponStatsText(hudState);
-        weaponInfoText.text = $"{weaponLine}\n{stateLine}\n{statsLine}\n{BuildCombatStatusText()}";
+        hudView?.UpdateHud(
+            true,
+            showHitMarker,
+            staminaNormalized,
+            staminaColor,
+            staminaLabel,
+            $"{weaponLine}\n{stateLine}\n{statsLine}\n{BuildCombatStatusText()}");
     }
 
-    private void UpdateStaminaBarUi()
+    private void BuildStaminaHudState(out float normalized, out Color fillColor, out string label)
     {
-        if (playerVitals == null || staminaFillImage == null || staminaLabelText == null)
+        normalized = 0f;
+        fillColor = new Color(0.27f, 0.82f, 0.38f, 0.95f);
+        label = string.Empty;
+
+        if (playerVitals == null)
         {
             return;
         }
 
-        float normalized = playerVitals.StaminaNormalized;
+        normalized = playerVitals.StaminaNormalized;
         bool recoveryBlocked = playerVitals.IsStaminaRecoveryBlocked;
         bool lowStamina = playerVitals.IsBelowStaminaActionThreshold;
-        staminaFillImage.color = lowStamina
+        fillColor = lowStamina
             ? new Color(0.8f, 0.2f, 0.18f, 0.95f)
             : recoveryBlocked
                 ? (playerVitals.IsExhausted ? new Color(0.78f, 0.28f, 0.2f, 0.95f) : new Color(0.88f, 0.58f, 0.14f, 0.95f))
                 : Color.Lerp(new Color(0.94f, 0.68f, 0.16f, 0.95f), new Color(0.27f, 0.82f, 0.38f, 0.95f), normalized);
-        staminaFillImage.rectTransform.sizeDelta = new Vector2(274f * normalized, 0f);
 
-        staminaLabelText.text = recoveryBlocked
+        label = recoveryBlocked
             ? playerVitals.IsExhausted
                 ? $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  力竭 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
                 : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  恢复 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
             : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
-    }
-
-    private void SetHudUiVisible(bool visible)
-    {
-        PrototypeUiToolkit.SetVisible(hudRoot, visible);
-    }
-
-    private void OnDestroy()
-    {
-        if (hudRoot != null)
-        {
-            Destroy(hudRoot.gameObject);
-        }
     }
 
     private static string BuildWeaponStatsText(PlayerWeaponController.WeaponHudState hudState)
@@ -935,73 +787,6 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         return builder.ToString();
-    }
-
-    private void DrawStaminaBar(Rect rect)
-    {
-        if (playerVitals == null)
-        {
-            return;
-        }
-
-        GUI.Box(rect, GUIContent.none);
-
-        float normalized = playerVitals.StaminaNormalized;
-        Rect fillRect = new Rect(rect.x + 3f, rect.y + 3f, Mathf.Max(0f, (rect.width - 6f) * normalized), rect.height - 6f);
-        bool recoveryBlocked = playerVitals.IsStaminaRecoveryBlocked;
-        bool lowStamina = playerVitals.IsBelowStaminaActionThreshold;
-        Color fillColor = lowStamina
-            ? new Color(0.8f, 0.2f, 0.18f, 0.95f)
-            : recoveryBlocked
-                ? (playerVitals.IsExhausted ? new Color(0.78f, 0.28f, 0.2f, 0.95f) : new Color(0.88f, 0.58f, 0.14f, 0.95f))
-            : Color.Lerp(new Color(0.94f, 0.68f, 0.16f, 0.95f), new Color(0.27f, 0.82f, 0.38f, 0.95f), normalized);
-
-        Color previousColor = GUI.color;
-        GUI.color = fillColor;
-        GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
-        GUI.color = previousColor;
-
-        string label = recoveryBlocked
-            ? playerVitals.IsExhausted
-                ? $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  力竭 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-                : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  恢复 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-            : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
-        GUI.Label(rect, label, barLabelStyle);
-    }
-
-    private void EnsureHudStyles()
-    {
-        if (hudStyle == null)
-        {
-            hudStyle = new GUIStyle(GUI.skin.box)
-            {
-                fontSize = 15,
-                alignment = TextAnchor.UpperLeft,
-                richText = true,
-                normal = { textColor = Color.white }
-            };
-            hudStyle.padding = new RectOffset(12, 12, 10, 10);
-        }
-
-        if (centerStyle == null)
-        {
-            centerStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 26,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Color.white }
-            };
-        }
-
-        if (barLabelStyle == null)
-        {
-            barLabelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Color.white }
-            };
-        }
     }
 
     private void LockCursor(bool shouldLock)

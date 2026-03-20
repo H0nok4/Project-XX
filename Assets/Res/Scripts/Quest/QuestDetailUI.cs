@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -177,7 +178,7 @@ public sealed class QuestDetailUI
         {
             line.LabelText.text = text ?? string.Empty;
             line.LabelText.color = color;
-            line.LabelText.fontStyle = fontStyle;
+            line.LabelText.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
         }
     }
 
@@ -195,7 +196,7 @@ public sealed class QuestDetailUI
         }
     }
 
-    private static void SetText(Text label, string value)
+    private static void SetText(TMP_Text label, string value)
     {
         if (label != null)
         {

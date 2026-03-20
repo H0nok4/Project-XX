@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -10,18 +11,18 @@ public sealed class StudentIdCardFaceTemplate : MonoBehaviour
     [SerializeField] private Image portraitFrameImage;
     [SerializeField] private Image portraitImage;
     [SerializeField] private Image sealImage;
-    [SerializeField] private Text schoolNameText;
-    [SerializeField] private Text cardTitleText;
-    [SerializeField] private Text studentNumberLabelText;
-    [SerializeField] private Text studentNumberValueText;
-    [SerializeField] private Text nameLabelText;
-    [SerializeField] private Text nameValueText;
-    [SerializeField] private Text birthDateLabelText;
-    [SerializeField] private Text birthDateValueText;
-    [SerializeField] private Text issueDateLabelText;
-    [SerializeField] private Text issueDateValueText;
-    [SerializeField] private Text noteText;
-    [SerializeField] private Text issuerText;
+    [SerializeField] private TMP_Text schoolNameText;
+    [SerializeField] private TMP_Text cardTitleText;
+    [SerializeField] private TMP_Text studentNumberLabelText;
+    [SerializeField] private TMP_Text studentNumberValueText;
+    [SerializeField] private TMP_Text nameLabelText;
+    [SerializeField] private TMP_Text nameValueText;
+    [SerializeField] private TMP_Text birthDateLabelText;
+    [SerializeField] private TMP_Text birthDateValueText;
+    [SerializeField] private TMP_Text issueDateLabelText;
+    [SerializeField] private TMP_Text issueDateValueText;
+    [SerializeField] private TMP_Text noteText;
+    [SerializeField] private TMP_Text issuerText;
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
 
@@ -32,18 +33,18 @@ public sealed class StudentIdCardFaceTemplate : MonoBehaviour
         Image portraitFrame,
         Image portrait,
         Image seal,
-        Text schoolName,
-        Text cardTitle,
-        Text studentNumberLabel,
-        Text studentNumberValue,
-        Text nameLabel,
-        Text nameValue,
-        Text birthDateLabel,
-        Text birthDateValue,
-        Text issueDateLabel,
-        Text issueDateValue,
-        Text note,
-        Text issuer)
+        TMP_Text schoolName,
+        TMP_Text cardTitle,
+        TMP_Text studentNumberLabel,
+        TMP_Text studentNumberValue,
+        TMP_Text nameLabel,
+        TMP_Text nameValue,
+        TMP_Text birthDateLabel,
+        TMP_Text birthDateValue,
+        TMP_Text issueDateLabel,
+        TMP_Text issueDateValue,
+        TMP_Text note,
+        TMP_Text issuer)
     {
         root = rectTransform;
         topBandImage = topBand;
@@ -125,17 +126,17 @@ public sealed class StudentIdCardFaceTemplate : MonoBehaviour
         SetFont(issuerText, font);
     }
 
-    private static void SetFont(Text target, Font font)
+    private static void SetFont(TMP_Text target, Font font)
     {
-        if (target == null || font == null)
+        if (target == null)
         {
             return;
         }
 
-        target.font = font;
+        PrototypeUiToolkit.ApplyTmpFont(target, font);
     }
 
-    private static void SetText(Text target, string value)
+    private static void SetText(TMP_Text target, string value)
     {
         if (target == null)
         {

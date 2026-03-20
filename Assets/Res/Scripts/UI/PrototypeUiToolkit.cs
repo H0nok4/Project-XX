@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 
 public static class PrototypeUiToolkit
@@ -8,11 +11,13 @@ public static class PrototypeUiToolkit
     {
         public RectTransform Root { get; internal set; }
         public RectTransform Panel { get; internal set; }
-        public Text TitleText { get; internal set; }
-        public Text SubtitleText { get; internal set; }
+        public TMP_Text TitleText { get; internal set; }
+        public TMP_Text SubtitleText { get; internal set; }
         public RectTransform BodyRoot { get; internal set; }
         public RectTransform FooterRoot { get; internal set; }
     }
+
+    private static readonly Dictionary<Font, TMP_FontAsset> RuntimeTmpFontCache = new Dictionary<Font, TMP_FontAsset>();
 
     public static Font ResolveDefaultFont()
     {
@@ -122,6 +127,33 @@ public static class PrototypeUiToolkit
         label.supportRichText = richText;
         label.horizontalOverflow = HorizontalWrapMode.Wrap;
         label.verticalOverflow = VerticalWrapMode.Overflow;
+        return label;
+    }
+
+    public static TextMeshProUGUI CreateTmpText(
+        Transform parent,
+        Font font,
+        string text,
+        int fontSize,
+        FontStyle fontStyle,
+        Color color,
+        TextAnchor alignment,
+        bool raycastTarget = false,
+        bool richText = true)
+    {
+        RectTransform rectTransform = CreateRectTransform("Text", parent);
+        TextMeshProUGUI label = rectTransform.gameObject.AddComponent<TextMeshProUGUI>();
+        label.font = ResolveTmpFontAsset(font);
+        label.text = text ?? string.Empty;
+        label.fontSize = fontSize;
+        label.fontStyle = ConvertFontStyle(fontStyle);
+        label.color = color;
+        label.alignment = ConvertTextAlignment(alignment);
+        label.raycastTarget = raycastTarget;
+        label.richText = richText;
+        label.enableWordWrapping = true;
+        label.overflowMode = TextOverflowModes.Overflow;
+        label.margin = Vector4.zero;
         return label;
     }
 
@@ -240,11 +272,11 @@ public static class PrototypeUiToolkit
             Vector2.zero,
             panelSize);
 
-        Text titleText = CreateText(panel, font, title, 24, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+        TMP_Text titleText = CreateTmpText(panel, font, title, 24, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
         LayoutElement titleLayout = titleText.gameObject.AddComponent<LayoutElement>();
         titleLayout.flexibleWidth = 1f;
 
-        Text subtitleText = CreateText(
+        TMP_Text subtitleText = CreateTmpText(
             panel,
             font,
             subtitle,
@@ -374,6 +406,117 @@ public static class PrototypeUiToolkit
             {
                 textComponents[index].font = font;
             }
+        }
+
+        TMP_FontAsset tmpFont = ResolveTmpFontAsset(font);
+        if (tmpFont == null)
+        {
+            return;
+        }
+
+        TMP_Text[] tmpTextComponents = root.GetComponentsInChildren<TMP_Text>(true);
+        for (int index = 0; index < tmpTextComponents.Length; index++)
+        {
+            ApplyTmpFont(tmpTextComponents[index], font);
+        }
+    }
+
+    public static void ApplyTmpFont(TMP_Text target, Font font)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        TMP_FontAsset tmpFont = ResolveTmpFontAsset(font);
+        if (tmpFont == null)
+        {
+            return;
+        }
+
+        target.font = tmpFont;
+        target.havePropertiesChanged = true;
+        target.SetAllDirty();
+    }
+
+    public static TMP_FontAsset ResolveTmpFontAsset(Font font)
+    {
+        font ??= ResolveDefaultFont();
+        if (font == null)
+        {
+            return TMP_Settings.instance != null ? TMP_Settings.defaultFontAsset : null;
+        }
+
+        if (RuntimeTmpFontCache.TryGetValue(font, out TMP_FontAsset cachedFont) && cachedFont != null)
+        {
+            return cachedFont;
+        }
+
+        TMP_FontAsset tmpFontAsset = null;
+        bool createdRuntimeFontAsset = false;
+        try
+        {
+            tmpFontAsset = TMP_FontAsset.CreateFontAsset(font, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
+            createdRuntimeFontAsset = tmpFontAsset != null;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning($"Failed to create TMP font asset for '{font.name}': {exception.Message}");
+        }
+
+        if (tmpFontAsset == null && TMP_Settings.instance != null)
+        {
+            tmpFontAsset = TMP_Settings.defaultFontAsset;
+        }
+
+        if (tmpFontAsset != null && createdRuntimeFontAsset)
+        {
+            tmpFontAsset.hideFlags |= HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        }
+
+        RuntimeTmpFontCache[font] = tmpFontAsset;
+        return tmpFontAsset;
+    }
+
+    public static FontStyles ConvertFontStyle(FontStyle fontStyle)
+    {
+        switch (fontStyle)
+        {
+            case FontStyle.Bold:
+                return FontStyles.Bold;
+            case FontStyle.Italic:
+                return FontStyles.Italic;
+            case FontStyle.BoldAndItalic:
+                return FontStyles.Bold | FontStyles.Italic;
+            default:
+                return FontStyles.Normal;
+        }
+    }
+
+    public static TextAlignmentOptions ConvertTextAlignment(TextAnchor alignment)
+    {
+        switch (alignment)
+        {
+            case TextAnchor.UpperLeft:
+                return TextAlignmentOptions.TopLeft;
+            case TextAnchor.UpperCenter:
+                return TextAlignmentOptions.Top;
+            case TextAnchor.UpperRight:
+                return TextAlignmentOptions.TopRight;
+            case TextAnchor.MiddleLeft:
+                return TextAlignmentOptions.Left;
+            case TextAnchor.MiddleCenter:
+                return TextAlignmentOptions.Center;
+            case TextAnchor.MiddleRight:
+                return TextAlignmentOptions.Right;
+            case TextAnchor.LowerLeft:
+                return TextAlignmentOptions.BottomLeft;
+            case TextAnchor.LowerCenter:
+                return TextAlignmentOptions.Bottom;
+            case TextAnchor.LowerRight:
+                return TextAlignmentOptions.BottomRight;
+            default:
+                return TextAlignmentOptions.TopLeft;
         }
     }
 

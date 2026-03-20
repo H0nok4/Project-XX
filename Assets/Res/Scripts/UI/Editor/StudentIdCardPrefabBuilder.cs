@@ -1,4 +1,6 @@
+using System;
 using UnityEditor;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
@@ -113,7 +115,7 @@ public static class StudentIdCardPrefabBuilder
         }
         finally
         {
-            Object.DestroyImmediate(root);
+            UnityEngine.Object.DestroyImmediate(root);
         }
 
         AssetDatabase.SaveAssets();
@@ -156,11 +158,11 @@ public static class StudentIdCardPrefabBuilder
             PrototypeUiToolkit.SetAnchor(logoRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -18f), new Vector2(82f, 82f));
             logo.preserveAspect = true;
 
-            Text schoolName = CreateText("SchoolName", topBand.transform, font, 34, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft);
+            TMP_Text schoolName = CreateText("SchoolName", topBand.transform, font, 34, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft);
             RectTransform schoolRect = (RectTransform)schoolName.transform;
             PrototypeUiToolkit.SetAnchor(schoolRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(128f, -18f), new Vector2(560f, 76f));
 
-            Text cardTitle = CreateText("CardTitle", topBand.transform, font, 34, FontStyle.Bold, Color.white, TextAnchor.MiddleRight);
+            TMP_Text cardTitle = CreateText("CardTitle", topBand.transform, font, 34, FontStyle.Bold, Color.white, TextAnchor.MiddleRight);
             RectTransform titleRect = (RectTransform)cardTitle.transform;
             PrototypeUiToolkit.SetAnchor(titleRect, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -18f), new Vector2(220f, 76f));
 
@@ -174,39 +176,37 @@ public static class StudentIdCardPrefabBuilder
             PrototypeUiToolkit.SetStretch(portraitRect, 14f, 14f, 14f, 14f);
             portrait.preserveAspect = true;
 
-            Text studentNumberLabel = CreateText("StudentNumberLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
+            TMP_Text studentNumberLabel = CreateText("StudentNumberLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)studentNumberLabel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(340f, -182f), new Vector2(144f, 32f));
 
-            Text studentNumberValue = CreateText("StudentNumberValue", rect, font, 34, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
+            TMP_Text studentNumberValue = CreateText("StudentNumberValue", rect, font, 34, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)studentNumberValue.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(510f, -170f), new Vector2(320f, 48f));
 
-            Text nameLabel = CreateText("NameLabel", rect, font, 22, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
+            TMP_Text nameLabel = CreateText("NameLabel", rect, font, 22, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)nameLabel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(340f, -282f), new Vector2(144f, 32f));
 
-            Text nameValue = CreateText("NameValue", rect, font, 30, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
+            TMP_Text nameValue = CreateText("NameValue", rect, font, 30, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)nameValue.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(510f, -270f), new Vector2(320f, 48f));
 
             Image nameUnderline = CreateImage("NameUnderline", rect, new Color(0.55f, 0.58f, 0.62f, 0.8f));
             PrototypeUiToolkit.SetAnchor((RectTransform)nameUnderline.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(512f, -315f), new Vector2(344f, 4f));
 
-            Text birthDateLabel = CreateText("BirthDateLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
+            TMP_Text birthDateLabel = CreateText("BirthDateLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)birthDateLabel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(340f, -388f), new Vector2(144f, 32f));
 
-            Text birthDateValue = CreateText("BirthDateValue", rect, font, 24, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
+            TMP_Text birthDateValue = CreateText("BirthDateValue", rect, font, 24, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)birthDateValue.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(510f, -380f), new Vector2(320f, 40f));
 
-            Text issueDateLabel = CreateText("IssueDateLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
+            TMP_Text issueDateLabel = CreateText("IssueDateLabel", rect, font, 20, FontStyle.Normal, new Color(0.33f, 0.35f, 0.38f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)issueDateLabel.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(340f, -446f), new Vector2(144f, 32f));
 
-            Text issueDateValue = CreateText("IssueDateValue", rect, font, 24, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
+            TMP_Text issueDateValue = CreateText("IssueDateValue", rect, font, 24, FontStyle.Normal, new Color(0.15f, 0.16f, 0.18f), TextAnchor.MiddleLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)issueDateValue.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(510f, -438f), new Vector2(320f, 40f));
 
-            Text note = CreateText("Note", rect, font, 18, FontStyle.Normal, new Color(0.42f, 0.43f, 0.46f), TextAnchor.UpperLeft);
-            note.horizontalOverflow = HorizontalWrapMode.Wrap;
-            note.verticalOverflow = VerticalWrapMode.Overflow;
+            TMP_Text note = CreateText("Note", rect, font, 18, FontStyle.Normal, new Color(0.42f, 0.43f, 0.46f), TextAnchor.UpperLeft);
             PrototypeUiToolkit.SetAnchor((RectTransform)note.transform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(340f, -504f), new Vector2(430f, 56f));
 
-            Text issuer = CreateText("Issuer", rect, font, 20, FontStyle.Bold, new Color(0.30f, 0.31f, 0.33f), TextAnchor.LowerRight);
+            TMP_Text issuer = CreateText("Issuer", rect, font, 20, FontStyle.Bold, new Color(0.30f, 0.31f, 0.33f), TextAnchor.LowerRight);
             PrototypeUiToolkit.SetAnchor((RectTransform)issuer.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-46f, 30f), new Vector2(340f, 44f));
 
             Image seal = CreateImage("Seal", rect, new Color(0.82f, 0.22f, 0.22f, 0.75f));
@@ -239,7 +239,7 @@ public static class StudentIdCardPrefabBuilder
         }
         finally
         {
-            Object.DestroyImmediate(root);
+            UnityEngine.Object.DestroyImmediate(root);
         }
 
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FacePrefabPath);
@@ -279,14 +279,12 @@ public static class StudentIdCardPrefabBuilder
                 Vector2.zero,
                 new Vector2(720f, 280f));
 
-            Text titleText = CreateText("TitleText", panel, font, 28, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
+            TMP_Text titleText = CreateText("TitleText", panel, font, 28, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
             titleText.text = "填写学生证";
             titleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 38f;
 
-            Text subtitleText = CreateText("SubtitleText", panel, font, 15, FontStyle.Normal, new Color(0.84f, 0.88f, 0.94f), TextAnchor.UpperLeft);
+            TMP_Text subtitleText = CreateText("SubtitleText", panel, font, 15, FontStyle.Normal, new Color(0.84f, 0.88f, 0.94f), TextAnchor.UpperLeft);
             subtitleText.text = "请输入你的名字，确认后会直接印在学生证上。";
-            subtitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            subtitleText.verticalOverflow = VerticalWrapMode.Overflow;
             subtitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 48f;
 
             RectTransform bodyRoot = PrototypeUiToolkit.CreateRectTransform("Body", panel);
@@ -303,7 +301,7 @@ public static class StudentIdCardPrefabBuilder
             bodyLayoutElement.flexibleHeight = 1f;
             bodyLayoutElement.minHeight = 0f;
 
-            Text fieldLabel = CreateText("FieldLabel", bodyRoot, font, 16, FontStyle.Bold, new Color(0.82f, 0.87f, 0.94f), TextAnchor.UpperLeft);
+            TMP_Text fieldLabel = CreateText("FieldLabel", bodyRoot, font, 16, FontStyle.Bold, new Color(0.82f, 0.87f, 0.94f), TextAnchor.UpperLeft);
             fieldLabel.text = "姓名";
             fieldLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
@@ -313,33 +311,23 @@ public static class StudentIdCardPrefabBuilder
             Image inputBackground = inputRoot.gameObject.AddComponent<Image>();
             inputBackground.color = new Color(0.14f, 0.17f, 0.24f, 1f);
 
-            InputField inputField = inputRoot.gameObject.AddComponent<InputField>();
-            inputField.lineType = InputField.LineType.SingleLine;
+            TMP_InputField inputField = inputRoot.gameObject.AddComponent<TMP_InputField>();
+            inputField.lineType = TMP_InputField.LineType.SingleLine;
             inputField.characterLimit = 24;
             inputField.targetGraphic = inputBackground;
 
             RectTransform inputTextRoot = PrototypeUiToolkit.CreateRectTransform("Text", inputRoot);
             PrototypeUiToolkit.SetStretch(inputTextRoot, 18f, 18f, 10f, 10f);
-            Text inputText = inputTextRoot.gameObject.AddComponent<Text>();
-            inputText.font = font;
-            inputText.fontSize = 24;
-            inputText.fontStyle = FontStyle.Bold;
-            inputText.color = Color.white;
-            inputText.alignment = TextAnchor.MiddleLeft;
-            inputText.supportRichText = false;
-            inputText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            inputText.verticalOverflow = VerticalWrapMode.Overflow;
+            TextMeshProUGUI inputText = inputTextRoot.gameObject.AddComponent<TextMeshProUGUI>();
+            ConfigureText(inputText, font, 24, FontStyle.Bold, Color.white, TextAnchor.MiddleLeft, false);
+            inputText.enableWordWrapping = false;
 
             RectTransform placeholderRoot = PrototypeUiToolkit.CreateRectTransform("Placeholder", inputRoot);
             PrototypeUiToolkit.SetStretch(placeholderRoot, 18f, 18f, 10f, 10f);
-            Text placeholderText = placeholderRoot.gameObject.AddComponent<Text>();
-            placeholderText.font = font;
-            placeholderText.fontSize = 22;
-            placeholderText.fontStyle = FontStyle.Normal;
-            placeholderText.color = new Color(0.56f, 0.62f, 0.7f, 0.92f);
-            placeholderText.alignment = TextAnchor.MiddleLeft;
+            TextMeshProUGUI placeholderText = placeholderRoot.gameObject.AddComponent<TextMeshProUGUI>();
+            ConfigureText(placeholderText, font, 22, FontStyle.Normal, new Color(0.56f, 0.62f, 0.7f, 0.92f), TextAnchor.MiddleLeft, false);
             placeholderText.text = "请输入你的名字";
-            placeholderText.supportRichText = false;
+            placeholderText.enableWordWrapping = false;
 
             inputField.textComponent = inputText;
             inputField.placeholder = placeholderText;
@@ -357,7 +345,7 @@ public static class StudentIdCardPrefabBuilder
             footerLayoutElement.flexibleWidth = 1f;
             footerLayoutElement.preferredHeight = 44f;
 
-            Button confirmButton = PrototypeUiToolkit.CreateButton(
+            Button confirmButton = CreateButton(
                 footerRoot,
                 font,
                 "确认",
@@ -368,7 +356,7 @@ public static class StudentIdCardPrefabBuilder
                 44f);
             SetButtonWidth(confirmButton, 168f);
 
-            Button cancelButton = PrototypeUiToolkit.CreateButton(
+            Button cancelButton = CreateButton(
                 footerRoot,
                 font,
                 "取消",
@@ -398,7 +386,7 @@ public static class StudentIdCardPrefabBuilder
         }
         finally
         {
-            Object.DestroyImmediate(root);
+            UnityEngine.Object.DestroyImmediate(root);
         }
 
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NameEntryWindowPrefabPath);
@@ -493,7 +481,7 @@ public static class StudentIdCardPrefabBuilder
         Collider collider = quad.GetComponent<Collider>();
         if (collider != null)
         {
-            Object.DestroyImmediate(collider);
+            UnityEngine.Object.DestroyImmediate(collider);
         }
 
         MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
@@ -568,7 +556,7 @@ public static class StudentIdCardPrefabBuilder
         return image;
     }
 
-    private static Text CreateText(
+    private static TMP_Text CreateText(
         string name,
         Transform parent,
         Font font,
@@ -577,11 +565,84 @@ public static class StudentIdCardPrefabBuilder
         Color color,
         TextAnchor alignment)
     {
-        Text text = PrototypeUiToolkit.CreateText(parent, font, string.Empty, fontSize, fontStyle, color, alignment, false, false);
-        text.name = name;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
+        RectTransform rectTransform = PrototypeUiToolkit.CreateRectTransform(name, parent);
+        TextMeshProUGUI text = rectTransform.gameObject.AddComponent<TextMeshProUGUI>();
+        ConfigureText(text, font, fontSize, fontStyle, color, alignment, false);
         return text;
+    }
+
+    private static void ConfigureText(TMP_Text text, Font font, int fontSize, FontStyle fontStyle, Color color, TextAnchor alignment, bool richText)
+    {
+        TMP_FontAsset fontAsset = ResolveFontAsset(font);
+        if (fontAsset != null)
+        {
+            text.font = fontAsset;
+        }
+
+        text.fontSize = fontSize;
+        text.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
+        text.color = color;
+        text.alignment = PrototypeUiToolkit.ConvertTextAlignment(alignment);
+        text.richText = richText;
+        text.enableWordWrapping = true;
+        text.overflowMode = TextOverflowModes.Overflow;
+        text.raycastTarget = false;
+        text.text = string.Empty;
+        text.margin = Vector4.zero;
+    }
+
+    private static TMP_FontAsset ResolveFontAsset(Font font)
+    {
+        TMP_Settings settings = TMP_Settings.instance;
+        TMP_FontAsset defaultFontAsset = settings != null ? TMP_Settings.defaultFontAsset : null;
+        return defaultFontAsset != null ? defaultFontAsset : PrototypeUiToolkit.ResolveTmpFontAsset(font);
+    }
+
+    private static Button CreateButton(
+        Transform parent,
+        Font font,
+        string label,
+        Action onClick,
+        Color normalColor,
+        Color highlightedColor,
+        Color pressedColor,
+        float preferredHeight)
+    {
+        RectTransform rectTransform = PrototypeUiToolkit.CreateRectTransform("Button", parent);
+        Image background = rectTransform.gameObject.AddComponent<Image>();
+        background.color = normalColor;
+
+        Button button = rectTransform.gameObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.ColorTint;
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = normalColor;
+        colors.highlightedColor = highlightedColor;
+        colors.selectedColor = highlightedColor;
+        colors.pressedColor = pressedColor;
+        colors.disabledColor = new Color(normalColor.r * 0.65f, normalColor.g * 0.65f, normalColor.b * 0.65f, 0.7f);
+        colors.colorMultiplier = 1f;
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+
+        LayoutElement layout = rectTransform.gameObject.AddComponent<LayoutElement>();
+        layout.preferredHeight = preferredHeight;
+        layout.flexibleWidth = 1f;
+
+        RectTransform labelRoot = PrototypeUiToolkit.CreateRectTransform("Label", rectTransform);
+        PrototypeUiToolkit.SetStretch(labelRoot, 12f, 12f, 8f, 8f);
+        TMP_Text buttonLabel = CreateText("Text", labelRoot, font, 15, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        buttonLabel.richText = false;
+        buttonLabel.text = label ?? string.Empty;
+
+        button.onClick.RemoveAllListeners();
+        if (onClick != null)
+        {
+            button.onClick.AddListener(() => onClick());
+        }
+
+        return button;
     }
 
     private static void SetButtonWidth(Button button, float width)

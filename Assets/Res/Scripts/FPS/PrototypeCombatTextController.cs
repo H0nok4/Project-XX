@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,6 +8,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(PrototypeUnitVitals))]
 public class PrototypeCombatTextController : MonoBehaviour
 {
+    private const string CombatTextEntryPrefabResourcePath = "UI/FPS/PrototypeCombatTextEntry";
+
     [Serializable]
     private sealed class ActiveCombatText
     {
@@ -15,7 +18,7 @@ public class PrototypeCombatTextController : MonoBehaviour
         public Vector3 worldPosition;
         public float spawnTime;
         public RectTransform root;
-        public Text label;
+        public TMP_Text label;
         public Shadow shadow;
     }
 
@@ -94,8 +97,10 @@ public class PrototypeCombatTextController : MonoBehaviour
             spawnTime = Time.time
         };
 
-        CreateCombatTextUi(entry);
-        activeTexts.Add(entry);
+        if (CreateCombatTextUi(entry))
+        {
+            activeTexts.Add(entry);
+        }
     }
 
     private void UpdateCombatTextUi()
@@ -134,7 +139,11 @@ public class PrototypeCombatTextController : MonoBehaviour
 
             if (entry.root == null || entry.label == null)
             {
-                CreateCombatTextUi(entry);
+                if (!CreateCombatTextUi(entry))
+                {
+                    activeTexts.RemoveAt(index);
+                    continue;
+                }
             }
 
             float normalizedLifetime = Mathf.Clamp01(elapsed / lifetime);
@@ -174,11 +183,11 @@ public class PrototypeCombatTextController : MonoBehaviour
         worldLayerRoot = PrototypeRuntimeUiManager.GetOrCreate().GetLayerRoot(PrototypeUiLayer.World);
     }
 
-    private void CreateCombatTextUi(ActiveCombatText entry)
+    private bool CreateCombatTextUi(ActiveCombatText entry)
     {
         if (entry == null)
         {
-            return;
+            return false;
         }
 
         EnsureWorldLayerRoot();
@@ -186,33 +195,32 @@ public class PrototypeCombatTextController : MonoBehaviour
 
         if (entry.root == null)
         {
-            entry.root = PrototypeUiToolkit.CreateRectTransform("CombatText", worldLayerRoot);
-            PrototypeUiToolkit.SetAnchor(
-                entry.root,
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                Vector2.zero,
-                new Vector2(132f, 40f));
+            GameObject prefabAsset = Resources.Load<GameObject>(CombatTextEntryPrefabResourcePath);
+            if (prefabAsset == null)
+            {
+                Debug.LogWarning($"[{GetType().Name}] Missing combat text prefab at Resources/{CombatTextEntryPrefabResourcePath}.", this);
+                return false;
+            }
+
+            GameObject instanceObject = Instantiate(prefabAsset, worldLayerRoot, false);
+            instanceObject.name = prefabAsset.name;
+
+            PrototypeCombatTextEntryTemplate template = instanceObject.GetComponent<PrototypeCombatTextEntryTemplate>();
+            if (template == null || template.Root == null || template.LabelText == null)
+            {
+                Destroy(instanceObject);
+                Debug.LogWarning($"[{GetType().Name}] Combat text prefab is missing {nameof(PrototypeCombatTextEntryTemplate)}.", this);
+                return false;
+            }
+
+            PrototypeUiToolkit.ApplyFontRecursively(template.Root, manager.RuntimeFont);
+            entry.root = template.Root;
+            entry.label = template.LabelText;
+            entry.shadow = template.Shadow;
         }
 
-        if (entry.label == null)
-        {
-            entry.label = PrototypeUiToolkit.CreateText(
-                entry.root,
-                manager.RuntimeFont,
-                entry.text,
-                fontSize,
-                FontStyle.Bold,
-                entry.color,
-                TextAnchor.MiddleCenter,
-                false,
-                false);
-            PrototypeUiToolkit.SetStretch(entry.label.rectTransform, 0f, 0f, 0f, 0f);
-            entry.shadow = entry.label.gameObject.AddComponent<Shadow>();
-            entry.shadow.effectDistance = new Vector2(1f, -1f);
-            entry.shadow.useGraphicAlpha = true;
-        }
+        entry.root.sizeDelta = new Vector2(132f, 40f);
+        return entry.root != null && entry.label != null;
     }
 
     private void ClearActiveTexts()

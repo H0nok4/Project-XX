@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -109,7 +110,7 @@ public sealed class QuestListUI
         {
             infoLine.LabelText.text = text ?? string.Empty;
             infoLine.LabelText.color = color;
-            infoLine.LabelText.fontStyle = fontStyle;
+            infoLine.LabelText.fontStyle = PrototypeUiToolkit.ConvertFontStyle(fontStyle);
         }
     }
 
@@ -141,7 +142,7 @@ public sealed class QuestListUI
 
         if (item.TitleText != null)
         {
-            item.TitleText.fontStyle = isSelected ? FontStyle.Bold : FontStyle.Normal;
+            item.TitleText.fontStyle = isSelected ? FontStyles.Bold : FontStyles.Normal;
         }
     }
 

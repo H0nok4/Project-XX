@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class RaidGameMode : MonoBehaviour
@@ -38,14 +37,8 @@ public class RaidGameMode : MonoBehaviour
     [SerializeField] private List<ExtractionZone> extractionZones = new List<ExtractionZone>();
     [SerializeField] private List<RaidPlayerSpawnPoint> playerSpawnPoints = new List<RaidPlayerSpawnPoint>();
 
-    private RectTransform hudRoot;
-    private Text hudText;
-    private RectTransform extractionRoot;
-    private Text extractionText;
-    private Image extractionFill;
-    private RectTransform resultRoot;
-    private Text resultTitleText;
-    private Text resultBodyText;
+    private RaidHudView raidHudView;
+    private RaidResultView raidResultView;
 
     public event Action<RaidState> StateChanged;
 
@@ -88,9 +81,8 @@ public class RaidGameMode : MonoBehaviour
         }
 
         ApplyResultUiFocus(false);
-        SetUiVisible(hudRoot, false);
-        SetUiVisible(extractionRoot, false);
-        SetUiVisible(resultRoot, false);
+        raidHudView?.UpdateHud(false, string.Empty, false, string.Empty, 0f);
+        raidResultView?.SetResult(false, string.Empty, string.Empty);
     }
 
     private void Update()
@@ -357,65 +349,8 @@ public class RaidGameMode : MonoBehaviour
 
     private void EnsureHudUi()
     {
-        if (hudRoot != null)
-        {
-            return;
-        }
-
-        PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        Font font = manager.RuntimeFont;
-
-        hudRoot = PrototypeUiToolkit.CreatePanel(
-            manager.GetLayerRoot(PrototypeUiLayer.Hud),
-            "RaidHud",
-            new Color(0.08f, 0.1f, 0.14f, 0.88f),
-            new RectOffset(12, 12, 10, 10),
-            0f);
-        PrototypeUiToolkit.SetAnchor(hudRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -18f), new Vector2(320f, 72f));
-        hudText = PrototypeUiToolkit.CreateText(hudRoot, font, string.Empty, 14, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
-
-        extractionRoot = PrototypeUiToolkit.CreatePanel(
-            manager.GetLayerRoot(PrototypeUiLayer.Hud),
-            "ExtractionProgress",
-            new Color(0.08f, 0.1f, 0.14f, 0.92f),
-            new RectOffset(10, 10, 8, 8),
-            6f);
-        PrototypeUiToolkit.SetAnchor(extractionRoot, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -96f), new Vector2(320f, 44f));
-        extractionText = PrototypeUiToolkit.CreateText(extractionRoot, font, string.Empty, 14, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
-
-        RectTransform barBackground = PrototypeUiToolkit.CreateRectTransform("BarBackground", extractionRoot);
-        LayoutElement barLayout = barBackground.gameObject.AddComponent<LayoutElement>();
-        barLayout.preferredHeight = 14f;
-        Image barBackgroundImage = barBackground.gameObject.AddComponent<Image>();
-        barBackgroundImage.color = new Color(0f, 0f, 0f, 0.45f);
-
-        RectTransform fillRoot = PrototypeUiToolkit.CreateRectTransform("Fill", barBackground);
-        fillRoot.anchorMin = new Vector2(0f, 0f);
-        fillRoot.anchorMax = new Vector2(0f, 1f);
-        fillRoot.pivot = new Vector2(0f, 0.5f);
-        fillRoot.offsetMin = Vector2.zero;
-        fillRoot.offsetMax = Vector2.zero;
-        extractionFill = fillRoot.gameObject.AddComponent<Image>();
-        extractionFill.color = new Color(0.22f, 0.86f, 0.48f, 0.95f);
-
-        resultRoot = PrototypeUiToolkit.CreatePanel(
-            manager.GetLayerRoot(PrototypeUiLayer.Modal),
-            "RaidResult",
-            new Color(0.08f, 0.1f, 0.14f, 0.96f),
-            new RectOffset(18, 18, 16, 16),
-            8f);
-        PrototypeUiToolkit.SetAnchor(resultRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(500f, 220f));
-        ContentSizeFitter resultFitter = resultRoot.gameObject.AddComponent<ContentSizeFitter>();
-        resultFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        resultFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        resultTitleText = PrototypeUiToolkit.CreateText(resultRoot, font, string.Empty, 22, FontStyle.Bold, Color.white, TextAnchor.UpperCenter);
-        resultTitleText.lineSpacing = 0.95f;
-        resultBodyText = PrototypeUiToolkit.CreateText(resultRoot, font, string.Empty, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
-        resultBodyText.lineSpacing = 0.92f;
-
-        SetUiVisible(hudRoot, false);
-        SetUiVisible(extractionRoot, false);
-        SetUiVisible(resultRoot, false);
+        raidHudView ??= RaidHudView.GetOrCreate();
+        raidResultView ??= RaidResultView.GetOrCreate();
     }
 
     private void UpdateHudUi()
@@ -423,9 +358,8 @@ public class RaidGameMode : MonoBehaviour
         EnsureHudUi();
         if (!showHud)
         {
-            SetUiVisible(hudRoot, false);
-            SetUiVisible(extractionRoot, false);
-            SetUiVisible(resultRoot, false);
+            raidHudView?.UpdateHud(false, string.Empty, false, string.Empty, 0f);
+            raidResultView?.SetResult(false, string.Empty, string.Empty);
             return;
         }
 
@@ -434,45 +368,20 @@ public class RaidGameMode : MonoBehaviour
             ? $"\nSlots {inventory.Items.Count}/{inventory.MaxSlots}  Weight {inventory.CurrentWeight:0.0}/{inventory.MaxWeight:0.0}"
             : string.Empty;
 
-        if (hudText != null)
-        {
-            hudText.text = $"Raid {currentState}\nTime {FormatTime(remainingSeconds)}{inventorySummary}";
-        }
-
-        SetUiVisible(hudRoot, true);
-
         ExtractionZone activeExtractionZone = GetActiveExtractionZone();
         bool showExtractionProgress = activeExtractionZone != null;
-        SetUiVisible(extractionRoot, showExtractionProgress);
-        if (showExtractionProgress)
-        {
-            if (extractionText != null)
-            {
-                extractionText.text = $"Extracting {activeExtractionZone.ExtractionName}  {activeExtractionZone.ExtractionRemainingSeconds:0.0}s";
-            }
-
-            if (extractionFill != null)
-            {
-                extractionFill.rectTransform.sizeDelta = new Vector2(294f * activeExtractionZone.ExtractionProgressNormalized, 0f);
-            }
-        }
+        string extractionLabel = showExtractionProgress
+            ? $"Extracting {activeExtractionZone.ExtractionName}  {activeExtractionZone.ExtractionRemainingSeconds:0.0}s"
+            : string.Empty;
+        raidHudView?.UpdateHud(
+            true,
+            $"Raid {currentState}\nTime {FormatTime(remainingSeconds)}{inventorySummary}",
+            showExtractionProgress,
+            extractionLabel,
+            showExtractionProgress ? activeExtractionZone.ExtractionProgressNormalized : 0f);
 
         bool showResult = !string.IsNullOrWhiteSpace(lastResultMessage) && currentState != RaidState.Running;
-        SetUiVisible(resultRoot, showResult);
-        if (!showResult)
-        {
-            return;
-        }
-
-        if (resultTitleText != null)
-        {
-            resultTitleText.text = GetResultTitle();
-        }
-
-        if (resultBodyText != null)
-        {
-            resultBodyText.text = BuildResultBodyText(inventory);
-        }
+        raidResultView?.SetResult(showResult, showResult ? GetResultTitle() : string.Empty, showResult ? BuildResultBodyText(inventory) : string.Empty);
     }
 
     private string BuildResultBodyText(InventoryContainer inventory)
@@ -507,11 +416,6 @@ public class RaidGameMode : MonoBehaviour
         }
 
         return body;
-    }
-
-    private static void SetUiVisible(RectTransform root, bool visible)
-    {
-        PrototypeUiToolkit.SetVisible(root, visible);
     }
 
     private static string FormatTime(float seconds)
@@ -553,21 +457,4 @@ public class RaidGameMode : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
-    {
-        if (hudRoot != null)
-        {
-            Destroy(hudRoot.gameObject);
-        }
-
-        if (extractionRoot != null)
-        {
-            Destroy(extractionRoot.gameObject);
-        }
-
-        if (resultRoot != null)
-        {
-            Destroy(resultRoot.gameObject);
-        }
-    }
 }

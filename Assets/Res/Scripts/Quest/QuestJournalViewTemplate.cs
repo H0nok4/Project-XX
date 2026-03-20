@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -6,8 +7,8 @@ public sealed class QuestJournalViewTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
     [SerializeField] private RectTransform panel;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text subtitleText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private RectTransform bodyRoot;
     [SerializeField] private RectTransform footerRoot;
     [SerializeField] private ScrollRect listScrollRect;
@@ -18,8 +19,8 @@ public sealed class QuestJournalViewTemplate : MonoBehaviour
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
     public RectTransform Panel => panel;
-    public Text TitleText => titleText;
-    public Text SubtitleText => subtitleText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text SubtitleText => subtitleText;
     public RectTransform BodyRoot => bodyRoot;
     public RectTransform FooterRoot => footerRoot;
     public ScrollRect ListScrollRect => listScrollRect;
@@ -44,8 +45,8 @@ public sealed class QuestJournalViewTemplate : MonoBehaviour
     public void ConfigureReferences(
         RectTransform rectTransform,
         RectTransform windowPanel,
-        Text title,
-        Text subtitle,
+        TMP_Text title,
+        TMP_Text subtitle,
         RectTransform body,
         RectTransform footer,
         ScrollRect listScroll,

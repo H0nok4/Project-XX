@@ -9,6 +9,7 @@ using UnityEngine.UI;
 public sealed class DialogueSystem : WindowBase
 {
     private const string DialoguePrefabResourcePath = "UI/Quest/DialogueWindow";
+    private const string DialogueOptionButtonPrefabResourcePath = "UI/Quest/DialogueOptionButton";
 
     private static DialogueSystem instance;
 
@@ -152,8 +153,9 @@ public sealed class DialogueSystem : WindowBase
             return chrome;
         }
 
+        Debug.LogWarning($"[{GetType().Name}] Missing dialogue window prefab at Resources/{DialoguePrefabResourcePath}.", this);
         windowView = null;
-        return base.CreateWindowChrome();
+        return null;
     }
 
     protected override void BuildWindow(PrototypeUiToolkit.WindowChrome chrome)
@@ -163,28 +165,27 @@ public sealed class DialogueSystem : WindowBase
             return;
         }
 
-        if (windowView != null && windowView.Root == chrome.Root)
+        if (windowView == null || windowView.Root != chrome.Root)
         {
+            windowView = chrome.Root.GetComponent<DialogueWindowViewTemplate>();
+        }
+
+        if (windowView == null || windowView.SpeakerText == null || windowView.DialogueText == null || windowView.OptionsRoot == null)
+        {
+            Debug.LogWarning($"[{GetType().Name}] Dialogue window prefab is missing required references.", this);
             return;
         }
 
-        VerticalLayoutGroup bodyLayout = chrome.BodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
-        bodyLayout.spacing = 10f;
-        bodyLayout.childAlignment = TextAnchor.UpperLeft;
-        bodyLayout.childControlWidth = true;
-        bodyLayout.childControlHeight = true;
-        bodyLayout.childForceExpandWidth = true;
-        bodyLayout.childForceExpandHeight = false;
+        if (windowView.CloseButton != null)
+        {
+            windowView.CloseButton.onClick.RemoveAllListeners();
+            windowView.CloseButton.onClick.AddListener(CloseDialogue);
+        }
 
-        PrototypeUiToolkit.CreateButton(
-            chrome.FooterRoot,
-            RuntimeFont,
-            "结束对话",
-            CloseDialogue,
-            new Color(0.22f, 0.27f, 0.34f, 0.98f),
-            new Color(0.31f, 0.38f, 0.48f, 1f),
-            new Color(0.17f, 0.21f, 0.29f, 1f),
-            38f);
+        if (windowView.EmptyOptionsText != null)
+        {
+            windowView.EmptyOptionsText.gameObject.SetActive(false);
+        }
 
         PrototypeUiToolkit.SetVisible(chrome.Root, false);
     }
@@ -308,30 +309,21 @@ public sealed class DialogueSystem : WindowBase
             windowChrome.SubtitleText.gameObject.SetActive(!string.IsNullOrWhiteSpace(windowChrome.SubtitleText.text));
         }
 
-        if (windowView != null
-            && windowView.SpeakerText != null
-            && windowView.DialogueText != null
-            && windowView.OptionsRoot != null)
+        if (windowView == null
+            || windowView.SpeakerText == null
+            || windowView.DialogueText == null
+            || windowView.OptionsRoot == null)
         {
-            windowView.SpeakerText.text = node.SpeakerName;
-            windowView.DialogueText.text = node.DialogueText;
-            optionContainer = windowView.OptionsRoot;
-            ClearChildren(optionContainer);
+            return;
         }
-        else
-        {
-            ClearChildren(windowChrome.BodyRoot);
-            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, RuntimeFont, node.SpeakerName, 18, FontStyle.Bold, new Color(0.96f, 0.8f, 0.44f, 1f), TextAnchor.UpperLeft);
-            PrototypeUiToolkit.CreateText(windowChrome.BodyRoot, RuntimeFont, node.DialogueText, 16, FontStyle.Normal, Color.white, TextAnchor.UpperLeft);
 
-            optionContainer = PrototypeUiToolkit.CreateRectTransform("Options", windowChrome.BodyRoot);
-            VerticalLayoutGroup optionLayout = optionContainer.gameObject.AddComponent<VerticalLayoutGroup>();
-            optionLayout.spacing = 8f;
-            optionLayout.childAlignment = TextAnchor.UpperLeft;
-            optionLayout.childControlWidth = true;
-            optionLayout.childControlHeight = true;
-            optionLayout.childForceExpandWidth = true;
-            optionLayout.childForceExpandHeight = false;
+        windowView.SpeakerText.text = node.SpeakerName;
+        windowView.DialogueText.text = node.DialogueText;
+        optionContainer = windowView.OptionsRoot;
+        ClearChildren(optionContainer);
+        if (windowView.EmptyOptionsText != null)
+        {
+            windowView.EmptyOptionsText.gameObject.SetActive(false);
         }
 
         bool createdAnyOption = false;
@@ -345,22 +337,13 @@ public sealed class DialogueSystem : WindowBase
                     continue;
                 }
 
-                createdAnyOption = true;
-                PrototypeUiToolkit.CreateButton(
-                    optionContainer,
-                    RuntimeFont,
-                    option.OptionText,
-                    () => HandleOptionSelected(option),
-                    new Color(0.18f, 0.24f, 0.33f, 0.98f),
-                    new Color(0.26f, 0.35f, 0.47f, 1f),
-                    new Color(0.14f, 0.19f, 0.27f, 1f),
-                    42f);
+                createdAnyOption |= TryInstantiateOptionButton(optionContainer, option);
             }
         }
 
-        if (!createdAnyOption)
+        if (!createdAnyOption && windowView.EmptyOptionsText != null)
         {
-            PrototypeUiToolkit.CreateText(optionContainer, RuntimeFont, "没有可执行的对话选项。", 14, FontStyle.Normal, new Color(0.82f, 0.87f, 0.92f, 1f), TextAnchor.UpperLeft);
+            windowView.EmptyOptionsText.gameObject.SetActive(true);
         }
     }
 
@@ -424,6 +407,38 @@ public sealed class DialogueSystem : WindowBase
             windowView.CloseButton.onClick.AddListener(CloseDialogue);
         }
 
+        return true;
+    }
+
+    private bool TryInstantiateOptionButton(RectTransform parent, DialogueOption option)
+    {
+        if (parent == null || option == null)
+        {
+            return false;
+        }
+
+        GameObject prefabAsset = Resources.Load<GameObject>(DialogueOptionButtonPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[{GetType().Name}] Missing dialogue option prefab at Resources/{DialogueOptionButtonPrefabResourcePath}.", this);
+            return false;
+        }
+
+        GameObject instanceObject = Instantiate(prefabAsset, parent, false);
+        instanceObject.name = prefabAsset.name;
+
+        DialogueOptionButtonTemplate template = instanceObject.GetComponent<DialogueOptionButtonTemplate>();
+        if (template == null || template.Root == null || template.Button == null || template.LabelText == null)
+        {
+            Destroy(instanceObject);
+            Debug.LogWarning($"[{GetType().Name}] Dialogue option prefab is missing {nameof(DialogueOptionButtonTemplate)}.", this);
+            return false;
+        }
+
+        PrototypeUiToolkit.ApplyFontRecursively(template.Root, RuntimeFont);
+        template.LabelText.text = option.OptionText;
+        template.Button.onClick.RemoveAllListeners();
+        template.Button.onClick.AddListener(() => HandleOptionSelected(option));
         return true;
     }
 

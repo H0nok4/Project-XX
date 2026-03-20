@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -6,11 +7,11 @@ public sealed class PlayerInventoryWindowTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
     [SerializeField] private RectTransform panel;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text subtitleText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private RectTransform bodyRoot;
     [SerializeField] private RectTransform footerRoot;
-    [SerializeField] private Text summaryText;
+    [SerializeField] private TMP_Text summaryText;
     [SerializeField] private ScrollRect backpackScrollRect;
     [SerializeField] private RectTransform backpackContentRoot;
     [SerializeField] private ScrollRect gearScrollRect;
@@ -19,11 +20,11 @@ public sealed class PlayerInventoryWindowTemplate : MonoBehaviour
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
     public RectTransform Panel => panel;
-    public Text TitleText => titleText;
-    public Text SubtitleText => subtitleText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text SubtitleText => subtitleText;
     public RectTransform BodyRoot => bodyRoot;
     public RectTransform FooterRoot => footerRoot;
-    public Text SummaryText => summaryText;
+    public TMP_Text SummaryText => summaryText;
     public ScrollRect BackpackScrollRect => backpackScrollRect;
     public RectTransform BackpackContentRoot => backpackContentRoot;
     public ScrollRect GearScrollRect => gearScrollRect;
@@ -46,11 +47,11 @@ public sealed class PlayerInventoryWindowTemplate : MonoBehaviour
     public void ConfigureReferences(
         RectTransform rectTransform,
         RectTransform windowPanel,
-        Text title,
-        Text subtitle,
+        TMP_Text title,
+        TMP_Text subtitle,
         RectTransform body,
         RectTransform footer,
-        Text summary,
+        TMP_Text summary,
         ScrollRect backpackScroll,
         RectTransform backpackContent,
         ScrollRect gearScroll,

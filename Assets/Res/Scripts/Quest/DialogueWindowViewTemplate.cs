@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -6,24 +7,26 @@ public sealed class DialogueWindowViewTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
     [SerializeField] private RectTransform panel;
-    [SerializeField] private Text titleText;
-    [SerializeField] private Text subtitleText;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private RectTransform bodyRoot;
     [SerializeField] private RectTransform footerRoot;
-    [SerializeField] private Text speakerText;
-    [SerializeField] private Text dialogueText;
+    [SerializeField] private TMP_Text speakerText;
+    [SerializeField] private TMP_Text dialogueText;
     [SerializeField] private RectTransform optionsRoot;
+    [SerializeField] private TMP_Text emptyOptionsText;
     [SerializeField] private Button closeButton;
 
     public RectTransform Root => root != null ? root : transform as RectTransform;
     public RectTransform Panel => panel;
-    public Text TitleText => titleText;
-    public Text SubtitleText => subtitleText;
+    public TMP_Text TitleText => titleText;
+    public TMP_Text SubtitleText => subtitleText;
     public RectTransform BodyRoot => bodyRoot;
     public RectTransform FooterRoot => footerRoot;
-    public Text SpeakerText => speakerText;
-    public Text DialogueText => dialogueText;
+    public TMP_Text SpeakerText => speakerText;
+    public TMP_Text DialogueText => dialogueText;
     public RectTransform OptionsRoot => optionsRoot;
+    public TMP_Text EmptyOptionsText => emptyOptionsText;
     public Button CloseButton => closeButton;
 
     public PrototypeUiToolkit.WindowChrome CreateWindowChrome()
@@ -42,13 +45,14 @@ public sealed class DialogueWindowViewTemplate : MonoBehaviour
     public void ConfigureReferences(
         RectTransform rectTransform,
         RectTransform windowPanel,
-        Text title,
-        Text subtitle,
+        TMP_Text title,
+        TMP_Text subtitle,
         RectTransform body,
         RectTransform footer,
-        Text speaker,
-        Text dialogue,
+        TMP_Text speaker,
+        TMP_Text dialogue,
         RectTransform options,
+        TMP_Text emptyOptions,
         Button close)
     {
         root = rectTransform;
@@ -60,6 +64,7 @@ public sealed class DialogueWindowViewTemplate : MonoBehaviour
         speakerText = speaker;
         dialogueText = dialogue;
         optionsRoot = options;
+        emptyOptionsText = emptyOptions;
         closeButton = close;
     }
 }

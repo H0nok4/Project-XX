@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 [DisallowMultipleComponent]
 public abstract class WindowBase : MonoBehaviour
@@ -23,8 +24,8 @@ public abstract class WindowBase : MonoBehaviour
     protected RectTransform Panel => windowChrome != null ? windowChrome.Panel : null;
     protected RectTransform BodyRoot => windowChrome != null ? windowChrome.BodyRoot : null;
     protected RectTransform FooterRoot => windowChrome != null ? windowChrome.FooterRoot : null;
-    protected UnityEngine.UI.Text TitleText => windowChrome != null ? windowChrome.TitleText : null;
-    protected UnityEngine.UI.Text SubtitleText => windowChrome != null ? windowChrome.SubtitleText : null;
+    protected TMP_Text TitleText => windowChrome != null ? windowChrome.TitleText : null;
+    protected TMP_Text SubtitleText => windowChrome != null ? windowChrome.SubtitleText : null;
 
     public bool IsWindowBuilt => windowChrome != null && windowChrome.Root != null;
     public bool IsWindowVisible => windowChrome != null && windowChrome.Root != null && windowChrome.Root.gameObject.activeSelf;

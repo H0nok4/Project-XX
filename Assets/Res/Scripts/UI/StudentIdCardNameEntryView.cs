@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -20,12 +21,12 @@ public sealed class StudentIdCardNameEntryView : ViewBase
     [SerializeField] private string cancelLabel = "取消";
 
     private RectTransform panelRoot;
-    private Text titleText;
-    private Text subtitleText;
-    private Text fieldLabelText;
-    private InputField nameInputField;
-    private Text inputText;
-    private Text placeholderText;
+    private TMP_Text titleText;
+    private TMP_Text subtitleText;
+    private TMP_Text fieldLabelText;
+    private TMP_InputField nameInputField;
+    private TMP_Text inputText;
+    private TMP_Text placeholderText;
     private Button confirmButton;
     private Button cancelButton;
     private StudentIdCardNameEntryWindowTemplate viewTemplate;
@@ -238,7 +239,7 @@ public sealed class StudentIdCardNameEntryView : ViewBase
     {
         if (nameInputField != null)
         {
-            nameInputField.lineType = InputField.LineType.SingleLine;
+            nameInputField.lineType = TMP_InputField.LineType.SingleLine;
             nameInputField.characterLimit = 24;
             nameInputField.onValueChanged.RemoveListener(HandleNameValueChanged);
             nameInputField.onValueChanged.AddListener(HandleNameValueChanged);
@@ -356,7 +357,7 @@ public sealed class StudentIdCardNameEntryView : ViewBase
             return;
         }
 
-        Text labelText = button.GetComponentInChildren<Text>(true);
+        TMP_Text labelText = button.GetComponentInChildren<TMP_Text>(true);
         if (labelText != null)
         {
             labelText.text = string.IsNullOrWhiteSpace(label) ? string.Empty : label.Trim();

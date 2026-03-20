@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -22,7 +23,7 @@ public class PlayerInventoryWindowController : WindowBase
     private bool resetBackpackScroll = true;
     private bool resetGearScroll = true;
     private int lastContentHash;
-    private Text summaryText;
+    private TMP_Text summaryText;
     private ScrollRect backpackScrollRect;
     private RectTransform backpackContentRoot;
     private ScrollRect gearScrollRect;
@@ -659,7 +660,7 @@ public class PlayerInventoryWindowController : WindowBase
         return card;
     }
 
-    private static void SetText(Text label, string value)
+    private static void SetText(TMP_Text label, string value)
     {
         if (label != null)
         {
