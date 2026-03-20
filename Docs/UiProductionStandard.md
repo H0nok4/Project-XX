@@ -28,6 +28,13 @@
 - `PrototypeUiToolkit`
   - 目前仍承担基础 UI 工具和部分旧实现的兜底逻辑。
   - 后续不再作为“新运行时界面的主要搭建方式”，只保留给底层基础设施、历史兼容或编辑器辅助用途。
+- `Assets/Res/Scripts/UI/Common/*`
+  - 负责沉淀运行时 UGUI 的通用组件能力，例如生命周期小组件、虚拟列表、按钮动效、通用过渡、Tab 组等。
+  - 新界面制作时应先评估是否可以直接复用这些组件，而不是每个界面各自重复实现一套交互逻辑。
+
+通用组件库的设计说明与典型用法见：
+
+- `Docs/RuntimeUiComponentLibraryGuide.md`
 
 ## 3. 强制规则
 
@@ -157,6 +164,37 @@
 - 控制器只负责 `Instantiate(itemPrefab)`、绑定数据、回收/刷新。
 - 不允许在循环里反复 `CreateText/CreateButton/AddComponent` 拼条目。
 
+### 5.4 新界面应优先评估通用组件复用
+
+新增运行时 UI 时，不要只考虑“这个界面能不能做出来”，还要优先考虑“这个界面哪些部分已经有通用组件可复用”。
+
+推荐先检查以下几类：
+
+- 是否存在重复条目、长列表、滚动列表
+  - 优先评估 `UiVirtualList` + `UiReusableRenderer<TData>`
+- 是否存在通用按钮、导航按钮、主操作按钮、Tab 按钮
+  - 优先评估 `UiAnimatedButton`
+- 是否存在窗口、页面、浮层、HUD 的进出场动画
+  - 优先评估 `UiTransitionPlayer`
+- 是否是基于 `ViewBase` / `WindowBase` 的界面，且根节点需要显隐动画
+  - 优先评估 `UiAnimatedViewBase` / `UiAnimatedWindowBase`
+- 是否存在页面切换、Tab 切换、二级导航切换
+  - 优先评估 `UiTabGroup`
+- 是否存在会被反复绑定不同数据的卡片、格子、列表单元
+  - 优先评估 `UiReusableRendererBase` / `UiReusableRenderer<TData>`
+
+要求如下：
+
+- 可以复用通用组件时，优先复用，不要在业务脚本里重新手写一套相同能力。
+- 如果现有通用组件只能覆盖 70% 到 80% 的场景，优先在通用组件上做小幅扩展，而不是直接在具体界面里复制一份“特化版本”。
+- 只有当交互模型明显不同，或者抽象后会让通用层变得更混乱时，才考虑单独实现。
+
+这条规则的目的是：
+
+- 保持按钮、切页、进出场、列表复用的体验一致。
+- 降低后续界面改版和维护成本。
+- 避免项目里再次出现多个系统各写一套列表、按钮、Tab、显隐动画逻辑的情况。
+
 ## 6. 预制体制作要求
 
 每个正式运行时 UI 预制体至少应满足以下要求：
@@ -168,6 +206,7 @@
 - 锚点、布局组、`LayoutElement`、`ContentSizeFitter` 等在编辑器里配置完成，不把布局参数硬编码到运行时代码里。
 - 如果界面要跟随项目运行时字体策略，实例化后统一调用 `PrototypeUiToolkit.ApplyFontRecursively(...)`。
 - 需要阻挡点击的遮罩层必须在预制体里明确配置 `Image` / `CanvasGroup` / `raycastTarget`，不要依赖隐式行为。
+- 如果按钮、列表、Tab、页面切换、显隐动画已经可以用通用组件解决，应直接把对应通用组件挂到 prefab 上，而不是把同类逻辑散落到控制器脚本里。
 
 ## 7. 层级使用规范
 
@@ -228,18 +267,20 @@
 新增一个运行时 UI 时，按以下顺序执行：
 
 1. 在 Unity Editor 中先做出 UGUI 预制体。
-2. 给预制体添加 `Template` 脚本，并把所有关键引用拖好。
-3. 将预制体放入 `Assets/Resources/UI/<Module>/`。
-4. 编写 `Controller/View` 脚本，继承 `WindowBase` 或 `ViewBase`。
-5. 在 `CreateWindowChrome()` 或 `CreateViewRoot()` 中实例化预制体。
-6. 在 `BuildWindow()` 或 `BuildView()` 中只做绑定和初始化，不做布局搭建。
-7. 如果有动态列表，再单独制作列表项预制体。
-8. 联调以下内容：
+2. 先检查界面中的按钮、列表、页签、进出场、重复条目，评估是否可以直接复用 `Assets/Res/Scripts/UI/Common/` 中的通用组件。
+3. 给预制体添加 `Template` 脚本，并把所有关键引用拖好。
+4. 将预制体放入 `Assets/Resources/UI/<Module>/`。
+5. 编写 `Controller/View` 脚本，继承 `WindowBase` 或 `ViewBase`；如果需要根节点显隐动画，优先使用 `UiAnimatedWindowBase` 或 `UiAnimatedViewBase`。
+6. 在 `CreateWindowChrome()` 或 `CreateViewRoot()` 中实例化预制体。
+7. 在 `BuildWindow()` 或 `BuildView()` 中只做绑定和初始化，不做布局搭建。
+8. 如果有动态列表，再单独制作列表项预制体，并优先评估是否接入 `UiVirtualList` 与 `UiReusableRenderer<TData>`。
+9. 联调以下内容：
    - 打开/关闭
    - 层级是否正确
    - 输入焦点与鼠标锁定
    - 分辨率缩放
    - 按钮事件、滚动区域、遮罩拦截
+   - 是否已经正确接入可复用通用组件，而不是在控制器里重复实现相同交互
 
 ## 10. 落地约定
 
@@ -247,5 +288,6 @@
 - 新需求不再接受 IMGUI 运行时实现。
 - 新需求不再接受“代码直接拼完整 UGUI”的实现。
 - `PrototypeUiToolkit.Create*` 在后续新 UI 中只允许用于底层基础设施、历史兼容、编辑器辅助脚本，不再作为正式界面搭建主路径。
+- 新需求在制作界面时，必须先评估是否可以复用现有通用组件；可以复用时，不应重新手写同类按钮、列表、Tab、显隐动画逻辑。
 - 需要对旧 UI 做小修时，可以先继续沿用旧代码；但如果任务已经涉及改布局、改交互、改结构，则应优先顺手改成预制体方案，而不是继续扩大技术债。
 
