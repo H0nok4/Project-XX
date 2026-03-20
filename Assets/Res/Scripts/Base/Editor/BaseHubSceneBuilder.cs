@@ -19,6 +19,7 @@ public static class BaseHubSceneBuilder
     private const string WorldTextMaterialPath = "Assets/Res/Materials/BaseHub/Mat_WorldText.mat";
     private const string WorldTextShaderPath = "Assets/Shaders/WorldTextOccluded.shader";
     private const string WorldTextShaderName = "ProjectXX/WorldTextOccluded";
+    private const string FusionPixelFontPath = "Assets/Resources/Fonts/FusionPixel/fusion-pixel-12px-proportional-zh_hans.ttf";
     private const string ItemCatalogPath = "Assets/Resources/PrototypeItemCatalog.asset";
     private const string RouteConfigPath = "Assets/Resources/MetaEntryRouteConfig.asset";
     private const int IgnoreRaycastLayer = 2;
@@ -603,6 +604,12 @@ public static class BaseHubSceneBuilder
 
     private static Font ResolveBuiltInFont()
     {
+        Font fusionPixelFont = AssetDatabase.LoadAssetAtPath<Font>(FusionPixelFontPath);
+        if (fusionPixelFont != null)
+        {
+            return fusionPixelFont;
+        }
+
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font != null)
         {

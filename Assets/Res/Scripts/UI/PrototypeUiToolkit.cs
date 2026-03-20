@@ -7,6 +7,9 @@ using UnityEngine.UI;
 
 public static class PrototypeUiToolkit
 {
+    private const string FusionPixelFontResourcePath = "Fonts/FusionPixel/fusion-pixel-12px-proportional-zh_hans";
+    private const string FusionPixelTmpFontAssetResourcePath = "Fonts & Materials/FusionPixel12pxProportionalZhHans SDF";
+
     public sealed class WindowChrome
     {
         public RectTransform Root { get; internal set; }
@@ -18,9 +21,22 @@ public static class PrototypeUiToolkit
     }
 
     private static readonly Dictionary<Font, TMP_FontAsset> RuntimeTmpFontCache = new Dictionary<Font, TMP_FontAsset>();
+    private static Font projectDefaultFont;
+    private static TMP_FontAsset projectDefaultTmpFontAsset;
 
     public static Font ResolveDefaultFont()
     {
+        if (projectDefaultFont != null)
+        {
+            return projectDefaultFont;
+        }
+
+        projectDefaultFont = Resources.Load<Font>(FusionPixelFontResourcePath);
+        if (projectDefaultFont != null)
+        {
+            return projectDefaultFont;
+        }
+
         Font dynamicFont = Font.CreateDynamicFontFromOSFont(
             new[]
             {
@@ -34,16 +50,18 @@ public static class PrototypeUiToolkit
             16);
         if (dynamicFont != null)
         {
-            return dynamicFont;
+            projectDefaultFont = dynamicFont;
+            return projectDefaultFont;
         }
 
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (font != null)
+        projectDefaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (projectDefaultFont != null)
         {
-            return font;
+            return projectDefaultFont;
         }
 
-        return Resources.GetBuiltinResource<Font>("Arial.ttf");
+        projectDefaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return projectDefaultFont;
     }
 
     public static RectTransform CreateRectTransform(string name, Transform parent)
@@ -442,9 +460,15 @@ public static class PrototypeUiToolkit
     public static TMP_FontAsset ResolveTmpFontAsset(Font font)
     {
         font ??= ResolveDefaultFont();
+        TMP_FontAsset defaultFontAsset = ResolveProjectDefaultTmpFontAsset();
         if (font == null)
         {
-            return TMP_Settings.instance != null ? TMP_Settings.defaultFontAsset : null;
+            return defaultFontAsset;
+        }
+
+        if (ReferenceEquals(font, ResolveDefaultFont()) && defaultFontAsset != null)
+        {
+            return defaultFontAsset;
         }
 
         if (RuntimeTmpFontCache.TryGetValue(font, out TMP_FontAsset cachedFont) && cachedFont != null)
@@ -464,9 +488,9 @@ public static class PrototypeUiToolkit
             Debug.LogWarning($"Failed to create TMP font asset for '{font.name}': {exception.Message}");
         }
 
-        if (tmpFontAsset == null && TMP_Settings.instance != null)
+        if (tmpFontAsset == null)
         {
-            tmpFontAsset = TMP_Settings.defaultFontAsset;
+            tmpFontAsset = defaultFontAsset;
         }
 
         if (tmpFontAsset != null && createdRuntimeFontAsset)
@@ -476,6 +500,24 @@ public static class PrototypeUiToolkit
 
         RuntimeTmpFontCache[font] = tmpFontAsset;
         return tmpFontAsset;
+    }
+
+    private static TMP_FontAsset ResolveProjectDefaultTmpFontAsset()
+    {
+        if (projectDefaultTmpFontAsset != null)
+        {
+            return projectDefaultTmpFontAsset;
+        }
+
+        projectDefaultTmpFontAsset = Resources.Load<TMP_FontAsset>(FusionPixelTmpFontAssetResourcePath);
+        if (projectDefaultTmpFontAsset != null)
+        {
+            return projectDefaultTmpFontAsset;
+        }
+
+        TMP_Settings settings = TMP_Settings.instance;
+        projectDefaultTmpFontAsset = settings != null ? TMP_Settings.defaultFontAsset : null;
+        return projectDefaultTmpFontAsset;
     }
 
     public static FontStyles ConvertFontStyle(FontStyle fontStyle)

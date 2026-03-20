@@ -1685,28 +1685,12 @@ public sealed class PrototypeMainMenuUguiView : MonoBehaviour
 
     private Font ResolveFont()
     {
-        Font dynamicFont = Font.CreateDynamicFontFromOSFont(
-            new[]
-            {
-                "Microsoft YaHei UI",
-                "Microsoft YaHei",
-                "Microsoft JhengHei UI",
-                "SimHei",
-                "Arial Unicode MS",
-                "Arial"
-            },
-            16);
-        if (dynamicFont != null)
-        {
-            return dynamicFont;
-        }
-
-        return ResolveBuiltinFallbackFont();
+        return PrototypeUiToolkit.ResolveDefaultFont();
     }
 
     private Font ResolveBuiltinFallbackFont()
     {
-        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return PrototypeUiToolkit.ResolveDefaultFont();
     }
 
     private static void ClearChildren(Transform parent)

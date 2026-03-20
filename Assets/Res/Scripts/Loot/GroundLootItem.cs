@@ -550,12 +550,20 @@ public class GroundLootItem : MonoBehaviour, IInteractable
             return;
         }
 
-        Material material = renderer.material;
+        bool useInstanceMaterial = Application.isPlaying;
+        Material material = useInstanceMaterial ? renderer.material : renderer.sharedMaterial;
         if (material == null)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             material = new Material(shader);
-            renderer.material = material;
+            if (useInstanceMaterial)
+            {
+                renderer.material = material;
+            }
+            else
+            {
+                renderer.sharedMaterial = material;
+            }
         }
 
         Color color = itemInstance != null && itemInstance.IsDefined()

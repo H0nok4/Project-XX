@@ -140,11 +140,7 @@ public static class StudentIdCardPrefabBuilder
             RectTransform rect = root.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(1024f, 640f);
 
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
-            {
-                font = PrototypeUiToolkit.ResolveDefaultFont();
-            }
+            Font font = PrototypeUiToolkit.ResolveDefaultFont();
 
             Image background = root.AddComponent<Image>();
             background.color = Color.clear;
@@ -255,11 +251,7 @@ public static class StudentIdCardPrefabBuilder
             RectTransform rootRect = root.GetComponent<RectTransform>();
             PrototypeUiToolkit.SetStretch(rootRect, 0f, 0f, 0f, 0f);
 
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
-            {
-                font = PrototypeUiToolkit.ResolveDefaultFont();
-            }
+            Font font = PrototypeUiToolkit.ResolveDefaultFont();
 
             Image overlay = root.AddComponent<Image>();
             overlay.color = new Color(0.02f, 0.03f, 0.05f, 0.58f);

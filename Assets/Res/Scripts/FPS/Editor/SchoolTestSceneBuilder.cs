@@ -16,6 +16,11 @@ public static class SchoolTestSceneBuilder
     private const string AutoBuildSessionKey = "SchoolTestSceneBuilder.AutoBuildRunning";
     private const string ScenePath = "Assets/Scenes/SchoolTestScene.unity";
     private const string MaterialFolder = "Assets/Res/Materials/SchoolCampus";
+    private const string WorldTextMaterialFolder = "Assets/Res/Materials/BaseHub";
+    private const string WorldTextMaterialPath = "Assets/Res/Materials/BaseHub/Mat_WorldText.mat";
+    private const string WorldTextShaderPath = "Assets/Shaders/WorldTextOccluded.shader";
+    private const string WorldTextShaderName = "ProjectXX/WorldTextOccluded";
+    private const string FusionPixelFontPath = "Assets/Resources/Fonts/FusionPixel/fusion-pixel-12px-proportional-zh_hans.ttf";
     private const string RegularZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_RegularZombie.asset";
     private const string PoliceZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_PoliceZombie.asset";
     private const string SoldierZombieProfilePath = "Assets/Res/Data/PrototypeFPS/EnemyProfiles/Spawn_SoldierZombie.asset";
@@ -68,6 +73,7 @@ public static class SchoolTestSceneBuilder
 
         EnsureFolder("Assets/Res/Materials");
         EnsureFolder(MaterialFolder);
+        EnsureFolder(WorldTextMaterialFolder);
 
         DeleteGeneratedRoots(scene);
         ConfigureDirectionalLight();
@@ -654,7 +660,7 @@ public static class SchoolTestSceneBuilder
         if (textMesh.font != null)
         {
             MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = textMesh.font.material;
+            renderer.sharedMaterial = ResolveWorldTextMaterial(textMesh.font) ?? textMesh.font.material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
         }
@@ -669,6 +675,12 @@ public static class SchoolTestSceneBuilder
 
     private static Font ResolveBuiltInFont()
     {
+        Font fusionPixelFont = AssetDatabase.LoadAssetAtPath<Font>(FusionPixelFontPath);
+        if (fusionPixelFont != null)
+        {
+            return fusionPixelFont;
+        }
+
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font != null)
         {
@@ -676,6 +688,46 @@ public static class SchoolTestSceneBuilder
         }
 
         return Resources.GetBuiltinResource<Font>("Arial.ttf");
+    }
+
+    private static Material ResolveWorldTextMaterial(Font font)
+    {
+        if (font == null)
+        {
+            return null;
+        }
+
+        Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(WorldTextShaderPath) ?? Shader.Find(WorldTextShaderName);
+        Material fontMaterial = font.material;
+        if (shader == null)
+        {
+            return fontMaterial;
+        }
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(WorldTextMaterialPath);
+        if (material == null)
+        {
+            material = new Material(shader);
+            AssetDatabase.CreateAsset(material, WorldTextMaterialPath);
+        }
+        else if (material.shader != shader)
+        {
+            material.shader = shader;
+        }
+
+        Texture fontAtlas = fontMaterial != null ? fontMaterial.mainTexture : null;
+        if (fontAtlas != null && material.HasProperty("_MainTex"))
+        {
+            material.SetTexture("_MainTex", fontAtlas);
+        }
+
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", Color.white);
+        }
+
+        EditorUtility.SetDirty(material);
+        return material;
     }
 
     private static void MarkStatic(GameObject gameObject)
