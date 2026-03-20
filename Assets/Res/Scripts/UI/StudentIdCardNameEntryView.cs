@@ -8,6 +8,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class StudentIdCardNameEntryView : ViewBase
 {
+    private const string ViewPrefabResourcePath = "UI/StudentID/StudentIdCardNameEntryWindow";
+
     private static StudentIdCardNameEntryView instance;
 
     [SerializeField] private string title = "填写学生证";
@@ -26,6 +28,7 @@ public sealed class StudentIdCardNameEntryView : ViewBase
     private Text placeholderText;
     private Button confirmButton;
     private Button cancelButton;
+    private StudentIdCardNameEntryWindowTemplate viewTemplate;
 
     private Action<string> confirmCallback;
     private Action<string> valueChangedCallback;
@@ -57,11 +60,37 @@ public sealed class StudentIdCardNameEntryView : ViewBase
     public bool IsOpen => IsViewVisible;
 
     protected override PrototypeUiLayer Layer => PrototypeUiLayer.Modal;
+    protected override bool AddTransparentRootGraphic => false;
     protected override bool VisibleOnAwake => false;
     protected override bool RootGraphicRaycastTarget => true;
     protected override bool ApplyRuntimeFontToChildren => true;
     protected override string ViewName => "StudentIdCardNameEntry";
     protected override Color RootGraphicColor => new Color(0.02f, 0.03f, 0.05f, 0.76f);
+
+    protected override RectTransform CreateViewRoot()
+    {
+        RectTransform parent = UiManager.GetLayerRoot(Layer);
+        GameObject prefabAsset = Resources.Load<GameObject>(ViewPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[{GetType().Name}] Missing view prefab at Resources/{ViewPrefabResourcePath}.", this);
+            return null;
+        }
+
+        GameObject instanceObject = Instantiate(prefabAsset, parent, false);
+        instanceObject.name = prefabAsset.name;
+
+        viewTemplate = instanceObject.GetComponent<StudentIdCardNameEntryWindowTemplate>();
+        if (viewTemplate == null || viewTemplate.Root == null)
+        {
+            Destroy(instanceObject);
+            viewTemplate = null;
+            Debug.LogWarning($"[{GetType().Name}] Student ID name entry prefab is missing {nameof(StudentIdCardNameEntryWindowTemplate)}.", this);
+            return null;
+        }
+
+        return viewTemplate.Root;
+    }
 
     public void Open(string initialName, bool canCancel, Action<string> onConfirm, Action onCancel, Action<string> onValueChanged = null)
     {
@@ -118,47 +147,35 @@ public sealed class StudentIdCardNameEntryView : ViewBase
 
     protected override void BuildView(RectTransform root)
     {
-        panelRoot = PrototypeUiToolkit.CreatePanel(
-            root,
-            "Panel",
-            new Color(0.09f, 0.11f, 0.16f, 0.97f),
-            new RectOffset(24, 24, 24, 24),
-            0f);
-        PrototypeUiToolkit.SetAnchor(
-            panelRoot,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            new Vector2(720f, 260f));
-
-        if (panelRoot.TryGetComponent(out VerticalLayoutGroup layoutGroup))
+        if (root == null)
         {
-            layoutGroup.childControlHeight = false;
-            layoutGroup.childForceExpandHeight = false;
+            return;
         }
 
-        titleText = PrototypeUiToolkit.CreateText(panelRoot, RuntimeFont, title, 28, FontStyle.Bold, Color.white, TextAnchor.UpperLeft);
-        SetLayoutHeight(titleText.rectTransform, 38f);
+        if (viewTemplate == null || viewTemplate.Root != root)
+        {
+            viewTemplate = root.GetComponent<StudentIdCardNameEntryWindowTemplate>();
+        }
 
-        subtitleText = PrototypeUiToolkit.CreateText(panelRoot, RuntimeFont, subtitle, 15, FontStyle.Normal, new Color(0.84f, 0.88f, 0.94f), TextAnchor.UpperLeft);
-        subtitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        subtitleText.verticalOverflow = VerticalWrapMode.Overflow;
-        SetLayoutHeight(subtitleText.rectTransform, 48f);
+        if (viewTemplate == null)
+        {
+            Debug.LogWarning($"[{GetType().Name}] Missing {nameof(StudentIdCardNameEntryWindowTemplate)} on instantiated view root.", this);
+            return;
+        }
 
-        RectTransform spacer = PrototypeUiToolkit.CreateRectTransform("Spacer", panelRoot);
-        SetLayoutHeight(spacer, 10f);
+        panelRoot = viewTemplate.Panel;
+        titleText = viewTemplate.TitleText;
+        subtitleText = viewTemplate.SubtitleText;
+        fieldLabelText = viewTemplate.FieldLabelText;
+        nameInputField = viewTemplate.NameInputField;
+        inputText = viewTemplate.InputText;
+        placeholderText = viewTemplate.PlaceholderText;
+        confirmButton = viewTemplate.ConfirmButton;
+        cancelButton = viewTemplate.CancelButton;
 
-        fieldLabelText = PrototypeUiToolkit.CreateText(panelRoot, RuntimeFont, fieldLabel, 16, FontStyle.Bold, new Color(0.82f, 0.87f, 0.94f), TextAnchor.UpperLeft);
-        SetLayoutHeight(fieldLabelText.rectTransform, 28f);
-
-        BuildInputField(panelRoot);
-        BuildButtons(panelRoot);
-    }
-
-    private void Prepare()
-    {
-        EnsureView();
+        ApplyStaticLabels();
+        HookTemplateCallbacks();
+        RefreshConfirmState();
     }
 
     protected override void OnViewVisibilityChanged(bool visible)
@@ -170,105 +187,74 @@ public sealed class StudentIdCardNameEntryView : ViewBase
         }
     }
 
-    private void Update()
+    protected override void OnViewRootDestroyed()
     {
-        if (!IsViewVisible || Keyboard.current == null)
-        {
-            return;
-        }
-
-        if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
-        {
-            TryConfirm();
-            return;
-        }
-
-        if (allowCancel && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            Cancel();
-        }
+        viewTemplate = null;
+        panelRoot = null;
+        titleText = null;
+        subtitleText = null;
+        fieldLabelText = null;
+        nameInputField = null;
+        inputText = null;
+        placeholderText = null;
+        confirmButton = null;
+        cancelButton = null;
+        base.OnViewRootDestroyed();
     }
 
-    private void BuildInputField(Transform parent)
+    private void Prepare()
     {
-        RectTransform inputRoot = PrototypeUiToolkit.CreateRectTransform("NameInput", parent);
-        SetLayoutHeight(inputRoot, 56f);
-
-        Image background = inputRoot.gameObject.AddComponent<Image>();
-        background.color = new Color(0.14f, 0.17f, 0.24f, 1f);
-
-        nameInputField = inputRoot.gameObject.AddComponent<InputField>();
-        nameInputField.lineType = InputField.LineType.SingleLine;
-        nameInputField.characterLimit = 24;
-        nameInputField.onValueChanged.AddListener(HandleNameValueChanged);
-
-        RectTransform textRoot = PrototypeUiToolkit.CreateRectTransform("Text", inputRoot);
-        PrototypeUiToolkit.SetStretch(textRoot, 18f, 18f, 10f, 10f);
-        inputText = textRoot.gameObject.AddComponent<Text>();
-        inputText.font = RuntimeFont;
-        inputText.fontSize = 24;
-        inputText.fontStyle = FontStyle.Bold;
-        inputText.color = Color.white;
-        inputText.alignment = TextAnchor.MiddleLeft;
-        inputText.supportRichText = false;
-        inputText.horizontalOverflow = HorizontalWrapMode.Overflow;
-        inputText.verticalOverflow = VerticalWrapMode.Overflow;
-
-        RectTransform placeholderRoot = PrototypeUiToolkit.CreateRectTransform("Placeholder", inputRoot);
-        PrototypeUiToolkit.SetStretch(placeholderRoot, 18f, 18f, 10f, 10f);
-        placeholderText = placeholderRoot.gameObject.AddComponent<Text>();
-        placeholderText.font = RuntimeFont;
-        placeholderText.fontSize = 22;
-        placeholderText.fontStyle = FontStyle.Normal;
-        placeholderText.color = new Color(0.56f, 0.62f, 0.7f, 0.92f);
-        placeholderText.alignment = TextAnchor.MiddleLeft;
-        placeholderText.text = placeholder;
-        placeholderText.supportRichText = false;
-
-        nameInputField.textComponent = inputText;
-        nameInputField.placeholder = placeholderText;
-        nameInputField.targetGraphic = background;
+        EnsureView();
     }
 
-    private void BuildButtons(Transform parent)
+    private void ApplyStaticLabels()
     {
-        RectTransform row = PrototypeUiToolkit.CreateRectTransform("Buttons", parent);
-        SetLayoutHeight(row, 44f);
+        if (titleText != null)
+        {
+            titleText.text = title;
+        }
 
-        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 12f;
-        layout.childAlignment = TextAnchor.MiddleRight;
-        layout.childControlWidth = false;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
+        if (subtitleText != null)
+        {
+            subtitleText.text = subtitle;
+            subtitleText.gameObject.SetActive(!string.IsNullOrWhiteSpace(subtitle));
+        }
 
-        LayoutElement rowLayout = row.gameObject.AddComponent<LayoutElement>();
-        rowLayout.minHeight = 44f;
-        rowLayout.preferredHeight = 44f;
-        rowLayout.flexibleWidth = 1f;
+        if (fieldLabelText != null)
+        {
+            fieldLabelText.text = fieldLabel;
+        }
 
-        confirmButton = PrototypeUiToolkit.CreateButton(
-            row,
-            RuntimeFont,
-            confirmLabel,
-            TryConfirm,
-            new Color(0.16f, 0.63f, 0.86f, 1f),
-            new Color(0.24f, 0.72f, 0.95f, 1f),
-            new Color(0.11f, 0.44f, 0.64f, 1f),
-            44f);
-        SetButtonWidth(confirmButton, 168f);
+        if (placeholderText != null)
+        {
+            placeholderText.text = placeholder;
+        }
 
-        cancelButton = PrototypeUiToolkit.CreateButton(
-            row,
-            RuntimeFont,
-            cancelLabel,
-            Cancel,
-            new Color(0.26f, 0.29f, 0.36f, 1f),
-            new Color(0.34f, 0.38f, 0.46f, 1f),
-            new Color(0.18f, 0.21f, 0.28f, 1f),
-            44f);
-        SetButtonWidth(cancelButton, 140f);
+        SetButtonLabel(confirmButton, confirmLabel);
+        SetButtonLabel(cancelButton, cancelLabel);
+    }
+
+    private void HookTemplateCallbacks()
+    {
+        if (nameInputField != null)
+        {
+            nameInputField.lineType = InputField.LineType.SingleLine;
+            nameInputField.characterLimit = 24;
+            nameInputField.onValueChanged.RemoveListener(HandleNameValueChanged);
+            nameInputField.onValueChanged.AddListener(HandleNameValueChanged);
+        }
+
+        if (confirmButton != null)
+        {
+            confirmButton.onClick.RemoveAllListeners();
+            confirmButton.onClick.AddListener(TryConfirm);
+        }
+
+        if (cancelButton != null)
+        {
+            cancelButton.onClick.RemoveAllListeners();
+            cancelButton.onClick.AddListener(Cancel);
+        }
     }
 
     private IEnumerator FocusInputNextFrame()
@@ -290,6 +276,25 @@ public sealed class StudentIdCardNameEntryView : ViewBase
         nameInputField.ActivateInputField();
         nameInputField.Select();
         nameInputField.caretPosition = nameInputField.text.Length;
+    }
+
+    private void Update()
+    {
+        if (!IsViewVisible || Keyboard.current == null)
+        {
+            return;
+        }
+
+        if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
+        {
+            TryConfirm();
+            return;
+        }
+
+        if (allowCancel && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            Cancel();
+        }
     }
 
     private void TryConfirm()
@@ -344,45 +349,17 @@ public sealed class StudentIdCardNameEntryView : ViewBase
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
-    private static void SetLayoutHeight(RectTransform rectTransform, float height)
-    {
-        if (rectTransform == null)
-        {
-            return;
-        }
-
-        LayoutElement layoutElement = rectTransform.GetComponent<LayoutElement>();
-        if (layoutElement == null)
-        {
-            layoutElement = rectTransform.gameObject.AddComponent<LayoutElement>();
-        }
-
-        layoutElement.minHeight = height;
-        layoutElement.preferredHeight = height;
-        layoutElement.flexibleWidth = 1f;
-    }
-
-    private static void SetButtonWidth(Button button, float width)
+    private static void SetButtonLabel(Button button, string label)
     {
         if (button == null)
         {
             return;
         }
 
-        RectTransform rectTransform = button.transform as RectTransform;
-        if (rectTransform == null)
+        Text labelText = button.GetComponentInChildren<Text>(true);
+        if (labelText != null)
         {
-            return;
+            labelText.text = string.IsNullOrWhiteSpace(label) ? string.Empty : label.Trim();
         }
-
-        LayoutElement layoutElement = button.GetComponent<LayoutElement>();
-        if (layoutElement == null)
-        {
-            layoutElement = button.gameObject.AddComponent<LayoutElement>();
-        }
-
-        layoutElement.minWidth = width;
-        layoutElement.preferredWidth = width;
-        rectTransform.sizeDelta = new Vector2(width, 44f);
     }
 }

@@ -1188,10 +1188,13 @@ public sealed class PrototypeRaidDragPayload
 [DisallowMultipleComponent]
 public sealed class PrototypeRaidDragService : MonoBehaviour
 {
+    private const string DragGhostPrefabResourcePath = "UI/Loot/RaidDragGhost";
+
     private static PrototypeRaidDragService instance;
 
     private RectTransform ghostRoot;
     private Text ghostLabel;
+    private RaidDragGhostTemplate dragGhostTemplate;
 
     public static PrototypeRaidDragService CurrentInstance => instance;
     public static PrototypeRaidDragService Instance => GetOrCreate();
@@ -1238,6 +1241,11 @@ public sealed class PrototypeRaidDragService : MonoBehaviour
     {
         CurrentPayload = payload;
         EnsureGhostUi();
+        if (ghostRoot == null)
+        {
+            return;
+        }
+
         UpdateDrag(eventData);
 
         if (ghostLabel != null)
@@ -1266,7 +1274,10 @@ public sealed class PrototypeRaidDragService : MonoBehaviour
     public void EndDrag()
     {
         CurrentPayload = null;
-        PrototypeUiToolkit.SetVisible(ghostRoot, false);
+        if (ghostRoot != null)
+        {
+            PrototypeUiToolkit.SetVisible(ghostRoot, false);
+        }
     }
 
     private void EnsureGhostUi()
@@ -1277,27 +1288,33 @@ public sealed class PrototypeRaidDragService : MonoBehaviour
         }
 
         PrototypeRuntimeUiManager manager = PrototypeRuntimeUiManager.GetOrCreate();
-        ghostRoot = PrototypeUiToolkit.CreatePanel(
-            manager.GetLayerRoot(PrototypeUiLayer.Overlay),
-            "RaidDragGhost",
-            new Color(0.07f, 0.1f, 0.14f, 0.94f),
-            new RectOffset(12, 12, 10, 10),
-            2f);
-        ghostLabel = PrototypeUiToolkit.CreateText(
-            ghostRoot,
-            manager.RuntimeFont,
-            string.Empty,
-            15,
-            FontStyle.Bold,
-            Color.white,
-            TextAnchor.MiddleLeft);
-        ghostRoot.pivot = new Vector2(0f, 1f);
-        ghostRoot.anchorMin = new Vector2(0.5f, 0.5f);
-        ghostRoot.anchorMax = new Vector2(0.5f, 0.5f);
-        ghostRoot.sizeDelta = new Vector2(280f, 48f);
-        CanvasGroup canvasGroup = PrototypeUiToolkit.EnsureCanvasGroup(ghostRoot);
-        canvasGroup.blocksRaycasts = false;
-        canvasGroup.interactable = false;
+        GameObject prefabAsset = Resources.Load<GameObject>(DragGhostPrefabResourcePath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[{nameof(PrototypeRaidDragService)}] Missing drag ghost prefab at Resources/{DragGhostPrefabResourcePath}.");
+            return;
+        }
+
+        GameObject instanceObject = UnityEngine.Object.Instantiate(prefabAsset, manager.GetLayerRoot(PrototypeUiLayer.Overlay), false);
+        instanceObject.name = prefabAsset.name;
+        dragGhostTemplate = instanceObject.GetComponent<RaidDragGhostTemplate>();
+        if (dragGhostTemplate == null || dragGhostTemplate.Root == null)
+        {
+            UnityEngine.Object.Destroy(instanceObject);
+            dragGhostTemplate = null;
+            Debug.LogWarning($"[{nameof(PrototypeRaidDragService)}] Drag ghost prefab is missing {nameof(RaidDragGhostTemplate)}.");
+            return;
+        }
+
+        ghostRoot = dragGhostTemplate.Root;
+        ghostLabel = dragGhostTemplate.LabelText;
+        PrototypeUiToolkit.ApplyFontRecursively(ghostRoot, manager.RuntimeFont);
+        if (dragGhostTemplate.CanvasGroup != null)
+        {
+            dragGhostTemplate.CanvasGroup.blocksRaycasts = false;
+            dragGhostTemplate.CanvasGroup.interactable = false;
+        }
+
         PrototypeUiToolkit.SetVisible(ghostRoot, false);
     }
 }
