@@ -35,6 +35,16 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     [SerializeField] private float effectiveRange = 65f;
     [Min(0f)]
     [SerializeField] private float spreadAngle = 0.18f;
+    [Range(1f, 179f)]
+    [SerializeField] private float adsFieldOfView = 58f;
+    [Range(0.01f, 1f)]
+    [SerializeField] private float adsSpreadMultiplier = 0.35f;
+    [Min(0.01f)]
+    [SerializeField] private float aimInDuration = 0.12f;
+    [Min(0.01f)]
+    [SerializeField] private float aimOutDuration = 0.1f;
+    [SerializeField] private Vector3 adsViewModelLocalPosition = Vector3.zero;
+    [SerializeField] private Vector3 adsViewModelLocalEulerAngles = Vector3.zero;
     [Min(0f)]
     [SerializeField] private float addedImpactForce = 2f;
     [Range(0f, 1f)]
@@ -96,6 +106,14 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public int BurstCount => Mathf.Max(1, burstCount);
     public float EffectiveRange => Mathf.Max(1f, effectiveRange);
     public float SpreadAngle => Mathf.Max(0f, spreadAngle);
+    public float AdsFieldOfView => Mathf.Clamp(adsFieldOfView, 1f, 179f);
+    public float AdsSpreadMultiplier => Mathf.Clamp(adsSpreadMultiplier, 0.01f, 1f);
+    public float AimInDuration => Mathf.Max(0.01f, aimInDuration);
+    public float AimOutDuration => Mathf.Max(0.01f, aimOutDuration);
+    public Vector3 AdsViewModelLocalPosition => adsViewModelLocalPosition;
+    public Vector3 AdsViewModelLocalEulerAngles => adsViewModelLocalEulerAngles;
+    public bool HasAdsPoseOverride => adsViewModelLocalPosition.sqrMagnitude > 0.000001f
+        || adsViewModelLocalEulerAngles.sqrMagnitude > 0.000001f;
     public float AddedImpactForce => Mathf.Max(0f, addedImpactForce);
     public float LightBleedChance => Mathf.Clamp01(lightBleedChance);
     public float HeavyBleedChance => Mathf.Clamp01(heavyBleedChance);
@@ -164,6 +182,10 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         reloadDuration = Mathf.Max(0.05f, reloadSeconds);
         effectiveRange = Mathf.Max(1f, range);
         spreadAngle = Mathf.Max(0f, spread);
+        adsFieldOfView = Mathf.Clamp(adsFieldOfView, 1f, 179f);
+        adsSpreadMultiplier = Mathf.Clamp(adsSpreadMultiplier, 0.01f, 1f);
+        aimInDuration = Mathf.Max(0.01f, aimInDuration);
+        aimOutDuration = Mathf.Max(0.01f, aimOutDuration);
         addedImpactForce = Mathf.Max(0f, extraForce);
         burstCount = Mathf.Max(1, burstShots);
         penetrationPower = ammo != null ? ammo.PenetrationPower : penetrationPower;
@@ -225,6 +247,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         burstCount = 1;
         effectiveRange = Mathf.Max(1f, radius * 2.5f);
         spreadAngle = 0f;
+        adsSpreadMultiplier = 1f;
         addedImpactForce = Mathf.Max(0f, force);
         throwableCooldown = Mathf.Max(0.05f, cooldown);
         throwStaminaCost = Mathf.Max(0f, staminaCost);
@@ -283,6 +306,10 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
         burstCount = Mathf.Max(1, burstCount);
         effectiveRange = Mathf.Max(1f, effectiveRange);
         spreadAngle = Mathf.Max(0f, spreadAngle);
+        adsFieldOfView = Mathf.Clamp(adsFieldOfView, 1f, 179f);
+        adsSpreadMultiplier = Mathf.Clamp(adsSpreadMultiplier, 0.01f, 1f);
+        aimInDuration = Mathf.Max(0.01f, aimInDuration);
+        aimOutDuration = Mathf.Max(0.01f, aimOutDuration);
         addedImpactForce = Mathf.Max(0f, addedImpactForce);
         lightBleedChance = Mathf.Clamp01(lightBleedChance);
         heavyBleedChance = Mathf.Clamp01(heavyBleedChance);

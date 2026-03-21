@@ -72,6 +72,7 @@ public sealed class PrototypeFpsHudView : ViewBase
 
     public void UpdateHud(
         bool visible,
+        bool showCrosshair,
         bool showHitMarker,
         float staminaNormalized,
         Color staminaColor,
@@ -82,7 +83,7 @@ public sealed class PrototypeFpsHudView : ViewBase
 
         if (crosshairText != null)
         {
-            crosshairText.text = showHitMarker ? "X" : "+";
+            crosshairText.text = showHitMarker ? "X" : (showCrosshair ? "+" : string.Empty);
         }
 
         if (staminaFillImage != null)

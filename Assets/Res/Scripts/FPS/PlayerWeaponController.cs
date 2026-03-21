@@ -5,6 +5,9 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PlayerWeaponController : MonoBehaviour
 {
+    // Prefer explicit optic/scope markers over fallback iron sight markers when multiple poses exist.
+    private static readonly string[] AimPoseNames = { "ScopePose", "AdsPose", "AimPose", "IronSightPose" };
+
     private enum WeaponSlot
     {
         Primary = 0,
@@ -99,6 +102,14 @@ public class PlayerWeaponController : MonoBehaviour
     [SerializeField] private float firearmNoiseRadius = 26f;
     [SerializeField] private float meleeNoiseRadius = 8f;
 
+    [Header("Aim")]
+    [SerializeField] private Vector3 primaryAdsViewModelLocalPosition = new Vector3(-0.25f, 0.18f, -0.58f);
+    [SerializeField] private Vector3 primaryAdsViewModelLocalEulerAngles = Vector3.zero;
+    [SerializeField] private Vector3 secondaryAdsViewModelLocalPosition = new Vector3(-0.18f, 0.18f, -0.48f);
+    [SerializeField] private Vector3 secondaryAdsViewModelLocalEulerAngles = Vector3.zero;
+    [SerializeField] private Vector3 meleeAdsViewModelLocalPosition = Vector3.zero;
+    [SerializeField] private Vector3 meleeAdsViewModelLocalEulerAngles = Vector3.zero;
+
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private PlayerSkillManager skillManager;
@@ -122,6 +133,8 @@ public class PlayerWeaponController : MonoBehaviour
     private float characterArmorPenetrationBonus;
     private float characterSpreadMultiplier = 1f;
     private float characterRangeMultiplier = 1f;
+    private float externalSpreadMultiplier = 1f;
+    private float currentAimBlend;
     private float feedbackTimer;
     private string feedbackMessage = string.Empty;
 
@@ -130,6 +143,18 @@ public class PlayerWeaponController : MonoBehaviour
     public PrototypeWeaponDefinition EquippedSecondaryWeapon => secondaryRuntime.Definition;
     public PrototypeWeaponDefinition EquippedMeleeWeapon => meleeRuntime.Definition;
     public string FeedbackMessage => feedbackMessage;
+    public bool CanAimActiveWeapon
+    {
+        get
+        {
+            WeaponRuntime activeWeapon = GetActiveWeapon();
+            return activeWeapon != null
+                && activeWeapon.IsConfigured
+                && activeWeapon.Definition != null
+                && activeWeapon.Definition.IsFirearmWeapon
+                && !activeWeapon.IsReloading;
+        }
+    }
 
     private void Awake()
     {
@@ -232,6 +257,67 @@ public class PlayerWeaponController : MonoBehaviour
         characterArmorPenetrationBonus = Mathf.Max(0f, armorPenetrationBonus);
         characterSpreadMultiplier = Mathf.Clamp(spreadMultiplier, 0.1f, 3f);
         characterRangeMultiplier = Mathf.Clamp(rangeMultiplier, 0.5f, 3f);
+    }
+
+    public bool TryGetActiveAimSettings(
+        out float adsFieldOfView,
+        out float adsSpreadMultiplier,
+        out float aimInDuration,
+        out float aimOutDuration)
+    {
+        WeaponRuntime activeWeapon = GetActiveWeapon();
+        if (activeWeapon == null
+            || !activeWeapon.IsConfigured
+            || activeWeapon.Definition == null
+            || !activeWeapon.Definition.IsFirearmWeapon)
+        {
+            adsFieldOfView = 60f;
+            adsSpreadMultiplier = 1f;
+            aimInDuration = 0.12f;
+            aimOutDuration = 0.1f;
+            return false;
+        }
+
+        adsFieldOfView = activeWeapon.Definition.AdsFieldOfView;
+        adsSpreadMultiplier = activeWeapon.Definition.AdsSpreadMultiplier;
+        aimInDuration = activeWeapon.Definition.AimInDuration;
+        aimOutDuration = activeWeapon.Definition.AimOutDuration;
+        return true;
+    }
+
+    public void SetExternalSpreadMultiplier(float multiplier)
+    {
+        externalSpreadMultiplier = Mathf.Clamp(multiplier, 0.01f, 4f);
+    }
+
+    public void UpdateAimPresentation(float aimBlend)
+    {
+        currentAimBlend = Mathf.Clamp01(aimBlend);
+
+        ApplyViewModelAimPose(
+            primaryRuntime,
+            primaryViewModelInstance,
+            activeWeaponSlot == WeaponSlot.Primary ? currentAimBlend : 0f,
+            primaryAdsViewModelLocalPosition,
+            primaryAdsViewModelLocalEulerAngles);
+        ApplyViewModelAimPose(
+            secondaryRuntime,
+            secondaryViewModelInstance,
+            activeWeaponSlot == WeaponSlot.Secondary ? currentAimBlend : 0f,
+            secondaryAdsViewModelLocalPosition,
+            secondaryAdsViewModelLocalEulerAngles);
+        ApplyViewModelAimPose(
+            meleeRuntime,
+            meleeViewModelInstance,
+            activeWeaponSlot == WeaponSlot.Melee ? currentAimBlend : 0f,
+            meleeAdsViewModelLocalPosition,
+            meleeAdsViewModelLocalEulerAngles);
+    }
+
+    public void ResetAimPresentationImmediate()
+    {
+        currentAimBlend = 0f;
+        UpdateAimPresentation(0f);
     }
 
     public void TickVisuals(float deltaTime)
@@ -635,6 +721,7 @@ public class PlayerWeaponController : MonoBehaviour
         EnsureWeaponViewModel(primaryRuntime, primaryViewModel, ref primaryViewModelInstance, ref primaryViewModelSource);
         EnsureWeaponViewModel(secondaryRuntime, secondaryViewModel, ref secondaryViewModelInstance, ref secondaryViewModelSource);
         EnsureWeaponViewModel(meleeRuntime, meleeViewModel, ref meleeViewModelInstance, ref meleeViewModelSource);
+        UpdateAimPresentation(currentAimBlend);
 
         if (primaryViewModel != null)
         {
@@ -650,7 +737,9 @@ public class PlayerWeaponController : MonoBehaviour
         {
             meleeViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Melee);
         }
-    }    private void ProcessBurst(WeaponRuntime runtime)
+    }
+
+    private void ProcessBurst(WeaponRuntime runtime)
     {
         while (runtime.PendingBurstShots > 0 && Time.time >= runtime.NextAttackTime)
         {
@@ -692,7 +781,7 @@ public class PlayerWeaponController : MonoBehaviour
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
         float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
         float shotRange = baseRange * characterRangeMultiplier;
-        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * characterSpreadMultiplier);
+        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * characterSpreadMultiplier * externalSpreadMultiplier);
         PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
 
         if (TryGetCombatHit(viewCamera.transform.position, direction, shotRange, out RaycastHit hit))
@@ -1399,6 +1488,195 @@ public class PlayerWeaponController : MonoBehaviour
 
         currentInstance = Instantiate(nextPrefab, anchor, false);
         currentInstance.name = nextPrefab.name;
+    }
+
+    private void ApplyViewModelAimPose(
+        WeaponRuntime runtime,
+        GameObject instance,
+        float aimBlend,
+        Vector3 fallbackLocalPosition,
+        Vector3 fallbackLocalEulerAngles)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        float clampedBlend = runtime != null
+            && runtime.IsConfigured
+            && runtime.Definition != null
+            && runtime.Definition.IsFirearmWeapon
+            ? Mathf.Clamp01(aimBlend)
+            : 0f;
+
+        Vector3 targetLocalPosition = Vector3.zero;
+        Quaternion targetLocalRotation = Quaternion.identity;
+        if (clampedBlend > 0f
+            && TryGetViewModelAimPose(runtime, instance.transform, fallbackLocalPosition, fallbackLocalEulerAngles, out Vector3 adsLocalPosition, out Quaternion adsLocalRotation))
+        {
+            targetLocalPosition = adsLocalPosition;
+            targetLocalRotation = adsLocalRotation;
+        }
+
+        Transform instanceTransform = instance.transform;
+        instanceTransform.localPosition = Vector3.Lerp(Vector3.zero, targetLocalPosition, clampedBlend);
+        instanceTransform.localRotation = Quaternion.Slerp(Quaternion.identity, targetLocalRotation, clampedBlend);
+    }
+
+    private bool TryGetViewModelAimPose(
+        WeaponRuntime runtime,
+        Transform viewModelRoot,
+        Vector3 fallbackLocalPosition,
+        Vector3 fallbackLocalEulerAngles,
+        out Vector3 targetLocalPosition,
+        out Quaternion targetLocalRotation)
+    {
+        Transform aimPose = FindAimPoseTransform(viewModelRoot);
+        if (aimPose != null)
+        {
+            Quaternion poseLocalRotation = Quaternion.Inverse(viewModelRoot.rotation) * aimPose.rotation;
+            Vector3 poseLocalPosition = viewModelRoot.InverseTransformPoint(aimPose.position);
+            targetLocalRotation = Quaternion.Inverse(poseLocalRotation);
+            targetLocalPosition = -(targetLocalRotation * poseLocalPosition);
+            return true;
+        }
+
+        if (runtime != null && runtime.Definition != null && runtime.Definition.HasAdsPoseOverride)
+        {
+            targetLocalPosition = runtime.Definition.AdsViewModelLocalPosition;
+            targetLocalRotation = Quaternion.Euler(runtime.Definition.AdsViewModelLocalEulerAngles);
+            return true;
+        }
+
+        targetLocalPosition = fallbackLocalPosition;
+        targetLocalRotation = Quaternion.Euler(fallbackLocalEulerAngles);
+        return true;
+    }
+
+    private static Transform FindAimPoseTransform(Transform root)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        Transform bestActiveMatch = null;
+        int bestActivePriority = int.MaxValue;
+        int bestActiveDepth = int.MinValue;
+        Transform bestInactiveMatch = null;
+        int bestInactivePriority = int.MaxValue;
+        int bestInactiveDepth = int.MinValue;
+
+        FindAimPoseRecursive(
+            root,
+            0,
+            ref bestActiveMatch,
+            ref bestActivePriority,
+            ref bestActiveDepth,
+            ref bestInactiveMatch,
+            ref bestInactivePriority,
+            ref bestInactiveDepth);
+
+        return bestActiveMatch != null ? bestActiveMatch : bestInactiveMatch;
+    }
+
+    private static void FindAimPoseRecursive(
+        Transform parent,
+        int depth,
+        ref Transform bestActiveMatch,
+        ref int bestActivePriority,
+        ref int bestActiveDepth,
+        ref Transform bestInactiveMatch,
+        ref int bestInactivePriority,
+        ref int bestInactiveDepth)
+    {
+        if (parent == null)
+        {
+            return;
+        }
+
+        for (int childIndex = 0; childIndex < parent.childCount; childIndex++)
+        {
+            Transform child = parent.GetChild(childIndex);
+            int namePriority = GetAimPoseNamePriority(child.name);
+            if (namePriority >= 0)
+            {
+                if (child.gameObject.activeInHierarchy)
+                {
+                    if (IsBetterAimPoseCandidate(child, namePriority, depth, bestActiveMatch, bestActivePriority, bestActiveDepth))
+                    {
+                        bestActiveMatch = child;
+                        bestActivePriority = namePriority;
+                        bestActiveDepth = depth;
+                    }
+                }
+                else if (IsBetterAimPoseCandidate(child, namePriority, depth, bestInactiveMatch, bestInactivePriority, bestInactiveDepth))
+                {
+                    bestInactiveMatch = child;
+                    bestInactivePriority = namePriority;
+                    bestInactiveDepth = depth;
+                }
+            }
+
+            FindAimPoseRecursive(
+                child,
+                depth + 1,
+                ref bestActiveMatch,
+                ref bestActivePriority,
+                ref bestActiveDepth,
+                ref bestInactiveMatch,
+                ref bestInactivePriority,
+                ref bestInactiveDepth);
+        }
+    }
+
+    private static int GetAimPoseNamePriority(string transformName)
+    {
+        if (string.IsNullOrWhiteSpace(transformName))
+        {
+            return -1;
+        }
+
+        for (int index = 0; index < AimPoseNames.Length; index++)
+        {
+            if (string.Equals(transformName, AimPoseNames[index], StringComparison.Ordinal))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool IsBetterAimPoseCandidate(
+        Transform candidate,
+        int candidatePriority,
+        int candidateDepth,
+        Transform currentBest,
+        int currentPriority,
+        int currentDepth)
+    {
+        if (candidate == null)
+        {
+            return false;
+        }
+
+        if (currentBest == null)
+        {
+            return true;
+        }
+
+        if (candidatePriority != currentPriority)
+        {
+            return candidatePriority < currentPriority;
+        }
+
+        if (candidateDepth != currentDepth)
+        {
+            return candidateDepth > currentDepth;
+        }
+
+        return string.CompareOrdinal(candidate.name, currentBest.name) < 0;
     }
 
     private void ClearViewModelAnchor(Transform anchor)

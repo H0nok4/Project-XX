@@ -18,6 +18,7 @@ public class PrototypeFpsInput : MonoBehaviour
     [SerializeField] private string moveActionName = "Move";
     [SerializeField] private string lookActionName = "Look";
     [SerializeField] private string shootActionName = "Attack";
+    [SerializeField] private string aimActionName = "Aim";
     [SerializeField] private string interactActionName = "Interact";
     [SerializeField] private string inventoryActionName = "Inventory";
     [SerializeField] private string reloadActionName = "Reload";
@@ -45,6 +46,7 @@ public class PrototypeFpsInput : MonoBehaviour
     private InputAction moveAction;
     private InputAction lookAction;
     private InputAction shootAction;
+    private InputAction aimAction;
     private InputAction interactAction;
     private InputAction inventoryAction;
     private InputAction reloadAction;
@@ -70,6 +72,8 @@ public class PrototypeFpsInput : MonoBehaviour
     public Vector2 LookDelta => lookAction?.ReadValue<Vector2>() ?? Vector2.zero;
     public bool ShootPressedThisFrame => shootAction?.WasPressedThisFrame() ?? false;
     public bool ShootHeld => shootAction?.IsPressed() ?? false;
+    public bool AimPressedThisFrame => aimAction?.WasPressedThisFrame() ?? false;
+    public bool AimHeld => aimAction?.IsPressed() ?? false;
     public bool InteractPressedThisFrame => interactAction?.WasPressedThisFrame() ?? false;
     public bool InteractHeld => interactAction?.IsPressed() ?? false;
     public bool InventoryTogglePressedThisFrame => inventoryAction?.WasPressedThisFrame() ?? false;
@@ -227,6 +231,7 @@ public class PrototypeFpsInput : MonoBehaviour
             moveAction = runtimeActionMap.FindAction(moveActionName, true);
             lookAction = runtimeActionMap.FindAction(lookActionName, true);
             shootAction = runtimeActionMap.FindAction(shootActionName, true);
+            aimAction = EnsureAction(runtimeActionMap, aimActionName, "<Mouse>/rightButton");
             interactAction = EnsureAction(runtimeActionMap, interactActionName, "<Keyboard>/e");
             inventoryAction = EnsureAction(runtimeActionMap, inventoryActionName, "<Keyboard>/tab");
             reloadAction = EnsureAction(runtimeActionMap, reloadActionName, "<Keyboard>/r");
@@ -268,6 +273,7 @@ public class PrototypeFpsInput : MonoBehaviour
 
         lookAction = actionMap.AddAction(lookActionName, InputActionType.Value, "<Mouse>/delta");
         shootAction = actionMap.AddAction(shootActionName, InputActionType.Button, "<Mouse>/leftButton");
+        aimAction = actionMap.AddAction(aimActionName, InputActionType.Button, "<Mouse>/rightButton");
         interactAction = actionMap.AddAction(interactActionName, InputActionType.Button, "<Keyboard>/e");
         inventoryAction = actionMap.AddAction(inventoryActionName, InputActionType.Button, "<Keyboard>/tab");
         reloadAction = actionMap.AddAction(reloadActionName, InputActionType.Button, "<Keyboard>/r");
@@ -328,6 +334,7 @@ public class PrototypeFpsInput : MonoBehaviour
         moveAction = null;
         lookAction = null;
         shootAction = null;
+        aimAction = null;
         interactAction = null;
         inventoryAction = null;
         reloadAction = null;

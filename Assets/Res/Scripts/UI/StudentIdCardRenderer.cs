@@ -5,39 +5,44 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class StudentIdCardRenderer : MonoBehaviour
 {
-    private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
-    private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+    private const string NameOverlayResourcePath = "UI/StudentID/StudentIdCardNameOverlay";
 
     [SerializeField] private MeshRenderer bodyRenderer;
     [SerializeField] private MeshRenderer printSurfaceRenderer;
-    [SerializeField] private StudentIdCardFaceTemplate faceTemplatePrefab;
+    [SerializeField] private StudentIdCardNameOverlayTemplate nameOverlayTemplatePrefab;
     [SerializeField] private StudentIdCardContent content = new StudentIdCardContent();
     [SerializeField] private Vector2Int textureSize = new Vector2Int(1024, 640);
-    [SerializeField] private Vector2 canvasWorldSize = new Vector2(1.024f, 0.64f);
-    [SerializeField] private float renderDistance = 1f;
+    [SerializeField] private Vector3 nameOverlayLocalPosition = new Vector3(0.00053f, 0.00103f, 0.00106f);
+    [SerializeField] private Vector3 nameOverlayLocalEulerAngles = new Vector3(90f, 10.6f, 0f);
+    [SerializeField] private Vector3 nameOverlayLocalScale = new Vector3(0.0001237484f, 0.0001237484f, 1f);
     [SerializeField] private bool previewInEditMode = true;
     [SerializeField] private bool refreshEveryFrame;
 
-    private GameObject renderRigRoot;
-    private Camera renderCamera;
-    private Canvas renderCanvas;
-    private StudentIdCardFaceTemplate faceInstance;
-    private RenderTexture renderTexture;
-    private MaterialPropertyBlock materialPropertyBlock;
+    private StudentIdCardNameOverlayTemplate nameOverlayInstance;
     private Font runtimeFont;
     private bool isDirty = true;
+    private bool legacyPrintSurfaceWasEnabled;
+    private bool legacyPrintSurfaceStateCaptured;
 
     public StudentIdCardContent Content => content;
-    public Texture PreviewTexture => renderTexture;
+    public Texture PreviewTexture => null;
 
     public void ConfigureReferences(
         MeshRenderer configuredBodyRenderer,
         MeshRenderer configuredPrintSurfaceRenderer,
-        StudentIdCardFaceTemplate configuredFaceTemplate)
+        StudentIdCardFaceTemplate unusedFaceTemplate)
+    {
+        ConfigureReferences(configuredBodyRenderer, configuredPrintSurfaceRenderer, (StudentIdCardNameOverlayTemplate)null);
+    }
+
+    public void ConfigureReferences(
+        MeshRenderer configuredBodyRenderer,
+        MeshRenderer configuredPrintSurfaceRenderer,
+        StudentIdCardNameOverlayTemplate configuredNameOverlayTemplate)
     {
         bodyRenderer = configuredBodyRenderer;
         printSurfaceRenderer = configuredPrintSurfaceRenderer;
-        faceTemplatePrefab = configuredFaceTemplate;
+        nameOverlayTemplatePrefab = configuredNameOverlayTemplate;
         MarkDirty();
     }
 
@@ -85,9 +90,6 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
     {
         textureSize.x = Mathf.Max(256, textureSize.x);
         textureSize.y = Mathf.Max(256, textureSize.y);
-        canvasWorldSize.x = Mathf.Max(0.2f, canvasWorldSize.x);
-        canvasWorldSize.y = Mathf.Max(0.2f, canvasWorldSize.y);
-        renderDistance = Mathf.Max(0.1f, renderDistance);
         content ??= new StudentIdCardContent();
         content.Sanitize();
         MarkDirty();
@@ -97,6 +99,10 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
         {
             UnityEditor.EditorApplication.delayCall -= HandleEditorPreviewRefresh;
             UnityEditor.EditorApplication.delayCall += HandleEditorPreviewRefresh;
+        }
+        else if (!Application.isPlaying)
+        {
+            ReleaseRuntimeResources();
         }
 #endif
     }
@@ -119,7 +125,7 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
         }
 
         TryResolveReferences();
-        if (printSurfaceRenderer == null || faceTemplatePrefab == null)
+        if (bodyRenderer == null || nameOverlayTemplatePrefab == null)
         {
             return;
         }
@@ -128,17 +134,17 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
         content.Sanitize();
         runtimeFont ??= PrototypeUiToolkit.ResolveDefaultFont();
 
-        EnsureRenderRig();
-        EnsureRenderTexture();
-        if (renderCamera == null || renderCanvas == null || faceInstance == null || renderTexture == null)
+        HideLegacyPrintSurface();
+        EnsureNameOverlay();
+        if (nameOverlayInstance == null)
         {
             return;
         }
 
-        faceInstance.Apply(content, runtimeFont);
+        UpdateNameOverlayTransform();
+        DisableRaycasts(nameOverlayInstance.gameObject);
+        nameOverlayInstance.Apply(content.FullName, runtimeFont);
         Canvas.ForceUpdateCanvases();
-        UpdateRenderCameraMode();
-        ApplyTexture();
         isDirty = false;
     }
 
@@ -149,9 +155,9 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
             return false;
         }
 
-        if (!Application.isPlaying)
+        if (Application.isPlaying)
         {
-            return false;
+            return true;
         }
 
 #if UNITY_EDITOR
@@ -160,7 +166,7 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
             return false;
         }
 #endif
-        return true;
+        return previewInEditMode;
     }
 
     private void TryResolveReferences()
@@ -175,9 +181,9 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
             printSurfaceRenderer = FindRenderer("CardPrintSurface");
         }
 
-        if (faceTemplatePrefab == null)
+        if (nameOverlayTemplatePrefab == null)
         {
-            faceTemplatePrefab = Resources.Load<StudentIdCardFaceTemplate>("UI/StudentID/StudentIdCardFace");
+            nameOverlayTemplatePrefab = Resources.Load<StudentIdCardNameOverlayTemplate>(NameOverlayResourcePath);
         }
     }
 
@@ -195,178 +201,83 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
         return null;
     }
 
-    private void EnsureRenderRig()
+    private void EnsureNameOverlay()
     {
-        if (renderRigRoot == null)
-        {
-            renderRigRoot = new GameObject($"{name}_StudentIdCardRenderRig");
-            renderRigRoot.hideFlags = HideFlags.HideAndDontSave;
-            renderRigRoot.transform.position = new Vector3(10000f, 10000f, 10000f);
-            renderRigRoot.transform.rotation = Quaternion.identity;
-        }
-
-        int uiLayer = LayerMask.NameToLayer("UI");
-        if (uiLayer < 0)
-        {
-            uiLayer = 0;
-        }
-
-        if (renderCamera == null)
-        {
-            GameObject cameraObject = new GameObject("CardFaceCamera");
-            cameraObject.hideFlags = HideFlags.HideAndDontSave;
-            cameraObject.transform.SetParent(renderRigRoot.transform, false);
-            cameraObject.transform.localPosition = new Vector3(0f, 0f, -renderDistance);
-            cameraObject.transform.localRotation = Quaternion.identity;
-            cameraObject.layer = uiLayer;
-
-            renderCamera = cameraObject.AddComponent<Camera>();
-            renderCamera.orthographic = true;
-            renderCamera.enabled = false;
-            renderCamera.clearFlags = CameraClearFlags.SolidColor;
-            renderCamera.backgroundColor = Color.clear;
-            renderCamera.allowHDR = false;
-            renderCamera.allowMSAA = false;
-            renderCamera.cullingMask = 1 << uiLayer;
-            renderCamera.nearClipPlane = 0.01f;
-            renderCamera.farClipPlane = 4f;
-        }
-
-        if (renderCanvas == null)
-        {
-            GameObject canvasObject = new GameObject("CardFaceCanvas", typeof(RectTransform));
-            canvasObject.hideFlags = HideFlags.HideAndDontSave;
-            canvasObject.transform.SetParent(renderRigRoot.transform, false);
-            canvasObject.transform.localPosition = Vector3.zero;
-            canvasObject.transform.localRotation = Quaternion.identity;
-            SetLayerRecursively(canvasObject, uiLayer);
-
-            renderCanvas = canvasObject.AddComponent<Canvas>();
-            renderCanvas.renderMode = RenderMode.WorldSpace;
-            renderCanvas.worldCamera = renderCamera;
-            renderCanvas.pixelPerfect = true;
-            renderCanvas.planeDistance = 1f;
-
-            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
-            canvasRect.sizeDelta = textureSize;
-        }
-
-        UpdateRenderRigSizing();
-
-        if (faceInstance == null && faceTemplatePrefab != null)
-        {
-            faceInstance = Instantiate(faceTemplatePrefab, renderCanvas.transform, false);
-            faceInstance.gameObject.hideFlags = HideFlags.HideAndDontSave;
-            SetLayerRecursively(faceInstance.gameObject, uiLayer);
-
-            RectTransform faceRect = faceInstance.Root;
-            if (faceRect != null)
-            {
-                PrototypeUiToolkit.SetStretch(faceRect, 0f, 0f, 0f, 0f);
-                faceRect.localScale = Vector3.one;
-                faceRect.localRotation = Quaternion.identity;
-            }
-        }
-    }
-
-    private void UpdateRenderRigSizing()
-    {
-        if (renderCanvas == null || renderCamera == null)
+        if (bodyRenderer == null || nameOverlayTemplatePrefab == null || nameOverlayInstance != null)
         {
             return;
         }
 
-        RectTransform canvasRect = renderCanvas.transform as RectTransform;
-        if (canvasRect != null)
-        {
-            canvasRect.sizeDelta = textureSize;
-            canvasRect.localScale = new Vector3(
-                canvasWorldSize.x / textureSize.x,
-                canvasWorldSize.y / textureSize.y,
-                1f);
-        }
-
-        renderCamera.orthographicSize = canvasWorldSize.y * 0.5f;
-        renderCamera.aspect = Mathf.Max(0.01f, (float)textureSize.x / textureSize.y);
-        renderCamera.transform.localPosition = new Vector3(0f, 0f, -renderDistance);
-        renderCamera.transform.localRotation = Quaternion.identity;
+        nameOverlayInstance = Instantiate(nameOverlayTemplatePrefab, transform, false);
+        nameOverlayInstance.name = "StudentIdCardNameOverlay";
+        nameOverlayInstance.gameObject.hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        SetLayerRecursively(nameOverlayInstance.gameObject, bodyRenderer.gameObject.layer);
     }
 
-    private void EnsureRenderTexture()
+    private void UpdateNameOverlayTransform()
     {
-        if (renderTexture != null && (renderTexture.width != textureSize.x || renderTexture.height != textureSize.y))
-        {
-            DestroyTexture();
-        }
-
-        if (renderTexture != null)
+        if (nameOverlayInstance == null || bodyRenderer == null)
         {
             return;
         }
 
-        renderTexture = new RenderTexture(textureSize.x, textureSize.y, 16, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
-        {
-            name = $"{name}_StudentIdCardFaceRT",
-            filterMode = FilterMode.Bilinear,
-            wrapMode = TextureWrapMode.Clamp,
-            antiAliasing = 1,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        renderTexture.Create();
-    }
+        Transform overlayTransform = nameOverlayInstance.transform;
+        overlayTransform.SetParent(transform, false);
+        overlayTransform.localPosition = nameOverlayLocalPosition;
+        overlayTransform.localRotation = Quaternion.Euler(nameOverlayLocalEulerAngles);
+        overlayTransform.localScale = nameOverlayLocalScale;
 
-    private void UpdateRenderCameraMode()
-    {
-        if (renderCamera == null)
+        RectTransform overlayRoot = nameOverlayInstance.Root;
+        if (overlayRoot != null)
+        {
+            overlayRoot.sizeDelta = textureSize;
+            overlayRoot.pivot = new Vector2(0.5f, 0.5f);
+        }
+
+        Canvas overlayCanvas = nameOverlayInstance.WorldCanvas;
+        if (overlayCanvas == null)
         {
             return;
         }
 
-        renderCamera.targetTexture = renderTexture;
-        renderCamera.enabled = Application.isPlaying;
+        overlayCanvas.renderMode = RenderMode.WorldSpace;
+        overlayCanvas.worldCamera = null;
+        overlayCanvas.pixelPerfect = true;
+        overlayCanvas.overrideSorting = false;
+        overlayCanvas.sortingLayerID = bodyRenderer.sortingLayerID;
+        overlayCanvas.sortingOrder = bodyRenderer.sortingOrder + 1;
     }
 
-    private void ApplyTexture()
+    private void HideLegacyPrintSurface()
     {
-        if (printSurfaceRenderer == null || renderTexture == null)
+        if (printSurfaceRenderer == null)
         {
             return;
         }
 
-        materialPropertyBlock ??= new MaterialPropertyBlock();
-        printSurfaceRenderer.GetPropertyBlock(materialPropertyBlock);
-        materialPropertyBlock.SetTexture(BaseMapId, renderTexture);
-        materialPropertyBlock.SetTexture(MainTexId, renderTexture);
-        printSurfaceRenderer.SetPropertyBlock(materialPropertyBlock);
+        if (!legacyPrintSurfaceStateCaptured)
+        {
+            legacyPrintSurfaceWasEnabled = printSurfaceRenderer.enabled;
+            legacyPrintSurfaceStateCaptured = true;
+        }
+
+        printSurfaceRenderer.enabled = false;
     }
 
     private void ReleaseRuntimeResources()
     {
-        if (printSurfaceRenderer != null && materialPropertyBlock != null)
+        if (printSurfaceRenderer != null && legacyPrintSurfaceStateCaptured)
         {
-            materialPropertyBlock.Clear();
-            printSurfaceRenderer.SetPropertyBlock(materialPropertyBlock);
+            printSurfaceRenderer.enabled = legacyPrintSurfaceWasEnabled;
         }
 
-        faceInstance = null;
-        renderCanvas = null;
-        renderCamera = null;
+        legacyPrintSurfaceStateCaptured = false;
 
-        DestroyTexture();
-        DestroyUnityObject(renderRigRoot);
-        renderRigRoot = null;
-    }
-
-    private void DestroyTexture()
-    {
-        if (renderTexture == null)
+        if (nameOverlayInstance != null)
         {
-            return;
+            DestroyUnityObject(nameOverlayInstance.gameObject);
+            nameOverlayInstance = null;
         }
-
-        renderTexture.Release();
-        DestroyUnityObject(renderTexture);
-        renderTexture = null;
     }
 
     private void MarkDirty()
@@ -378,7 +289,7 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
     private void HandleEditorPreviewRefresh()
     {
         UnityEditor.EditorApplication.delayCall -= HandleEditorPreviewRefresh;
-        if (this == null || Application.isPlaying)
+        if (this == null)
         {
             return;
         }
@@ -386,6 +297,23 @@ public sealed class StudentIdCardRenderer : MonoBehaviour
         TryRenderCard();
     }
 #endif
+
+    private static void DisableRaycasts(GameObject rootObject)
+    {
+        if (rootObject == null)
+        {
+            return;
+        }
+
+        Graphic[] graphics = rootObject.GetComponentsInChildren<Graphic>(true);
+        for (int index = 0; index < graphics.Length; index++)
+        {
+            if (graphics[index] != null)
+            {
+                graphics[index].raycastTarget = false;
+            }
+        }
+    }
 
     private static void SetLayerRecursively(GameObject rootObject, int layer)
     {

@@ -11,6 +11,7 @@ public static class StudentIdCardPrefabBuilder
     private const string UiFolder = "Assets/Resources/UI";
     private const string StudentIdUiFolder = "Assets/Resources/UI/StudentID";
     private const string FacePrefabPath = "Assets/Resources/UI/StudentID/StudentIdCardFace.prefab";
+    private const string NameOverlayPrefabPath = "Assets/Resources/UI/StudentID/StudentIdCardNameOverlay.prefab";
     private const string NameEntryWindowPrefabPath = "Assets/Resources/UI/StudentID/StudentIdCardNameEntryWindow.prefab";
     private const string PrefabFolder = "Assets/Res/Prefabs/StudentID";
     private const string CardPrefabPath = "Assets/Res/Prefabs/StudentID/StudentIdCard.prefab";
@@ -40,10 +41,10 @@ public static class StudentIdCardPrefabBuilder
         EnsureFolder("Assets/Res/Prefabs");
         EnsureFolder(PrefabFolder);
 
-        StudentIdCardFaceTemplate faceTemplate = BuildFaceTemplatePrefab();
+        BuildFaceTemplatePrefab();
+        StudentIdCardNameOverlayTemplate nameOverlayTemplate = BuildNameOverlayPrefab();
         BuildNameEntryWindowPrefab();
         Material bodyMaterial = BuildBodyMaterial();
-        Material printMaterial = BuildPrintMaterial();
 
         GameObject sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(ModelAssetPath);
         if (sourceModel == null)
@@ -87,6 +88,7 @@ public static class StudentIdCardPrefabBuilder
                 if (renderer.name == "CardPrintSurface")
                 {
                     printSurfaceRenderer = renderer;
+                    renderer.enabled = false;
                     continue;
                 }
             }
@@ -96,15 +98,8 @@ public static class StudentIdCardPrefabBuilder
                 return "StudentID_Card renderer was not found inside the imported FBX.";
             }
 
-            if (printSurfaceRenderer == null)
-            {
-                printSurfaceRenderer = CreatePrintSurface(bodyRenderer, printMaterial);
-            }
-
-            ConfigurePrintSurface(printSurfaceRenderer, printMaterial);
-
             StudentIdCardRenderer cardRenderer = root.AddComponent<StudentIdCardRenderer>();
-            cardRenderer.ConfigureReferences(bodyRenderer, printSurfaceRenderer, faceTemplate);
+            cardRenderer.ConfigureReferences(bodyRenderer, printSurfaceRenderer, nameOverlayTemplate);
             cardRenderer.RefreshCard();
 
             CreateInteractionVolume(root.transform, bodyRenderer);
@@ -125,7 +120,7 @@ public static class StudentIdCardPrefabBuilder
         if (prefab != null)
         {
             EditorGUIUtility.PingObject(prefab);
-            return $"Built {CardPrefabPath}, {FacePrefabPath}, {NameEntryWindowPrefabPath}, {BodyMaterialPath}, {PrintMaterialPath}";
+            return $"Built {CardPrefabPath}, {FacePrefabPath}, {NameOverlayPrefabPath}, {NameEntryWindowPrefabPath}, {BodyMaterialPath}";
         }
 
         return $"Failed to create prefab at {CardPrefabPath}";
@@ -240,6 +235,58 @@ public static class StudentIdCardPrefabBuilder
 
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FacePrefabPath);
         return prefab != null ? prefab.GetComponent<StudentIdCardFaceTemplate>() : null;
+    }
+
+    public static StudentIdCardNameOverlayTemplate BuildNameOverlayPrefab()
+    {
+        GameObject root = new GameObject("StudentIdCardNameOverlay", typeof(RectTransform), typeof(Canvas));
+        try
+        {
+            root.layer = LayerMask.NameToLayer("UI");
+            RectTransform rootRect = root.GetComponent<RectTransform>();
+            rootRect.sizeDelta = new Vector2(1024f, 640f);
+
+            Canvas canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.pixelPerfect = true;
+            canvas.overrideSorting = false;
+
+            Font font = PrototypeUiToolkit.ResolveDefaultFont();
+
+            TMP_Text nameValue = CreateText(
+                "NameValue",
+                rootRect,
+                font,
+                30,
+                FontStyle.Bold,
+                new Color(0.15f, 0.16f, 0.18f),
+                TextAnchor.MiddleLeft);
+            RectTransform nameRect = (RectTransform)nameValue.transform;
+            PrototypeUiToolkit.SetAnchor(
+                nameRect,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(510f, -270f),
+                new Vector2(320f, 48f));
+            nameValue.enableWordWrapping = false;
+            nameValue.enableAutoSizing = true;
+            nameValue.fontSizeMin = 18f;
+            nameValue.fontSizeMax = 30f;
+            nameValue.overflowMode = TextOverflowModes.Ellipsis;
+
+            StudentIdCardNameOverlayTemplate template = root.AddComponent<StudentIdCardNameOverlayTemplate>();
+            template.ConfigureReferences(rootRect, canvas, nameValue);
+
+            PrefabUtility.SaveAsPrefabAsset(root, NameOverlayPrefabPath);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NameOverlayPrefabPath);
+        return prefab != null ? prefab.GetComponent<StudentIdCardNameOverlayTemplate>() : null;
     }
 
     private static StudentIdCardNameEntryWindowTemplate BuildNameEntryWindowPrefab()

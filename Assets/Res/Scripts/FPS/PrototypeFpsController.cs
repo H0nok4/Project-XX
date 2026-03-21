@@ -38,6 +38,7 @@ public class PrototypeFpsController : MonoBehaviour
 
     [Header("Controllers")]
     [SerializeField] private PlayerWeaponController weaponController;
+    [SerializeField] private PlayerAimController aimController;
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
@@ -79,6 +80,7 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         weaponController = GetOrCreateWeaponController();
+        aimController = GetOrCreateAimController();
         medicalController = GetOrCreateMedicalController();
         throwableController = GetOrCreateThrowableController();
         skillManager = GetOrCreateSkillManager();
@@ -120,6 +122,7 @@ public class PrototypeFpsController : MonoBehaviour
     private void OnEnable()
     {
         LockCursor(true);
+        aimController?.ResetAimImmediately();
         weaponController?.RefreshWeaponViewModels();
         UpdateHudUi();
     }
@@ -127,6 +130,7 @@ public class PrototypeFpsController : MonoBehaviour
     private void OnDisable()
     {
         LockCursor(false);
+        aimController?.ResetAimImmediately();
         hudView?.SetHudVisible(false);
     }
 
@@ -231,6 +235,7 @@ public class PrototypeFpsController : MonoBehaviour
                 LockCursor(false);
             }
 
+            aimController?.TickAim(fpsInput, true);
             weaponController?.TickVisuals(Time.deltaTime);
             weaponController?.TickFeedback(Time.deltaTime);
             medicalController?.TickFeedback(Time.deltaTime);
@@ -244,7 +249,7 @@ public class PrototypeFpsController : MonoBehaviour
         {
             LockCursor(false);
         }
-        else if (fpsInput.ShootPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
+        else if ((fpsInput.ShootPressedThisFrame || fpsInput.AimPressedThisFrame) && Cursor.lockState != CursorLockMode.Locked)
         {
             LockCursor(true);
         }
@@ -253,6 +258,7 @@ public class PrototypeFpsController : MonoBehaviour
         HandleMovement();
 
         weaponController?.HandleWeaponInput(fpsInput);
+        aimController?.TickAim(fpsInput, false);
 
         bool usedMedical = medicalController != null && medicalController.HandleMedicalInput(fpsInput);
         bool usedThrowable = !usedMedical && throwableController != null && throwableController.HandleThrowableInput(fpsInput);
@@ -479,6 +485,11 @@ public class PrototypeFpsController : MonoBehaviour
                 meleeNoiseRadius);
         }
 
+        if (aimController != null)
+        {
+            aimController.ApplyHostSettings(viewCamera, weaponController, movementModule);
+        }
+
         if (medicalController != null)
         {
             medicalController.ApplyHostSettings(medicalUseCooldown, medicalFeedbackLifetime);
@@ -499,6 +510,18 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         weaponController = controller;
+        return controller;
+    }
+
+    private PlayerAimController GetOrCreateAimController()
+    {
+        PlayerAimController controller = aimController != null ? aimController : GetComponent<PlayerAimController>();
+        if (controller == null)
+        {
+            controller = gameObject.AddComponent<PlayerAimController>();
+        }
+
+        aimController = controller;
         return controller;
     }
 
@@ -565,10 +588,11 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         bool showHitMarker = weaponController != null && weaponController.ShowHitMarker;
+        bool showCrosshair = aimController == null || !aimController.ShouldHideHipFireCrosshair;
         BuildStaminaHudState(out float staminaNormalized, out Color staminaColor, out string staminaLabel);
         if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
         {
-            hudView?.UpdateHud(true, showHitMarker, staminaNormalized, staminaColor, staminaLabel, BuildCombatStatusText());
+            hudView?.UpdateHud(true, showCrosshair, showHitMarker, staminaNormalized, staminaColor, staminaLabel, BuildCombatStatusText());
             return;
         }
 
@@ -595,6 +619,7 @@ public class PrototypeFpsController : MonoBehaviour
         string statsLine = BuildWeaponStatsText(hudState);
         hudView?.UpdateHud(
             true,
+            showCrosshair,
             showHitMarker,
             staminaNormalized,
             staminaColor,
@@ -843,6 +868,11 @@ public class PrototypeFpsController : MonoBehaviour
             weaponController = GetComponent<PlayerWeaponController>();
         }
 
+        if (aimController == null)
+        {
+            aimController = GetComponent<PlayerAimController>();
+        }
+
         if (medicalController == null)
         {
             medicalController = GetComponent<PlayerMedicalController>();
@@ -888,6 +918,13 @@ public class PrototypeFpsController : MonoBehaviour
         if (!Application.isPlaying && skillManager == null)
         {
             skillManager = gameObject.AddComponent<PlayerSkillManager>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && aimController == null)
+        {
+            aimController = gameObject.AddComponent<PlayerAimController>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }

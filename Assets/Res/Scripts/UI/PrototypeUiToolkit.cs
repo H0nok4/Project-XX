@@ -453,6 +453,11 @@ public static class PrototypeUiToolkit
         }
 
         target.font = tmpFont;
+        if (tmpFont.material != null && target.fontSharedMaterial != tmpFont.material)
+        {
+            target.fontSharedMaterial = tmpFont.material;
+        }
+
         target.havePropertiesChanged = true;
         target.SetAllDirty();
     }

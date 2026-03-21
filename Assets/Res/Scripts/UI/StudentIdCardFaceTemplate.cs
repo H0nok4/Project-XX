@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public sealed class StudentIdCardFaceTemplate : MonoBehaviour
 {
     [SerializeField] private RectTransform root;
+    [SerializeField] private bool overridePrefabFontsAtRuntime;
     [SerializeField] private Image topBandImage;
     [SerializeField] private Image logoImage;
     [SerializeField] private Image portraitFrameImage;
@@ -70,7 +71,10 @@ public sealed class StudentIdCardFaceTemplate : MonoBehaviour
     {
         content ??= new StudentIdCardContent();
         content.Sanitize();
-        ApplyFont(font);
+        if (overridePrefabFontsAtRuntime)
+        {
+            ApplyFont(font);
+        }
 
         if (topBandImage != null)
         {
