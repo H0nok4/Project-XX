@@ -1,4 +1,3 @@
-using System.Text;
 using UnityEngine;
 
 [RequireComponent(typeof(PrototypeFpsInput), typeof(PrototypeFpsMovementModule))]
@@ -37,20 +36,22 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private float meleeNoiseRadius = 8f;
 
     [Header("Controllers")]
+    [SerializeField] private PlayerLookController lookController;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerAimController aimController;
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
     [SerializeField] private PlayerProgressionRuntime progressionRuntime;
+    [SerializeField] private PlayerHudPresenter hudPresenter;
+    [SerializeField] private PlayerActionChannel actionChannel;
+    [SerializeField] private PlayerStateHub stateHub;
 
     private PrototypeFpsMovementModule movementModule;
     private PrototypeFpsInput fpsInput;
     private PlayerInteractionState interactionState;
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
-    private float pitch;
-    private PrototypeFpsHudView hudView;
 
     public PrototypeWeaponDefinition EquippedPrimaryWeapon => weaponController != null ? weaponController.EquippedPrimaryWeapon : null;
     public PrototypeWeaponDefinition EquippedSecondaryWeapon => weaponController != null ? weaponController.EquippedSecondaryWeapon : null;
@@ -85,6 +86,10 @@ public class PrototypeFpsController : MonoBehaviour
         throwableController = GetOrCreateThrowableController();
         skillManager = GetOrCreateSkillManager();
         progressionRuntime = GetOrCreateProgressionRuntime();
+        lookController = GetOrCreateLookController();
+        hudPresenter = GetOrCreateHudPresenter();
+        actionChannel = GetOrCreateActionChannel();
+        stateHub = GetOrCreateStateHub();
 
         ApplyControllerSettings();
 
@@ -116,7 +121,6 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         movementModule?.SetViewCamera(viewCamera);
-        EnsureHudUi();
     }
 
     private void OnEnable()
@@ -124,14 +128,15 @@ public class PrototypeFpsController : MonoBehaviour
         LockCursor(true);
         aimController?.ResetAimImmediately();
         weaponController?.RefreshWeaponViewModels();
-        UpdateHudUi();
+        stateHub?.RefreshSnapshot();
+        hudPresenter?.RefreshHud();
     }
 
     private void OnDisable()
     {
         LockCursor(false);
         aimController?.ResetAimImmediately();
-        hudView?.SetHudVisible(false);
+        hudPresenter?.SetHudVisible(false);
     }
 
     public void ConfigureWeaponLoadout(
@@ -227,6 +232,8 @@ public class PrototypeFpsController : MonoBehaviour
             return;
         }
 
+        stateHub?.BeginFrame();
+
         if (interactionState != null && interactionState.IsUiFocused)
         {
             movementModule?.TickMovement();
@@ -241,7 +248,8 @@ public class PrototypeFpsController : MonoBehaviour
             medicalController?.TickFeedback(Time.deltaTime);
             throwableController?.TickFeedback(Time.deltaTime);
             progressionRuntime?.TickFeedback(Time.deltaTime);
-            UpdateHudUi();
+            stateHub?.RefreshSnapshot();
+            hudPresenter?.RefreshHud();
             return;
         }
 
@@ -254,17 +262,23 @@ public class PrototypeFpsController : MonoBehaviour
             LockCursor(true);
         }
 
-        HandleLook();
+        lookController?.TickLook(fpsInput);
         HandleMovement();
 
         weaponController?.HandleWeaponInput(fpsInput);
         aimController?.TickAim(fpsInput, false);
-
-        bool usedMedical = medicalController != null && medicalController.HandleMedicalInput(fpsInput);
-        bool usedThrowable = !usedMedical && throwableController != null && throwableController.HandleThrowableInput(fpsInput);
-        if (!usedMedical && !usedThrowable)
+        if (actionChannel != null)
         {
-            weaponController?.HandleCombat(fpsInput);
+            actionChannel.ExecuteGameplayActions(fpsInput);
+        }
+        else
+        {
+            bool usedMedical = medicalController != null && medicalController.HandleMedicalInput(fpsInput);
+            bool usedThrowable = !usedMedical && throwableController != null && throwableController.HandleThrowableInput(fpsInput);
+            if (!usedMedical && !usedThrowable)
+            {
+                weaponController?.HandleCombat(fpsInput);
+            }
         }
 
         weaponController?.TickVisuals(Time.deltaTime);
@@ -272,24 +286,8 @@ public class PrototypeFpsController : MonoBehaviour
         medicalController?.TickFeedback(Time.deltaTime);
         throwableController?.TickFeedback(Time.deltaTime);
         progressionRuntime?.TickFeedback(Time.deltaTime);
-        UpdateHudUi();
-    }
-
-    private void HandleLook()
-    {
-        if (Cursor.lockState != CursorLockMode.Locked)
-        {
-            return;
-        }
-
-        Vector2 mouseDelta = fpsInput.LookDelta;
-        float lookYawDelta = mouseDelta.x * mouseSensitivity;
-
-        transform.Rotate(Vector3.up * lookYawDelta);
-
-        pitch -= mouseDelta.y * mouseSensitivity;
-        pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
-        viewCamera.transform.localEulerAngles = new Vector3(pitch, 0f, 0f);
+        stateHub?.RefreshSnapshot();
+        hudPresenter?.RefreshHud();
     }
 
     private void HandleMovement()
@@ -308,11 +306,7 @@ public class PrototypeFpsController : MonoBehaviour
             transform.SetPositionAndRotation(position, rotation);
         }
 
-        pitch = 0f;
-        if (viewCamera != null)
-        {
-            viewCamera.transform.localEulerAngles = Vector3.zero;
-        }
+        lookController?.ResetPitch();
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -499,6 +493,38 @@ public class PrototypeFpsController : MonoBehaviour
         {
             throwableController.ApplyHostSettings(viewCamera, medicalFeedbackLifetime);
         }
+
+        if (lookController != null)
+        {
+            lookController.ApplyHostSettings(viewCamera, mouseSensitivity, maxLookAngle);
+        }
+
+        if (actionChannel != null)
+        {
+            actionChannel.ApplyHostSettings(interactionState, playerVitals, weaponController, medicalController, throwableController);
+        }
+
+        if (stateHub != null)
+        {
+            stateHub.ApplyHostSettings(
+                fpsInput,
+                interactionState,
+                playerVitals,
+                movementModule,
+                lookController,
+                weaponController,
+                aimController,
+                medicalController,
+                throwableController,
+                skillManager,
+                progressionRuntime,
+                actionChannel);
+        }
+
+        if (hudPresenter != null)
+        {
+            hudPresenter.ApplyHostSettings(showHud, stateHub);
+        }
     }
 
     private PlayerWeaponController GetOrCreateWeaponController()
@@ -573,245 +599,52 @@ public class PrototypeFpsController : MonoBehaviour
         return runtime;
     }
 
-    private void EnsureHudUi()
+    private PlayerLookController GetOrCreateLookController()
     {
-        hudView ??= PrototypeFpsHudView.GetOrCreate();
+        PlayerLookController controller = lookController != null ? lookController : GetComponent<PlayerLookController>();
+        if (controller == null)
+        {
+            controller = gameObject.AddComponent<PlayerLookController>();
+        }
+
+        lookController = controller;
+        return controller;
     }
 
-    private void UpdateHudUi()
+    private PlayerHudPresenter GetOrCreateHudPresenter()
     {
-        EnsureHudUi();
-        if (!showHud)
+        PlayerHudPresenter presenter = hudPresenter != null ? hudPresenter : GetComponent<PlayerHudPresenter>();
+        if (presenter == null)
         {
-            hudView?.SetHudVisible(false);
-            return;
+            presenter = gameObject.AddComponent<PlayerHudPresenter>();
         }
 
-        bool showHitMarker = weaponController != null && weaponController.ShowHitMarker;
-        bool showCrosshair = aimController == null || !aimController.ShouldHideHipFireCrosshair;
-        BuildStaminaHudState(out float staminaNormalized, out Color staminaColor, out string staminaLabel);
-        if (weaponController == null || !weaponController.TryGetHudState(out PlayerWeaponController.WeaponHudState hudState))
-        {
-            hudView?.UpdateHud(true, showCrosshair, showHitMarker, staminaNormalized, staminaColor, staminaLabel, BuildCombatStatusText());
-            return;
-        }
-
-        string weaponLine = ItemRarityUtility.FormatRichText(
-            $"{hudState.Definition.DisplayNameWithLevel} [{ItemRarityUtility.GetDisplayName(hudState.Rarity)}]",
-            hudState.Rarity);
-        string stateLine;
-        if (hudState.Definition.IsMeleeWeapon)
-        {
-            float cooldownRemaining = Mathf.Max(0f, hudState.NextAttackTime - Time.time);
-            stateLine = cooldownRemaining > 0f
-                ? $"冷却 {cooldownRemaining:0.00}s"
-                : "就绪";
-        }
-        else if (hudState.IsReloading)
-        {
-            stateLine = $"换弹 {Mathf.Max(0f, hudState.ReloadEndTime - Time.time):0.0}s";
-        }
-        else
-        {
-            stateLine = $"{GetFireModeLabel(hudState.FireMode)}  弹夹 {hudState.MagazineAmmo}/{hudState.Definition.MagazineSize}  备弹 {hudState.ReserveAmmo}";
-        }
-
-        string statsLine = BuildWeaponStatsText(hudState);
-        hudView?.UpdateHud(
-            true,
-            showCrosshair,
-            showHitMarker,
-            staminaNormalized,
-            staminaColor,
-            staminaLabel,
-            $"{weaponLine}\n{stateLine}\n{statsLine}\n{BuildCombatStatusText()}");
+        hudPresenter = presenter;
+        return presenter;
     }
 
-    private void BuildStaminaHudState(out float normalized, out Color fillColor, out string label)
+    private PlayerActionChannel GetOrCreateActionChannel()
     {
-        normalized = 0f;
-        fillColor = new Color(0.27f, 0.82f, 0.38f, 0.95f);
-        label = string.Empty;
-
-        if (playerVitals == null)
+        PlayerActionChannel channel = actionChannel != null ? actionChannel : GetComponent<PlayerActionChannel>();
+        if (channel == null)
         {
-            return;
+            channel = gameObject.AddComponent<PlayerActionChannel>();
         }
 
-        normalized = playerVitals.StaminaNormalized;
-        bool recoveryBlocked = playerVitals.IsStaminaRecoveryBlocked;
-        bool lowStamina = playerVitals.IsBelowStaminaActionThreshold;
-        fillColor = lowStamina
-            ? new Color(0.8f, 0.2f, 0.18f, 0.95f)
-            : recoveryBlocked
-                ? (playerVitals.IsExhausted ? new Color(0.78f, 0.28f, 0.2f, 0.95f) : new Color(0.88f, 0.58f, 0.14f, 0.95f))
-                : Color.Lerp(new Color(0.94f, 0.68f, 0.16f, 0.95f), new Color(0.27f, 0.82f, 0.38f, 0.95f), normalized);
-
-        label = recoveryBlocked
-            ? playerVitals.IsExhausted
-                ? $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  力竭 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-                : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  恢复 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
-            : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
+        actionChannel = channel;
+        return channel;
     }
 
-    private static string BuildWeaponStatsText(PlayerWeaponController.WeaponHudState hudState)
+    private PlayerStateHub GetOrCreateStateHub()
     {
-        PrototypeWeaponDefinition definition = hudState.Definition;
-        if (definition == null)
+        PlayerStateHub hub = stateHub != null ? stateHub : GetComponent<PlayerStateHub>();
+        if (hub == null)
         {
-            return string.Empty;
+            hub = gameObject.AddComponent<PlayerStateHub>();
         }
 
-        if (definition.IsThrowableWeapon)
-        {
-            return $"爆炸 {definition.ExplosionDamage:0}  半径 {definition.ExplosionRadius:0.0}m";
-        }
-
-        if (definition.IsMeleeWeapon)
-        {
-            return $"伤害 {definition.MeleeDamage:0}  穿深 {definition.PenetrationPower:0}";
-        }
-
-        AmmoDefinition ammoDefinition = definition.AmmoDefinition;
-        float ammoMultiplier = ammoDefinition != null ? ammoDefinition.DamageMultiplier : 1f;
-        float finalDamage = definition.FirearmDamage * ammoMultiplier;
-        float penetration = ammoDefinition != null ? ammoDefinition.PenetrationPower : definition.PenetrationPower;
-        return $"伤害 {definition.FirearmDamage:0} x {ammoMultiplier:0.00} = {finalDamage:0}  穿深 {penetration:0}";
-    }
-
-    private static string GetFireModeLabel(PrototypeWeaponFireMode fireMode)
-    {
-        switch (fireMode)
-        {
-            case PrototypeWeaponFireMode.Auto:
-                return "全自动";
-            case PrototypeWeaponFireMode.Burst:
-                return "点射";
-            default:
-                return "半自动";
-        }
-    }
-
-    private string BuildCombatStatusText()
-    {
-        if (playerVitals == null)
-        {
-            return "生命系统未就绪";
-        }
-
-        var builder = new StringBuilder(192);
-        builder.Append("生命 ");
-        builder.Append(Mathf.RoundToInt(playerVitals.TotalCurrentHealth));
-        builder.Append('/');
-        builder.Append(Mathf.RoundToInt(playerVitals.TotalMaxHealth));
-        builder.Append("\n体力 ");
-        builder.Append(Mathf.RoundToInt(playerVitals.CurrentStamina));
-        builder.Append('/');
-        builder.Append(Mathf.RoundToInt(playerVitals.MaxStamina));
-        if (playerVitals.StaminaRecoveryBlockedRemaining > 0f)
-        {
-            builder.Append(playerVitals.IsExhausted ? "  力竭 " : "  恢复 ");
-            builder.Append(playerVitals.StaminaRecoveryBlockedRemaining.ToString("0.0"));
-            builder.Append('s');
-        }
-
-        builder.Append("\n姿态 ");
-        bool isSprinting = movementModule != null && movementModule.IsSprinting;
-        bool isCrouching = movementModule != null && movementModule.IsCrouching;
-        builder.Append(isSprinting ? "冲刺" : isCrouching ? "蹲伏" : "站立");
-        builder.Append(' ');
-        builder.Append(Mathf.RoundToInt((movementModule != null ? movementModule.SelectedMovementSpeedRatio : 1f) * 100f));
-        builder.Append('%');
-
-        float headArmor = playerVitals.GetArmorDurabilityNormalized("head");
-        float torsoArmor = playerVitals.GetArmorDurabilityNormalized("torso");
-        if (headArmor > 0f || torsoArmor > 0f)
-        {
-            builder.Append("\n护甲 头 ");
-            builder.Append(Mathf.RoundToInt(headArmor * 100f));
-            builder.Append("%  胸 ");
-            builder.Append(Mathf.RoundToInt(torsoArmor * 100f));
-            builder.Append('%');
-        }
-
-        builder.Append("\n状态 ");
-        if (playerVitals.HasHeavyBleed)
-        {
-            builder.Append("重出血 ");
-        }
-
-        if (playerVitals.HasLightBleed)
-        {
-            builder.Append("轻出血 ");
-        }
-
-        if (playerVitals.HasFracture)
-        {
-            builder.Append("骨折 ");
-        }
-
-        if (playerVitals.IsPainkillerActive)
-        {
-            builder.Append("止痛 ");
-            builder.Append(playerVitals.PainkillerRemaining.ToString("0"));
-            builder.Append('s');
-        }
-
-        if (!playerVitals.HasAnyBleed && !playerVitals.HasFracture && !playerVitals.IsPainkillerActive)
-        {
-            builder.Append("正常");
-        }
-
-        string feedbackMessage = medicalController != null ? medicalController.FeedbackMessage : string.Empty;
-        if (!string.IsNullOrWhiteSpace(feedbackMessage))
-        {
-            builder.Append("\n");
-            builder.Append(feedbackMessage);
-        }
-
-        string weaponFeedback = weaponController != null ? weaponController.FeedbackMessage : string.Empty;
-        if (!string.IsNullOrWhiteSpace(weaponFeedback))
-        {
-            builder.Append("\n");
-            builder.Append(weaponFeedback);
-        }
-
-        string throwableSummary = throwableController != null ? throwableController.BuildHudSummary() : string.Empty;
-        if (!string.IsNullOrWhiteSpace(throwableSummary))
-        {
-            builder.Append("\n");
-            builder.Append(throwableSummary);
-        }
-
-        string throwableFeedback = throwableController != null ? throwableController.FeedbackMessage : string.Empty;
-        if (!string.IsNullOrWhiteSpace(throwableFeedback))
-        {
-            builder.Append("\n");
-            builder.Append(throwableFeedback);
-        }
-
-        string progressionSummary = progressionRuntime != null ? progressionRuntime.BuildHudSummary() : string.Empty;
-        if (!string.IsNullOrWhiteSpace(progressionSummary))
-        {
-            builder.Append("\n");
-            builder.Append(progressionSummary);
-        }
-
-        string progressionFeedback = progressionRuntime != null ? progressionRuntime.FeedbackMessage : string.Empty;
-        if (!string.IsNullOrWhiteSpace(progressionFeedback))
-        {
-            builder.Append("\n");
-            builder.Append(progressionFeedback);
-        }
-
-        string skillSummary = skillManager != null ? skillManager.BuildHudSummary() : string.Empty;
-        if (!string.IsNullOrWhiteSpace(skillSummary))
-        {
-            builder.Append("\n");
-            builder.Append(skillSummary);
-        }
-
-        return builder.ToString();
+        stateHub = hub;
+        return hub;
     }
 
     private void LockCursor(bool shouldLock)
@@ -868,6 +701,11 @@ public class PrototypeFpsController : MonoBehaviour
             weaponController = GetComponent<PlayerWeaponController>();
         }
 
+        if (lookController == null)
+        {
+            lookController = GetComponent<PlayerLookController>();
+        }
+
         if (aimController == null)
         {
             aimController = GetComponent<PlayerAimController>();
@@ -891,6 +729,21 @@ public class PrototypeFpsController : MonoBehaviour
         if (progressionRuntime == null)
         {
             progressionRuntime = GetComponent<PlayerProgressionRuntime>();
+        }
+
+        if (hudPresenter == null)
+        {
+            hudPresenter = GetComponent<PlayerHudPresenter>();
+        }
+
+        if (actionChannel == null)
+        {
+            actionChannel = GetComponent<PlayerActionChannel>();
+        }
+
+        if (stateHub == null)
+        {
+            stateHub = GetComponent<PlayerStateHub>();
         }
 
 #if UNITY_EDITOR
@@ -929,9 +782,37 @@ public class PrototypeFpsController : MonoBehaviour
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
+        if (!Application.isPlaying && lookController == null)
+        {
+            lookController = gameObject.AddComponent<PlayerLookController>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
         if (!Application.isPlaying && progressionRuntime == null)
         {
             progressionRuntime = gameObject.AddComponent<PlayerProgressionRuntime>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && hudPresenter == null)
+        {
+            hudPresenter = gameObject.AddComponent<PlayerHudPresenter>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && actionChannel == null)
+        {
+            actionChannel = gameObject.AddComponent<PlayerActionChannel>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && stateHub == null)
+        {
+            stateHub = gameObject.AddComponent<PlayerStateHub>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }

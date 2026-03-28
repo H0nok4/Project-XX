@@ -136,15 +136,24 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     private bool isSprinting;
     private bool sprintMomentumCarryActive;
     private bool wasGroundedLastFrame;
+    private bool isGrounded;
+    private bool jumpTriggeredThisFrame;
+    private bool landTriggeredThisFrame;
     private float nextMovementNoiseTime;
     private Vector2 headBobOffset;
+    private Vector2 currentMoveInput;
 
     public bool IsCrouching => isCrouching;
     public bool IsSprinting => isSprinting;
+    public bool IsGrounded => isGrounded;
+    public bool JumpTriggeredThisFrame => jumpTriggeredThisFrame;
+    public bool LandTriggeredThisFrame => landTriggeredThisFrame;
     public Vector3 PlanarVelocity => planarVelocity;
     public float PlanarSpeed => planarVelocity.magnitude;
+    public float VerticalVelocity => verticalVelocity;
     public float SelectedMovementSpeedRatio => GetSelectedMovementSpeedRatio();
     public float SelectedStandingMoveSpeed => GetSelectedStandingMoveSpeed();
+    public Vector2 CurrentMoveInput => currentMoveInput;
 
     private void Awake()
     {
@@ -152,6 +161,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         EnsureMovementSettings();
         CacheStanceDefaults();
         wasGroundedLastFrame = characterController != null && characterController.isGrounded;
+        isGrounded = wasGroundedLastFrame;
     }
 
     public void SetViewCamera(Camera camera)
@@ -168,6 +178,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     public void HandleUiFocus()
     {
         isSprinting = false;
+        currentMoveInput = Vector2.zero;
         UpdateSprintSpeedBlend(Time.unscaledDeltaTime);
     }
 
@@ -183,6 +194,9 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         sprintMomentumCarryActive = false;
         headBobCycle = 0f;
         headBobOffset = Vector2.zero;
+        currentMoveInput = Vector2.zero;
+        jumpTriggeredThisFrame = false;
+        landTriggeredThisFrame = false;
 
         if (characterController != null)
         {
@@ -197,6 +211,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         }
 
         wasGroundedLastFrame = characterController != null && characterController.isGrounded;
+        isGrounded = wasGroundedLastFrame;
         UpdateViewCamera(0f, wasGroundedLastFrame, false);
     }
 
@@ -211,6 +226,10 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         bool uiFocused = interactionState != null && interactionState.IsUiFocused;
         bool grounded = characterController.isGrounded;
         Vector2 moveInput = uiFocused ? Vector2.zero : Vector2.ClampMagnitude(fpsInput.Move, 1f);
+        currentMoveInput = moveInput;
+        jumpTriggeredThisFrame = false;
+        landTriggeredThisFrame = false;
+        isGrounded = grounded;
 
         if (uiFocused)
         {
@@ -238,6 +257,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
         UpdateSprintSpeedBlend(deltaTime);
         bool jumpedThisFrame = !uiFocused && TryStartJump(grounded, moveInput);
+        jumpTriggeredThisFrame = jumpedThisFrame;
 
         if (grounded && !jumpedThisFrame)
         {
@@ -269,6 +289,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         }
 
         bool landedThisFrame = !wasGroundedLastFrame && groundedAfterMove;
+        landTriggeredThisFrame = landedThisFrame;
         if (landedThisFrame)
         {
             landingRecoveryTimer = landingRecoveryTime;
@@ -289,6 +310,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
         UpdateViewCamera(deltaTime, groundedAfterMove, uiFocused);
         wasGroundedLastFrame = groundedAfterMove;
+        isGrounded = groundedAfterMove;
     }
 
     private void HandleMovementModeInput()

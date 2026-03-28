@@ -15,17 +15,17 @@ TagManager:
   - 
   - 
   - CharacterCollider
+  - FirstPersonOnly
+  - LocalFullBody
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
   - SceneObject
   - Ground
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
   - 
   - 
   - 

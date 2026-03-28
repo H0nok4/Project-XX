@@ -19,8 +19,10 @@ public class PlayerThrowableController : MonoBehaviour
     private float nextThrowableUseTime;
     private float feedbackTimer;
     private string feedbackMessage = string.Empty;
+    private bool throwableTriggeredThisFrame;
 
     public string FeedbackMessage => feedbackMessage;
+    public bool ThrowableTriggeredThisFrame => throwableTriggeredThisFrame;
 
     private void Awake()
     {
@@ -51,6 +53,11 @@ public class PlayerThrowableController : MonoBehaviour
         }
 
         EnsureSettings();
+    }
+
+    public void BeginFrame()
+    {
+        throwableTriggeredThisFrame = false;
     }
 
     public bool HandleThrowableInput(PrototypeFpsInput fpsInput)
@@ -128,6 +135,7 @@ public class PlayerThrowableController : MonoBehaviour
         LaunchThrowable(extractedItem);
         nextThrowableUseTime = Time.time + weaponDefinition.ThrowableCooldown;
         SetFeedback($"已投掷 {weaponDefinition.DisplayName}");
+        throwableTriggeredThisFrame = true;
         return true;
     }
 

@@ -14,8 +14,10 @@ public class PlayerMedicalController : MonoBehaviour
     private float nextMedicalUseTime;
     private float medicalFeedbackTimer;
     private string medicalFeedbackMessage = string.Empty;
+    private bool medicalTriggeredThisFrame;
 
     public string FeedbackMessage => medicalFeedbackMessage;
+    public bool MedicalTriggeredThisFrame => medicalTriggeredThisFrame;
 
     private void Awake()
     {
@@ -45,6 +47,11 @@ public class PlayerMedicalController : MonoBehaviour
         EnsureMedicalSettings();
     }
 
+    public void BeginFrame()
+    {
+        medicalTriggeredThisFrame = false;
+    }
+
     public bool HandleMedicalInput(PrototypeFpsInput fpsInput)
     {
         EnsureReferences();
@@ -54,24 +61,33 @@ public class PlayerMedicalController : MonoBehaviour
             return false;
         }
 
+        bool usedMedical;
         if (fpsInput.StopBleedPressedThisFrame)
         {
-            return TryUseBleedTreatment();
+            usedMedical = TryUseBleedTreatment();
+            medicalTriggeredThisFrame |= usedMedical;
+            return usedMedical;
         }
 
         if (fpsInput.SplintPressedThisFrame)
         {
-            return TryUseSplint();
+            usedMedical = TryUseSplint();
+            medicalTriggeredThisFrame |= usedMedical;
+            return usedMedical;
         }
 
         if (fpsInput.PainkillerPressedThisFrame)
         {
-            return TryUsePainkiller();
+            usedMedical = TryUsePainkiller();
+            medicalTriggeredThisFrame |= usedMedical;
+            return usedMedical;
         }
 
         if (fpsInput.QuickHealPressedThisFrame)
         {
-            return TryUseQuickHeal();
+            usedMedical = TryUseQuickHeal();
+            medicalTriggeredThisFrame |= usedMedical;
+            return usedMedical;
         }
 
         return false;

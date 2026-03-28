@@ -137,12 +137,22 @@ public class PlayerWeaponController : MonoBehaviour
     private float currentAimBlend;
     private float feedbackTimer;
     private string feedbackMessage = string.Empty;
+    private bool fireTriggeredThisFrame;
+    private bool reloadTriggeredThisFrame;
+    private bool equipTriggeredThisFrame;
 
     public bool ShowHitMarker => hitMarkerTimer > 0f;
     public PrototypeWeaponDefinition EquippedPrimaryWeapon => primaryRuntime.Definition;
     public PrototypeWeaponDefinition EquippedSecondaryWeapon => secondaryRuntime.Definition;
     public PrototypeWeaponDefinition EquippedMeleeWeapon => meleeRuntime.Definition;
     public string FeedbackMessage => feedbackMessage;
+    public bool FireTriggeredThisFrame => fireTriggeredThisFrame;
+    public bool ReloadTriggeredThisFrame => reloadTriggeredThisFrame;
+    public bool EquipTriggeredThisFrame => equipTriggeredThisFrame;
+    public bool HasEquippedWeapon => GetActiveWeapon() != null && GetActiveWeapon().IsConfigured;
+    public bool IsActiveWeaponReloading => GetActiveWeapon() != null && GetActiveWeapon().IsReloading;
+    public PlayerWeaponSlotType ActiveWeaponSlotType => ToPublicWeaponSlot(activeWeaponSlot);
+    public PlayerWeaponCategory ActiveWeaponCategory => ResolveWeaponCategory(GetActiveWeapon());
     public bool CanAimActiveWeapon
     {
         get
@@ -163,6 +173,13 @@ public class PlayerWeaponController : MonoBehaviour
         ResolveViewCamera();
         ResolveMuzzle();
         ResolveViewModels();
+    }
+
+    public void BeginFrame()
+    {
+        fireTriggeredThisFrame = false;
+        reloadTriggeredThisFrame = false;
+        equipTriggeredThisFrame = false;
     }
 
     private void OnValidate()
@@ -789,6 +806,7 @@ public class PlayerWeaponController : MonoBehaviour
             ResolveCombatHit(hit, damageInfo, shotForce);
         }
 
+        fireTriggeredThisFrame = true;
         return true;
     }
 
@@ -814,6 +832,8 @@ public class PlayerWeaponController : MonoBehaviour
         {
             ResolveCombatHit(hit, BuildMeleeDamageInfo(runtime), meleeImpactForce);
         }
+
+        fireTriggeredThisFrame = true;
     }
 
     private bool TryGetCombatHit(Vector3 origin, Vector3 direction, float distance, out RaycastHit hit)
@@ -1012,6 +1032,7 @@ public class PlayerWeaponController : MonoBehaviour
         float reloadDuration = runtime.Definition.ReloadDuration / GetPassiveReloadSpeedMultiplier();
         runtime.ReloadEndTime = Time.time + Mathf.Max(0.05f, reloadDuration);
         runtime.PendingBurstShots = 0;
+        reloadTriggeredThisFrame = true;
     }
 
     private void UpdateReload(WeaponRuntime runtime)
@@ -1081,6 +1102,7 @@ public class PlayerWeaponController : MonoBehaviour
         activeWeaponSlot = slot;
         RefreshWeaponViewModels();
         progressionRuntime?.RefreshDerivedStats();
+        equipTriggeredThisFrame = true;
     }
 
     private void ConfigureRuntimeWeapons()
@@ -1268,6 +1290,43 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         return WeaponSlot.Primary;
+    }
+
+    private static PlayerWeaponSlotType ToPublicWeaponSlot(WeaponSlot slot)
+    {
+        switch (slot)
+        {
+            case WeaponSlot.Primary:
+                return PlayerWeaponSlotType.Primary;
+            case WeaponSlot.Secondary:
+                return PlayerWeaponSlotType.Secondary;
+            case WeaponSlot.Melee:
+                return PlayerWeaponSlotType.Melee;
+            default:
+                return PlayerWeaponSlotType.None;
+        }
+    }
+
+    private static PlayerWeaponCategory ResolveWeaponCategory(WeaponRuntime runtime)
+    {
+        if (runtime == null || !runtime.IsConfigured || runtime.Definition == null)
+        {
+            return PlayerWeaponCategory.None;
+        }
+
+        if (runtime.Definition.IsThrowableWeapon)
+        {
+            return PlayerWeaponCategory.Throwable;
+        }
+
+        if (runtime.Definition.IsMeleeWeapon)
+        {
+            return PlayerWeaponCategory.Melee;
+        }
+
+        return runtime.Definition.IsFirearmWeapon
+            ? PlayerWeaponCategory.Firearm
+            : PlayerWeaponCategory.None;
     }
 
     private string GetSlotDisplayName(WeaponSlot slot)
