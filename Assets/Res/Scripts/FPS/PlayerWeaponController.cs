@@ -153,6 +153,7 @@ public class PlayerWeaponController : MonoBehaviour
     public bool IsActiveWeaponReloading => GetActiveWeapon() != null && GetActiveWeapon().IsReloading;
     public PlayerWeaponSlotType ActiveWeaponSlotType => ToPublicWeaponSlot(activeWeaponSlot);
     public PlayerWeaponCategory ActiveWeaponCategory => ResolveWeaponCategory(GetActiveWeapon());
+    public PrototypeWeaponDefinition ActiveWeaponDefinition => GetWeaponDefinition(ActiveWeaponSlotType);
     public bool CanAimActiveWeapon
     {
         get
@@ -310,31 +311,11 @@ public class PlayerWeaponController : MonoBehaviour
     public void UpdateAimPresentation(float aimBlend)
     {
         currentAimBlend = Mathf.Clamp01(aimBlend);
-
-        ApplyViewModelAimPose(
-            primaryRuntime,
-            primaryViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Primary ? currentAimBlend : 0f,
-            primaryAdsViewModelLocalPosition,
-            primaryAdsViewModelLocalEulerAngles);
-        ApplyViewModelAimPose(
-            secondaryRuntime,
-            secondaryViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Secondary ? currentAimBlend : 0f,
-            secondaryAdsViewModelLocalPosition,
-            secondaryAdsViewModelLocalEulerAngles);
-        ApplyViewModelAimPose(
-            meleeRuntime,
-            meleeViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Melee ? currentAimBlend : 0f,
-            meleeAdsViewModelLocalPosition,
-            meleeAdsViewModelLocalEulerAngles);
     }
 
     public void ResetAimPresentationImmediate()
     {
         currentAimBlend = 0f;
-        UpdateAimPresentation(0f);
     }
 
     public void TickVisuals(float deltaTime)
@@ -733,27 +714,37 @@ public class PlayerWeaponController : MonoBehaviour
         return true;
     }
 
+    public PrototypeWeaponDefinition GetWeaponDefinition(PlayerWeaponSlotType slotType)
+    {
+        switch (slotType)
+        {
+            case PlayerWeaponSlotType.Primary:
+                return EquippedPrimaryWeapon;
+            case PlayerWeaponSlotType.Secondary:
+                return EquippedSecondaryWeapon;
+            case PlayerWeaponSlotType.Melee:
+                return EquippedMeleeWeapon;
+            default:
+                return null;
+        }
+    }
+
+    public void InterruptActiveUpperBodyAction()
+    {
+        WeaponRuntime activeWeapon = GetActiveWeapon();
+        if (activeWeapon == null || !activeWeapon.IsConfigured)
+        {
+            return;
+        }
+
+        activeWeapon.PendingBurstShots = 0;
+        activeWeapon.IsReloading = false;
+        activeWeapon.ReloadEndTime = 0f;
+    }
+
     public void RefreshWeaponViewModels()
     {
-        EnsureWeaponViewModel(primaryRuntime, primaryViewModel, ref primaryViewModelInstance, ref primaryViewModelSource);
-        EnsureWeaponViewModel(secondaryRuntime, secondaryViewModel, ref secondaryViewModelInstance, ref secondaryViewModelSource);
-        EnsureWeaponViewModel(meleeRuntime, meleeViewModel, ref meleeViewModelInstance, ref meleeViewModelSource);
-        UpdateAimPresentation(currentAimBlend);
-
-        if (primaryViewModel != null)
-        {
-            primaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Primary);
-        }
-
-        if (secondaryViewModel != null)
-        {
-            secondaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Secondary);
-        }
-
-        if (meleeViewModel != null)
-        {
-            meleeViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Melee);
-        }
+        // First-person view presentation moved to PlayerWeaponPresentationController.
     }
 
     private void ProcessBurst(WeaponRuntime runtime)
@@ -1481,14 +1472,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void ResolveViewModels()
     {
-        if (viewCamera == null)
-        {
-            return;
-        }
-
-        primaryViewModel = GetOrCreateViewModelAnchor(primaryViewModel, "WeaponView_Primary");
-        secondaryViewModel = GetOrCreateViewModelAnchor(secondaryViewModel, "WeaponView_Secondary");
-        meleeViewModel = GetOrCreateViewModelAnchor(meleeViewModel, "WeaponView_Melee");
+        // First-person view presentation moved to PlayerWeaponPresentationController.
     }
 
     private Transform GetOrCreateViewModelAnchor(Transform currentAnchor, string anchorName)

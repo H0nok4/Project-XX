@@ -13,6 +13,9 @@ public sealed class PlayerActionChannel : MonoBehaviour
     private PlayerUpperBodyAction gameplayAction = PlayerUpperBodyAction.Idle;
 
     public PlayerUpperBodyAction GameplayAction => gameplayAction;
+    public bool IsMedicalActionActive => medicalController != null && medicalController.IsMedicalActionActive;
+    public bool IsThrowActionActive => throwableController != null && throwableController.IsThrowActionActive;
+    public bool IsBlockingUpperBodyInput => IsMedicalActionActive || IsThrowActionActive;
 
     private void Awake()
     {
@@ -88,9 +91,22 @@ public sealed class PlayerActionChannel : MonoBehaviour
             return;
         }
 
+        if (IsMedicalActionActive)
+        {
+            gameplayAction = PlayerUpperBodyAction.Medical;
+            return;
+        }
+
+        if (IsThrowActionActive)
+        {
+            gameplayAction = PlayerUpperBodyAction.Throwable;
+            return;
+        }
+
         bool usedMedical = medicalController != null && medicalController.HandleMedicalInput(fpsInput);
         if (usedMedical)
         {
+            weaponController?.InterruptActiveUpperBodyAction();
             gameplayAction = PlayerUpperBodyAction.Medical;
             return;
         }
@@ -98,6 +114,7 @@ public sealed class PlayerActionChannel : MonoBehaviour
         bool usedThrowable = throwableController != null && throwableController.HandleThrowableInput(fpsInput);
         if (usedThrowable)
         {
+            weaponController?.InterruptActiveUpperBodyAction();
             gameplayAction = PlayerUpperBodyAction.Throwable;
             return;
         }
@@ -138,7 +155,17 @@ public sealed class PlayerActionChannel : MonoBehaviour
             return PlayerUpperBodyAction.Medical;
         }
 
+        if (IsMedicalActionActive)
+        {
+            return PlayerUpperBodyAction.Medical;
+        }
+
         if (throwableController != null && throwableController.ThrowableTriggeredThisFrame)
+        {
+            return PlayerUpperBodyAction.Throwable;
+        }
+
+        if (IsThrowActionActive)
         {
             return PlayerUpperBodyAction.Throwable;
         }

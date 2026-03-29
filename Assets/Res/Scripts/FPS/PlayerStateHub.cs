@@ -236,6 +236,7 @@ public sealed class PlayerStateHub : MonoBehaviour
         PlayerUpperBodyAction upperBodyAction = actionChannel != null
             ? actionChannel.ResolveCurrentAction(isUiFocused, !isAlive)
             : ResolveFallbackUpperBodyAction(isUiFocused, !isAlive, isReloading, hasWeapon);
+        bool isBusyWithUtilityAction = upperBodyAction == PlayerUpperBodyAction.Medical || upperBodyAction == PlayerUpperBodyAction.Throwable;
 
         snapshot = new PlayerRuntimeStateSnapshot
         {
@@ -251,13 +252,13 @@ public sealed class PlayerStateHub : MonoBehaviour
             IsCrouching = movementModule != null && movementModule.IsCrouching,
             IsSprinting = movementModule != null && movementModule.IsSprinting,
             IsAiming = aimController != null && aimController.IsAiming,
-            CanAim = aimController != null && weaponController != null && weaponController.CanAimActiveWeapon,
+            CanAim = aimController != null && weaponController != null && weaponController.CanAimActiveWeapon && !isBusyWithUtilityAction,
             HasWeapon = hasWeapon,
             IsReloading = isReloading,
-            CanFire = CanFire(isAlive, isUiFocused, hasWeapon, isReloading),
-            CanReload = CanReload(isAlive, isUiFocused, hasWeaponHudState, weaponHudState, isReloading),
-            CanUseMedical = isAlive && !isUiFocused,
-            CanThrow = isAlive && !isUiFocused,
+            CanFire = CanFire(isAlive, isUiFocused, hasWeapon, isReloading, isBusyWithUtilityAction),
+            CanReload = CanReload(isAlive, isUiFocused, hasWeaponHudState, weaponHudState, isReloading, isBusyWithUtilityAction),
+            CanUseMedical = isAlive && !isUiFocused && !isBusyWithUtilityAction,
+            CanThrow = isAlive && !isUiFocused && !isBusyWithUtilityAction,
             ShowCrosshair = aimController == null || !aimController.ShouldHideHipFireCrosshair,
             ShowHitMarker = weaponController != null && weaponController.ShowHitMarker,
             HasHeavyBleed = playerVitals != null && playerVitals.HasHeavyBleed,
@@ -381,9 +382,9 @@ public sealed class PlayerStateHub : MonoBehaviour
         return hasWeapon ? PlayerUpperBodyAction.Weapon : PlayerUpperBodyAction.Idle;
     }
 
-    private static bool CanFire(bool isAlive, bool isUiFocused, bool hasWeapon, bool isReloading)
+    private static bool CanFire(bool isAlive, bool isUiFocused, bool hasWeapon, bool isReloading, bool isBusyWithUtilityAction)
     {
-        return isAlive && !isUiFocused && hasWeapon && !isReloading;
+        return isAlive && !isUiFocused && hasWeapon && !isReloading && !isBusyWithUtilityAction;
     }
 
     private static bool CanReload(
@@ -391,7 +392,8 @@ public sealed class PlayerStateHub : MonoBehaviour
         bool isUiFocused,
         bool hasWeaponHudState,
         PlayerWeaponController.WeaponHudState hudState,
-        bool isReloading)
+        bool isReloading,
+        bool isBusyWithUtilityAction)
     {
         return isAlive
             && !isUiFocused
@@ -399,6 +401,7 @@ public sealed class PlayerStateHub : MonoBehaviour
             && hudState.Definition != null
             && !hudState.Definition.IsMeleeWeapon
             && !isReloading
+            && !isBusyWithUtilityAction
             && hudState.MagazineAmmo < hudState.Definition.MagazineSize
             && hudState.ReserveAmmo > 0;
     }

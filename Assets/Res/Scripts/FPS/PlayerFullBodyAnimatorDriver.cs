@@ -16,6 +16,7 @@ public sealed class PlayerFullBodyAnimatorDriver : MonoBehaviour
     private static readonly int LandTriggerHash = Animator.StringToHash("Land");
     private static readonly int FireTriggerHash = Animator.StringToHash("Fire");
     private static readonly int ReloadTriggerHash = Animator.StringToHash("Reload");
+    private static readonly int MeleeTriggerHash = Animator.StringToHash("Melee");
     private static readonly int EquipTriggerHash = Animator.StringToHash("Equip");
     private static readonly int MedicalTriggerHash = Animator.StringToHash("Medical");
     private static readonly int ThrowTriggerHash = Animator.StringToHash("Throw");
@@ -58,7 +59,18 @@ public sealed class PlayerFullBodyAnimatorDriver : MonoBehaviour
 
         TriggerIfTrue(JumpTriggerHash, snapshot.JumpTriggered);
         TriggerIfTrue(LandTriggerHash, snapshot.LandTriggered);
-        TriggerIfTrue(FireTriggerHash, snapshot.FireTriggered);
+        if (snapshot.FireTriggered)
+        {
+            if (snapshot.WeaponCategory == PlayerWeaponCategory.Melee)
+            {
+                characterAnimator.SetTrigger(MeleeTriggerHash);
+            }
+            else
+            {
+                characterAnimator.SetTrigger(FireTriggerHash);
+            }
+        }
+
         TriggerIfTrue(ReloadTriggerHash, snapshot.ReloadTriggered);
         TriggerIfTrue(EquipTriggerHash, snapshot.EquipTriggered);
         TriggerIfTrue(MedicalTriggerHash, snapshot.MedicalTriggered);

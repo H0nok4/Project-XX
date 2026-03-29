@@ -93,11 +93,7 @@ public sealed class PlayerAimController : MonoBehaviour
             viewCamera.fieldOfView = Mathf.Lerp(hipFieldOfView, targetFieldOfView, aimBlend);
         }
 
-        if (weaponController != null)
-        {
-            weaponController.SetExternalSpreadMultiplier(Mathf.Lerp(1f, targetSpreadMultiplier, aimBlend));
-            weaponController.UpdateAimPresentation(aimBlend);
-        }
+        weaponController?.SetExternalSpreadMultiplier(Mathf.Lerp(1f, targetSpreadMultiplier, aimBlend));
     }
 
     public void ResetAimImmediately()
@@ -109,11 +105,7 @@ public sealed class PlayerAimController : MonoBehaviour
             viewCamera.fieldOfView = hipFieldOfView;
         }
 
-        if (weaponController != null)
-        {
-            weaponController.SetExternalSpreadMultiplier(1f);
-            weaponController.ResetAimPresentationImmediate();
-        }
+        weaponController?.SetExternalSpreadMultiplier(1f);
     }
 
     private bool CanAim(PrototypeFpsInput fpsInput, bool uiFocused)

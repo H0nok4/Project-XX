@@ -19,6 +19,7 @@ MonoBehaviour:
   itemLevel: 13
   requiredLevel: 11
   firstPersonViewPrefab: {fileID: 1020674589845976761, guid: cb800ad7d030e184e8bbf4e47a6537e6, type: 3}
+  presentationProfile: {fileID: 11400000, guid: e945164b33cc48d58ec7bd93cc476d3d, type: 2}
   equippedWorldPrefab: {fileID: 0}
   weaponBehavior: 0
   legacyMeleeWeapon: 0

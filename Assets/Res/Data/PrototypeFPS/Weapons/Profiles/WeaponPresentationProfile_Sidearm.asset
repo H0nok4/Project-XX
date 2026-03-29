@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04175660b05e4b3f8de75449cbb01437, type: 3}
+  m_Name: WeaponPresentationProfile_Sidearm
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponPresentationProfile
+  adsLocalPosition: {x: -0.18, y: 0.18, z: -0.48}
+  adsLocalEulerAngles: {x: 0, y: 0, z: 0}
+  fireKickBack: 0.03
+  fireKickPitch: 3.8
+  recoilReturnSpeed: 19
+  equipDuration: 0.18
+  equipDipDistance: 0.06
+  equipPitch: 8
+  reloadDuration: 0.28
+  reloadDipDistance: 0.045
+  reloadPitch: 11
+  meleeDuration: 0.16
+  meleeSwingDistance: 0.06
+  meleeSwingYaw: 14
+  locomotionBobFrequency: 7.2
+  locomotionBobVerticalAmplitude: 0.014
+  locomotionBobHorizontalAmplitude: 0.01
+  locomotionRollAmplitude: 1.8
+  locomotionPitchAmplitude: 1.35
+  aimSwayMultiplier: 0.38
+  locomotionSwaySmoothing: 15

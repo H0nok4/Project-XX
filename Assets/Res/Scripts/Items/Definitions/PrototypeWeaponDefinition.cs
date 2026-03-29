@@ -15,6 +15,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     [Range(ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel)]
     [SerializeField] private int requiredLevel = ItemDefinition.MinItemLevel;
     [SerializeField] private GameObject firstPersonViewPrefab;
+    [SerializeField] private WeaponPresentationProfile presentationProfile;
     [SerializeField] private GameObject equippedWorldPrefab;
     [SerializeField] private PrototypeWeaponBehaviorType weaponBehavior = PrototypeWeaponBehaviorType.Firearm;
     [FormerlySerializedAs("meleeWeapon")]
@@ -93,6 +94,7 @@ public class PrototypeWeaponDefinition : ItemDefinitionBase
     public override int MaxStackSize => 1;
     public override int RequiredLevel => Mathf.Clamp(requiredLevel, ItemDefinition.MinItemLevel, ItemDefinition.MaxItemLevel);
     public GameObject FirstPersonViewPrefab => firstPersonViewPrefab;
+    public WeaponPresentationProfile PresentationProfile => presentationProfile;
     public GameObject EquippedWorldPrefab => equippedWorldPrefab != null ? equippedWorldPrefab : firstPersonViewPrefab;
     public PrototypeWeaponBehaviorType WeaponBehavior => ResolveWeaponBehavior();
     public bool IsFirearmWeapon => WeaponBehavior == PrototypeWeaponBehaviorType.Firearm;

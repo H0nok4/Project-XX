@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04175660b05e4b3f8de75449cbb01437, type: 3}
+  m_Name: WeaponPresentationProfile_CombatKnife
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponPresentationProfile
+  adsLocalPosition: {x: 0, y: 0, z: 0}
+  adsLocalEulerAngles: {x: 0, y: 0, z: 0}
+  fireKickBack: 0
+  fireKickPitch: 0
+  recoilReturnSpeed: 18
+  equipDuration: 0.16
+  equipDipDistance: 0.05
+  equipPitch: 6
+  reloadDuration: 0.12
+  reloadDipDistance: 0
+  reloadPitch: 0
+  meleeDuration: 0.16
+  meleeSwingDistance: 0.1
+  meleeSwingYaw: 24
+  locomotionBobFrequency: 7.4
+  locomotionBobVerticalAmplitude: 0.02
+  locomotionBobHorizontalAmplitude: 0.014
+  locomotionRollAmplitude: 2.9
+  locomotionPitchAmplitude: 2.1
+  aimSwayMultiplier: 0.6
+  locomotionSwaySmoothing: 13
