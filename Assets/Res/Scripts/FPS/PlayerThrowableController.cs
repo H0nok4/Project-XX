@@ -10,7 +10,6 @@ public class PlayerThrowableController : MonoBehaviour
     [SerializeField] private float throwOriginUpOffset = -0.08f;
     [SerializeField] private float projectileScale = 0.16f;
     [SerializeField] private LayerMask explosionMask = Physics.DefaultRaycastLayers;
-    [SerializeField] private float throwActionDuration = 0.6f;
 
     private Camera viewCamera;
     private PrototypeUnitVitals playerVitals;
@@ -19,13 +18,11 @@ public class PlayerThrowableController : MonoBehaviour
     private PlayerSkillManager skillManager;
     private float nextThrowableUseTime;
     private float feedbackTimer;
-    private float throwActionTimer;
     private string feedbackMessage = string.Empty;
     private bool throwableTriggeredThisFrame;
 
     public string FeedbackMessage => feedbackMessage;
     public bool ThrowableTriggeredThisFrame => throwableTriggeredThisFrame;
-    public bool IsThrowActionActive => throwActionTimer > 0f;
 
     private void Awake()
     {
@@ -76,18 +73,15 @@ public class PlayerThrowableController : MonoBehaviour
 
     public void TickFeedback(float deltaTime)
     {
-        if (feedbackTimer > 0f)
+        if (feedbackTimer <= 0f)
         {
-            feedbackTimer -= deltaTime;
-            if (feedbackTimer <= 0f)
-            {
-                feedbackMessage = string.Empty;
-            }
+            return;
         }
 
-        if (throwActionTimer > 0f)
+        feedbackTimer -= deltaTime;
+        if (feedbackTimer <= 0f)
         {
-            throwActionTimer = Mathf.Max(0f, throwActionTimer - deltaTime);
+            feedbackMessage = string.Empty;
         }
     }
 
@@ -140,7 +134,6 @@ public class PlayerThrowableController : MonoBehaviour
 
         LaunchThrowable(extractedItem);
         nextThrowableUseTime = Time.time + weaponDefinition.ThrowableCooldown;
-        throwActionTimer = Mathf.Max(throwActionTimer, throwActionDuration);
         SetFeedback($"已投掷 {weaponDefinition.DisplayName}");
         throwableTriggeredThisFrame = true;
         return true;
@@ -352,7 +345,6 @@ public class PlayerThrowableController : MonoBehaviour
         feedbackLifetime = Mathf.Max(0.25f, feedbackLifetime);
         throwOriginForwardOffset = Mathf.Max(0f, throwOriginForwardOffset);
         projectileScale = Mathf.Clamp(projectileScale, 0.08f, 0.5f);
-        throwActionDuration = Mathf.Max(0.1f, throwActionDuration);
         if (explosionMask.value == 0 || explosionMask.value == ~0)
         {
             explosionMask = Physics.DefaultRaycastLayers;

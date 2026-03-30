@@ -46,12 +46,6 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private PlayerHudPresenter hudPresenter;
     [SerializeField] private PlayerActionChannel actionChannel;
     [SerializeField] private PlayerStateHub stateHub;
-    [SerializeField] private PlayerAnimationRigRefs animationRigRefs;
-    [SerializeField] private PlayerWeaponPresentationController weaponPresentationController;
-    [SerializeField] private PlayerFpArmsAnimatorDriver fpArmsAnimatorDriver;
-    [SerializeField] private PlayerFpArmsRightHandPoseCorrector fpArmsRightHandPoseCorrector;
-    [SerializeField] private PlayerFpArmsRightHandGripIkController fpArmsRightHandGripIkController;
-    [SerializeField] private PlayerThirdPersonWeaponPresentationController thirdPersonWeaponPresentationController;
 
     private PrototypeFpsMovementModule movementModule;
     private PrototypeFpsInput fpsInput;
@@ -96,12 +90,6 @@ public class PrototypeFpsController : MonoBehaviour
         hudPresenter = GetOrCreateHudPresenter();
         actionChannel = GetOrCreateActionChannel();
         stateHub = GetOrCreateStateHub();
-        animationRigRefs = GetOrCreateAnimationRigRefs();
-        weaponPresentationController = GetOrCreateWeaponPresentationController();
-        fpArmsAnimatorDriver = GetOrCreateFpArmsAnimatorDriver();
-        fpArmsRightHandPoseCorrector = GetOrCreateFpArmsRightHandPoseCorrector();
-        fpArmsRightHandGripIkController = GetOrCreateFpArmsRightHandGripIkController();
-        thirdPersonWeaponPresentationController = GetOrCreateThirdPersonWeaponPresentationController();
 
         ApplyControllerSettings();
 
@@ -139,11 +127,8 @@ public class PrototypeFpsController : MonoBehaviour
     {
         LockCursor(true);
         aimController?.ResetAimImmediately();
+        weaponController?.RefreshWeaponViewModels();
         stateHub?.RefreshSnapshot();
-        weaponPresentationController?.RefreshPresentation();
-        fpArmsRightHandPoseCorrector?.RefreshPose();
-        fpArmsRightHandGripIkController?.RefreshRig();
-        thirdPersonWeaponPresentationController?.RefreshPresentation();
         hudPresenter?.RefreshHud();
     }
 
@@ -151,7 +136,6 @@ public class PrototypeFpsController : MonoBehaviour
     {
         LockCursor(false);
         aimController?.ResetAimImmediately();
-        weaponPresentationController?.ResetPresentationImmediate();
         hudPresenter?.SetHudVisible(false);
     }
 
@@ -265,10 +249,6 @@ public class PrototypeFpsController : MonoBehaviour
             throwableController?.TickFeedback(Time.deltaTime);
             progressionRuntime?.TickFeedback(Time.deltaTime);
             stateHub?.RefreshSnapshot();
-            if (stateHub != null)
-            {
-                fpArmsRightHandGripIkController?.TickRig(stateHub.Snapshot, Time.deltaTime);
-            }
             hudPresenter?.RefreshHud();
             return;
         }
@@ -282,24 +262,11 @@ public class PrototypeFpsController : MonoBehaviour
             LockCursor(true);
         }
 
-        bool requestedMedicalAction = fpsInput.StopBleedPressedThisFrame
-            || fpsInput.SplintPressedThisFrame
-            || fpsInput.PainkillerPressedThisFrame
-            || fpsInput.QuickHealPressedThisFrame;
-        bool requestedThrowableAction = fpsInput.ThrowThrowablePressedThisFrame;
-        bool blocksUpperBodyInput = actionChannel != null && actionChannel.IsBlockingUpperBodyInput;
-        bool suppressWeaponInput = blocksUpperBodyInput || requestedMedicalAction || requestedThrowableAction;
-        bool suppressAimInput = suppressWeaponInput;
-
         lookController?.TickLook(fpsInput);
         HandleMovement();
 
-        if (!suppressWeaponInput)
-        {
-            weaponController?.HandleWeaponInput(fpsInput);
-        }
-
-        aimController?.TickAim(fpsInput, suppressAimInput);
+        weaponController?.HandleWeaponInput(fpsInput);
+        aimController?.TickAim(fpsInput, false);
         if (actionChannel != null)
         {
             actionChannel.ExecuteGameplayActions(fpsInput);
@@ -320,10 +287,6 @@ public class PrototypeFpsController : MonoBehaviour
         throwableController?.TickFeedback(Time.deltaTime);
         progressionRuntime?.TickFeedback(Time.deltaTime);
         stateHub?.RefreshSnapshot();
-        if (stateHub != null)
-        {
-            fpArmsRightHandGripIkController?.TickRig(stateHub.Snapshot, Time.deltaTime);
-        }
         hudPresenter?.RefreshHud();
     }
 
@@ -558,45 +521,6 @@ public class PrototypeFpsController : MonoBehaviour
                 actionChannel);
         }
 
-        if (weaponPresentationController != null)
-        {
-            weaponPresentationController.ApplyHostSettings(
-                animationRigRefs,
-                stateHub,
-                weaponController,
-                primaryViewModel,
-                secondaryViewModel,
-                meleeViewModel);
-        }
-
-        if (fpArmsAnimatorDriver != null)
-        {
-            fpArmsAnimatorDriver.ApplyHostSettings(
-                animationRigRefs,
-                stateHub,
-                animationRigRefs != null ? animationRigRefs.FirstPersonArmsAnimator : null);
-        }
-
-        if (fpArmsRightHandPoseCorrector != null)
-        {
-            fpArmsRightHandPoseCorrector.ApplyHostSettings(animationRigRefs, stateHub, weaponController);
-        }
-
-        if (fpArmsRightHandGripIkController != null)
-        {
-            fpArmsRightHandGripIkController.ApplyHostSettings(
-                animationRigRefs,
-                stateHub,
-                weaponController,
-                primaryViewModel,
-                secondaryViewModel);
-        }
-
-        if (thirdPersonWeaponPresentationController != null)
-        {
-            thirdPersonWeaponPresentationController.ApplyHostSettings(animationRigRefs, stateHub, weaponController);
-        }
-
         if (hudPresenter != null)
         {
             hudPresenter.ApplyHostSettings(showHud, stateHub);
@@ -723,88 +647,6 @@ public class PrototypeFpsController : MonoBehaviour
         return hub;
     }
 
-    private PlayerAnimationRigRefs GetOrCreateAnimationRigRefs()
-    {
-        PlayerAnimationRigRefs refs = animationRigRefs != null ? animationRigRefs : GetComponent<PlayerAnimationRigRefs>();
-        if (refs == null)
-        {
-            refs = gameObject.AddComponent<PlayerAnimationRigRefs>();
-        }
-
-        animationRigRefs = refs;
-        return refs;
-    }
-
-    private PlayerWeaponPresentationController GetOrCreateWeaponPresentationController()
-    {
-        PlayerWeaponPresentationController controller = weaponPresentationController != null
-            ? weaponPresentationController
-            : GetComponent<PlayerWeaponPresentationController>();
-        if (controller == null)
-        {
-            controller = gameObject.AddComponent<PlayerWeaponPresentationController>();
-        }
-
-        weaponPresentationController = controller;
-        return controller;
-    }
-
-    private PlayerFpArmsAnimatorDriver GetOrCreateFpArmsAnimatorDriver()
-    {
-        PlayerFpArmsAnimatorDriver driver = fpArmsAnimatorDriver != null
-            ? fpArmsAnimatorDriver
-            : GetComponent<PlayerFpArmsAnimatorDriver>();
-        if (driver == null)
-        {
-            driver = gameObject.AddComponent<PlayerFpArmsAnimatorDriver>();
-        }
-
-        fpArmsAnimatorDriver = driver;
-        return driver;
-    }
-
-    private PlayerFpArmsRightHandPoseCorrector GetOrCreateFpArmsRightHandPoseCorrector()
-    {
-        PlayerFpArmsRightHandPoseCorrector corrector = fpArmsRightHandPoseCorrector != null
-            ? fpArmsRightHandPoseCorrector
-            : GetComponent<PlayerFpArmsRightHandPoseCorrector>();
-        if (corrector == null)
-        {
-            corrector = gameObject.AddComponent<PlayerFpArmsRightHandPoseCorrector>();
-        }
-
-        fpArmsRightHandPoseCorrector = corrector;
-        return corrector;
-    }
-
-    private PlayerFpArmsRightHandGripIkController GetOrCreateFpArmsRightHandGripIkController()
-    {
-        PlayerFpArmsRightHandGripIkController controller = fpArmsRightHandGripIkController != null
-            ? fpArmsRightHandGripIkController
-            : GetComponent<PlayerFpArmsRightHandGripIkController>();
-        if (controller == null)
-        {
-            controller = gameObject.AddComponent<PlayerFpArmsRightHandGripIkController>();
-        }
-
-        fpArmsRightHandGripIkController = controller;
-        return controller;
-    }
-
-    private PlayerThirdPersonWeaponPresentationController GetOrCreateThirdPersonWeaponPresentationController()
-    {
-        PlayerThirdPersonWeaponPresentationController controller = thirdPersonWeaponPresentationController != null
-            ? thirdPersonWeaponPresentationController
-            : GetComponent<PlayerThirdPersonWeaponPresentationController>();
-        if (controller == null)
-        {
-            controller = gameObject.AddComponent<PlayerThirdPersonWeaponPresentationController>();
-        }
-
-        thirdPersonWeaponPresentationController = controller;
-        return controller;
-    }
-
     private void LockCursor(bool shouldLock)
     {
         Cursor.lockState = shouldLock ? CursorLockMode.Locked : CursorLockMode.None;
@@ -904,36 +746,6 @@ public class PrototypeFpsController : MonoBehaviour
             stateHub = GetComponent<PlayerStateHub>();
         }
 
-        if (animationRigRefs == null)
-        {
-            animationRigRefs = GetComponent<PlayerAnimationRigRefs>();
-        }
-
-        if (weaponPresentationController == null)
-        {
-            weaponPresentationController = GetComponent<PlayerWeaponPresentationController>();
-        }
-
-        if (fpArmsAnimatorDriver == null)
-        {
-            fpArmsAnimatorDriver = GetComponent<PlayerFpArmsAnimatorDriver>();
-        }
-
-        if (fpArmsRightHandPoseCorrector == null)
-        {
-            fpArmsRightHandPoseCorrector = GetComponent<PlayerFpArmsRightHandPoseCorrector>();
-        }
-
-        if (fpArmsRightHandGripIkController == null)
-        {
-            fpArmsRightHandGripIkController = GetComponent<PlayerFpArmsRightHandGripIkController>();
-        }
-
-        if (thirdPersonWeaponPresentationController == null)
-        {
-            thirdPersonWeaponPresentationController = GetComponent<PlayerThirdPersonWeaponPresentationController>();
-        }
-
 #if UNITY_EDITOR
         if (!Application.isPlaying && movementModule == null)
         {
@@ -1001,48 +813,6 @@ public class PrototypeFpsController : MonoBehaviour
         if (!Application.isPlaying && stateHub == null)
         {
             stateHub = gameObject.AddComponent<PlayerStateHub>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && animationRigRefs == null)
-        {
-            animationRigRefs = gameObject.AddComponent<PlayerAnimationRigRefs>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && weaponPresentationController == null)
-        {
-            weaponPresentationController = gameObject.AddComponent<PlayerWeaponPresentationController>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && fpArmsAnimatorDriver == null)
-        {
-            fpArmsAnimatorDriver = gameObject.AddComponent<PlayerFpArmsAnimatorDriver>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && fpArmsRightHandPoseCorrector == null)
-        {
-            fpArmsRightHandPoseCorrector = gameObject.AddComponent<PlayerFpArmsRightHandPoseCorrector>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && fpArmsRightHandGripIkController == null)
-        {
-            fpArmsRightHandGripIkController = gameObject.AddComponent<PlayerFpArmsRightHandGripIkController>();
-            UnityEditor.EditorUtility.SetDirty(gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-        }
-
-        if (!Application.isPlaying && thirdPersonWeaponPresentationController == null)
-        {
-            thirdPersonWeaponPresentationController = gameObject.AddComponent<PlayerThirdPersonWeaponPresentationController>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }

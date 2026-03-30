@@ -8,19 +8,16 @@ public class PlayerMedicalController : MonoBehaviour
     [SerializeField] private bool useHostSettings = true;
     [SerializeField] private float medicalUseCooldown = 0.28f;
     [SerializeField] private float medicalFeedbackLifetime = 1.4f;
-    [SerializeField] private float medicalActionDuration = 0.85f;
 
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer inventory;
     private float nextMedicalUseTime;
     private float medicalFeedbackTimer;
-    private float medicalActionTimer;
     private string medicalFeedbackMessage = string.Empty;
     private bool medicalTriggeredThisFrame;
 
     public string FeedbackMessage => medicalFeedbackMessage;
     public bool MedicalTriggeredThisFrame => medicalTriggeredThisFrame;
-    public bool IsMedicalActionActive => medicalActionTimer > 0f;
 
     private void Awake()
     {
@@ -98,18 +95,15 @@ public class PlayerMedicalController : MonoBehaviour
 
     public void TickFeedback(float deltaTime)
     {
-        if (medicalFeedbackTimer > 0f)
+        if (medicalFeedbackTimer <= 0f)
         {
-            medicalFeedbackTimer -= deltaTime;
-            if (medicalFeedbackTimer <= 0f)
-            {
-                medicalFeedbackMessage = string.Empty;
-            }
+            return;
         }
 
-        if (medicalActionTimer > 0f)
+        medicalFeedbackTimer -= deltaTime;
+        if (medicalFeedbackTimer <= 0f)
         {
-            medicalActionTimer = Mathf.Max(0f, medicalActionTimer - deltaTime);
+            medicalFeedbackMessage = string.Empty;
         }
     }
 
@@ -247,7 +241,6 @@ public class PlayerMedicalController : MonoBehaviour
         }
 
         nextMedicalUseTime = Time.time + medicalUseCooldown;
-        medicalActionTimer = Mathf.Max(medicalActionTimer, medicalActionDuration);
         SetMedicalFeedback($"已使用 {bestMedicalItem.DisplayName}");
         return true;
     }
@@ -297,7 +290,6 @@ public class PlayerMedicalController : MonoBehaviour
     {
         medicalUseCooldown = Mathf.Max(0.05f, medicalUseCooldown);
         medicalFeedbackLifetime = Mathf.Max(0.25f, medicalFeedbackLifetime);
-        medicalActionDuration = Mathf.Max(0.1f, medicalActionDuration);
     }
 
     private void ResolveReferences()

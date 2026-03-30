@@ -20,9 +20,9 @@
 
 ## 1.1 当前已落地边界
 
-更新时间：`2026-03-29`
+更新时间：`2026-03-28`
 
-当前工程里已经完成了框架落地的前五步基础版，并启动了阶段 6 的第一步拆分，后续制作可以直接建立在这些边界之上：
+当前工程里已经完成了框架落地的前三步基础版，后续制作可以直接建立在这些边界之上：
 
 1. `FpsPlayer.prefab` 已完成阶段 0 的预制体整理：
    - 命中盒 Rig 与可见角色 Rig 已分开命名。
@@ -40,42 +40,8 @@
    - `CharacterVisualRig` 已绑定 `Animator`、Generic Avatar 与 `FpsPlayerFullBody.controller`。
    - 已新增 `PlayerFullBodyAnimatorDriver`，把 `PlayerStateHub` 快照映射为 Animator 参数。
    - 已基于 `Assets/Res/Packages/素体.fbx` 生成可直接使用的基础 locomotion / jump / death / aim / fire / reload 占位动画资源。
-5. 阶段 4 的第一人称表现层基础版已经落地：
-   - 已新增 `PlayerWeaponPresentationController`，负责第一人称视图模型显隐、ADS pose 和基础动作偏移。
-   - 已新增 `PlayerFpArmsAnimatorDriver`，并为 `FPArmsRig` 绑定独立的 `FpsPlayerFpArms.controller`。
-   - 第一人称手臂已接入基础 locomotion blend，移动时不再停留在纯待机 pose。
-   - 近战武器挂点已切到第一人称右手 `MeleeWeaponSocket`，近战武器会跟随手臂动作一起运动。
-   - `FPArmsRig` 已补充程序化 locomotion sway，第一人称移动反馈不再完全依赖动作 clip 可见度。
-   - `MeleeWeaponSocket` 已增加缩放补偿，近战武器不会再因骨骼链缩放而异常放大。
-   - 第三人称 `UpperBody` AvatarMask 已修正为相对 Animator 根路径，`Fire / Reload / Melee` 上半身动作可以真正覆盖到可见身体。
-   - 已新增 `PlayerThirdPersonWeaponPresentationController`，把当前手持武器挂到第三人称右手 socket，并递归设为 `LocalFullBody` layer 供镜像类场景使用。
-   - `PlayerAimController -> PlayerWeaponController.UpdateAimPresentation` 的旧表现链路已经切断，当前第一人称表现主要经由 `PlayerStateHub` 驱动。
-6. 阶段 5 的医疗 / 投掷统一上半身动作基础版已经落地：
-   - `PlayerMedicalController` 与 `PlayerThrowableController` 已补上动作持续时间，`PlayerActionChannel` 会把它们视为明确的上半身动作占用状态，而不再只是“一帧触发”。
-   - `PrototypeFpsController` 现在会在医疗 / 投掷请求或动作持续期间抑制切枪、换弹、开火与 ADS 输入。
-   - 医疗 / 投掷开始时会中断当前武器的换弹和残留 burst，避免动作结束后出现“后台补完换弹 / 连发”的状态错位。
-   - `PlayerStateHub` 已把 `CanAim / CanFire / CanReload` 与 utility action 对齐，HUD、动画与玩法层对当前可执行动作的认知更加一致。
-   - 第一人称 `FpsPlayerFpArms.controller` 与第三人称 `FpsPlayerFullBody.controller` 已补上 `Medical / Throw` 状态与触发器，当前使用占位 clip：`FpsPlayer_Medical.anim`、`FpsPlayer_Throw.anim`。
-   - 第一人称与第三人称武器表现层都会在 `Medical / Throwable` 上半身动作期间隐藏武器视图，避免镜头内外同时争抢持枪动作。
-   - 当前这一步是“文件级补齐 + 占位动画接入”的基础版，后续仍建议在 Unity Editor 恢复正常后做一次 Play Mode 验收，确认状态机资源导入没有被域重载打断。
-7. 阶段 6 的第一步模块拆分已经启动：
-   - 已新增 `PlayerLocomotionPresentation`，负责第一人称视角高度同步、head bob 和本地移动镜头表现。
-   - 已新增 `PlayerMovementNoiseEmitter`，负责步行 / 冲刺 / 起跳 / 落地噪声上报。
-   - `PrototypeFpsMovementModule` 当前已把视角摆动与噪声发射委托给以上两个组件，自身开始回收为“位移 / 体力 / 跳跃 / 蹲伏”的权威运动层。
-   - 当前为了兼容既有调参路径，移动表现和噪声参数仍由 `PrototypeFpsMovementModule` 持有，再下一个阶段可以继续迁移到独立配置或表现组件自身。
-   - 已新增 `WeaponPresentationProfile`，并让 `PrototypeWeaponDefinition` / `PlayerWeaponPresentationController` 支持按武器覆盖 ADS fallback、recoil、equip / reload / melee motion 以及 locomotion sway 参数。
-   - 当前 profile 支持已经接入代码，但现有武器资源还没有系统化补齐对应资产，后续主要工作将转为“补 profile 资产”和“细调每把枪的表现参数”。
-   - 新组件当前由 `PrototypeFpsMovementModule` 在缺失时自动补齐；等 Unity Editor 工具恢复后，建议把它们显式序列化进 `FpsPlayer.prefab`。
-   - 已接入 `com.unity.animation.rigging@1.4.1`，并新增 `PlayerFpArmsLeftHandIkController` 作为第一人称左手 IK 控制层。
-   - `FpsPlayer.prefab` 的 `FPArmsRig` 下已建立 `FPLeftHandIKRig / FPLeftHandIKConstraint / FPLeftHandIKTarget / FPLeftHandIKHint`，当前由 `TwoBoneIKConstraint` 驱动左手贴合武器。
-   - `WeaponView_Primary.prefab` 与 `WeaponView_Secondary.prefab` 已补充 `LeftHandIK` 节点，运行时会按当前活动武器自动切换左手目标。
-   - 当前这一步仍是“左手 IK 基础版”：右手依旧由基础持枪动画和武器挂点驱动，后续主要工作是逐把枪细调 `LeftHandIK` 节点、约束权重，以及在换弹 / 检视等复杂动作里进一步做权重切换。
-   - 已新增 `PlayerFpArmsRightHandPoseCorrector`，作为第一人称右手持枪姿态的运行时补形层；当前它只在武器未提供 `RightHandGrip` 时兜底，不再与握把 IK 抢控制权。
-   - 已新增 `PlayerFpArmsRightHandGripIkController`，并为主武器 / 副武器 prefab 增加 `RightHandGrip` 节点，当前右手主控已切到“握把目标点 + TwoBoneIK”方案。
-   - `FpsPlayer.prefab` 的 `FPArmsRig` 下已建立 `FPRightHandIKRig / FPRightHandIKConstraint / FPRightHandIKTarget / FPRightHandIKHint`，第一人称主手会优先贴合当前武器的 `RightHandGrip`。
-   - 当前右手链路的推荐分工已经稳定为：`RightHandGrip` 决定主手落点，`PlayerFpArmsRightHandPoseCorrector` 仅在缺少握把节点的武器上做旧动画兜底；长期仍建议继续补更明确的 `RifleHip / RifleADS / PistolHip / PistolADS` 基础动画资源。
 
-因此，后续阶段 6 继续新增的武器专属动作树、`WeaponPresentationProfile`、更细的 sway / recoil / IK 配置，都应默认建立在 `PlayerStateHub` 和 `PlayerActionChannel` 之上，而不是重新把状态判断塞回 `PrototypeFpsController`。
+因此，后续阶段 4 以后新增的第一人称手臂 Animator Driver、武器表现层、医疗/投掷动作表现层，都应默认建立在 `PlayerStateHub` 和 `PlayerActionChannel` 之上，而不是重新把状态判断塞回 `PrototypeFpsController`。
 
 ---
 
@@ -441,10 +407,6 @@ PrototypeFpsInput
 - Sway 参数
 - Equip / Reload / Fire 动画配置
 - 左手 IK 目标
-
-具体制作规范与对位流程见：
-
-- `Docs/FpsFirstPersonWeaponAlignmentStandard.md`
 
 这样武器玩法定义与武器表现定义就能分离。
 

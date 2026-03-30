@@ -19,7 +19,6 @@ MonoBehaviour:
   description: 适合近距离快速处决的近战利刃。
   meleeWeapon: 1
   firstPersonViewPrefab: {fileID: 6718470744713980426, guid: 3877bc8891fd2944faa693cbe0139df9, type: 3}
-  presentationProfile: {fileID: 11400000, guid: bcc1192148d947be894a7595a8134911, type: 2}
   ammoDefinition: {fileID: 0}
   magazineSize: 30
   reloadDuration: 2

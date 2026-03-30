@@ -13,7 +13,7 @@
 
 ## 1.1 当前进度与续接点
 
-更新时间：`2026-03-29`
+更新时间：`2026-03-28`
 
 ### 当前进度
 
@@ -23,9 +23,7 @@
 | 阶段 1 | 已完成 | `PrototypeFpsController` 已抽离 `PlayerLookController` 与 `PlayerHudPresenter`，主控制器开始退回协调入口。 |
 | 阶段 2 | 已完成 | 已新增 `PlayerStateHub`、`PlayerActionChannel`，并让 `PlayerHudPresenter` 改为只依赖状态快照。 |
 | 阶段 3 | 基础版已完成 | 已接入第三人称 `Animator`、`PlayerFullBodyAnimatorDriver`、基础 locomotion / jump / death 状态机，以及上半身 aim / fire / reload 占位层。 |
-| 阶段 4 | 基础版已完成 | 已新增第一人称武器表现控制器、第一人称手臂 Animator Driver，并接入独立 FP Arms Animator Controller。 |
-| 阶段 5 | 基础版已完成 | 医疗 / 投掷已接入统一上半身动作状态，第一人称与第三人称 Animator 已补上 `Medical / Throw` 占位状态，HUD 与输入抑制已与玩法层对齐。 |
-| 阶段 6 | 已启动 | 已拆出 `PlayerLocomotionPresentation` 与 `PlayerMovementNoiseEmitter`，并已接入第一人称左手 IK 基础设施，`PrototypeFpsMovementModule` 开始从“运动 + 表现 + 噪声”回收到“运动权威层”。 |
+| 阶段 4 | 未开始 | 下一步进入第一人称手臂与武器表现层拆分。 |
 
 ### 当前代码落点
 
@@ -39,26 +37,12 @@
 - 全身动画驱动：`Assets/Res/Scripts/FPS/PlayerFullBodyAnimatorDriver.cs`
 - 第三人称 Animator Controller：`Assets/Res/Animations/FPS/FpsPlayerFullBody.controller`
 - 动画占位资源：`Assets/Res/Animations/FPS/Clips/*.anim`
-- 武器表现层：`Assets/Res/Scripts/FPS/PlayerWeaponPresentationController.cs`
-- 第一人称手臂驱动：`Assets/Res/Scripts/FPS/PlayerFpArmsAnimatorDriver.cs`
-- 第一人称左手 IK：`Assets/Res/Scripts/FPS/PlayerFpArmsLeftHandIkController.cs`
-- 第一人称右手姿态修正：`Assets/Res/Scripts/FPS/PlayerFpArmsRightHandPoseCorrector.cs`
-- 第一人称右手握把 IK：`Assets/Res/Scripts/FPS/PlayerFpArmsRightHandGripIkController.cs`
-- 第一人称手臂 Controller：`Assets/Res/Animations/FPS/FpsPlayerFpArms.controller`
-- 第三人称本地武器表现层：`Assets/Res/Scripts/FPS/PlayerThirdPersonWeaponPresentationController.cs`
-- 医疗 / 投掷占位动作：`Assets/Res/Animations/FPS/Clips/FpsPlayer_Medical.anim`、`Assets/Res/Animations/FPS/Clips/FpsPlayer_Throw.anim`
-- 移动表现层：`Assets/Res/Scripts/FPS/PlayerLocomotionPresentation.cs`
-- 移动噪声发射层：`Assets/Res/Scripts/FPS/PlayerMovementNoiseEmitter.cs`
-- 武器表现配置：`Assets/Res/Scripts/FPS/WeaponPresentationProfile.cs`
-- 第一人称武器对位规范：`Docs/FpsFirstPersonWeaponAlignmentStandard.md`
 
 ### 下次继续时的建议起点
 
-1. 继续阶段 6，优先逐把枪细调 `LeftHandIK` / `RightHandGrip` 节点，以及 `PlayerFpArmsLeftHandIkController` / `PlayerFpArmsRightHandGripIkController` 的权重与 hint 偏移，让双手姿态真正贴合模型。
-2. 为当前主武器 / 副武器 / 近战资源继续补齐 `WeaponPresentationProfile` 资产，把不同枪械的 recoil / sway / sprint pose 参数真正分开调。
-3. 把移动表现与噪声参数从 `PrototypeFpsMovementModule` 继续下沉到独立组件或配置资产，减少运动模块继续持有表现参数。
-4. 中长期把右手兜底修正层回收到更明确的基础手臂动画资源中，避免完全依赖运行时骨骼偏移。
-5. 在 Unity Editor 工具恢复后，把 `PlayerLocomotionPresentation` / `PlayerMovementNoiseEmitter` 显式序列化进 `FpsPlayer.prefab`，并补做 Play Mode 回归。
+1. 从阶段 4 开始，拆出第一人称武器表现控制器与手臂 Animator Driver。
+2. 优先把 `ADS / Fire / Reload / Equip` 从 `PlayerWeaponController` 的表现职责中抽离。
+3. 继续保持玩法权威不变，表现层只消费 `PlayerStateHub` 和动作事件，不反向驱动伤害、位移和弹药。
 
 ---
 
@@ -330,22 +314,6 @@ PlayerAimController
 - 换弹整体动作
 - 近战挥击
 
-### 当前落地情况（2026-03-29）
-
-- 已新增 `PlayerWeaponPresentationController`，负责第一人称武器视图模型实例化、切枪显隐、ADS pose 和基础 recoil / equip / reload / melee 表现。
-- 已新增 `PlayerFpArmsAnimatorDriver`，负责把 `PlayerStateHub` 的快照映射到第一人称手臂 Animator 参数。
-- 已建立独立的第一人称手臂 Animator Controller：`Assets/Res/Animations/FPS/FpsPlayerFpArms.controller`。
-- 已新增 `FpsPlayer_Melee.anim`，并把第一人称手臂基础占位动作链扩充为 `Aim / Fire / Reload / Melee / Sprint`。
-- 已补上第一人称手臂的移动 locomotion blend，移动时不再停留在站立待机 pose。
-- 已把 `WeaponView_Melee` 绑定到 `FPArmsRig` 的右手 `MeleeWeaponSocket`，近战武器会跟随手臂动作一起运动。
-- 已为 `FPArmsRig` 补充程序化 locomotion sway，保证第一人称移动时有稳定可见的摆臂/抖动反馈。
-- 已为 `MeleeWeaponSocket` 增加缩放补偿，近战武器挂到右手后不会再被骨骼链放大。
-- 已修正第三人称 `UpperBody` AvatarMask 路径为相对 Animator 根路径，避免开火 / 换弹 / 近战触发被上半身层吞掉。
-- 已为第三人称全身 Animator 补上 `Melee` 动作状态，并让 `PlayerFullBodyAnimatorDriver` 区分枪械开火与近战挥击触发。
-- 已新增 `PlayerThirdPersonWeaponPresentationController`，把当前手持武器挂到第三人称右手 `ThirdPersonWeaponSocket`，并递归设置为 `LocalFullBody` layer，供镜子等本地可见身体场景使用。
-- 已切断旧链路 `PlayerAimController -> PlayerWeaponController.UpdateAimPresentation`，当前第一人称表现不再由 `PlayerWeaponController` 直接驱动。
-- 当前仍属于基础版：`WeaponPresentationProfile`、武器专属动作树和更细的 sway / recoil 配置仍待后续继续细化。
-
 ### 完成标准
 
 - 第一人称表现不再由 `PlayerWeaponController` 直接驱动。
@@ -378,17 +346,6 @@ PlayerAimController
    - 医疗期间是否允许切枪
    - 投掷期间是否允许 ADS
    - 冲刺是否强制退出医疗 / 投掷
-
-### 当前落地情况（2026-03-29）
-
-- `PlayerMedicalController` 与 `PlayerThrowableController` 已补上动作持续计时，`PlayerActionChannel` 现在会把它们视为持续的上半身动作状态，而不只是单帧触发。
-- `PrototypeFpsController` 已在医疗 / 投掷请求或动作持续期间抑制切枪、换弹、开火和 ADS 输入，避免 utility action 与武器动作并发。
-- 医疗 / 投掷开始时会调用 `PlayerWeaponController.InterruptActiveUpperBodyAction()`，中断当前换弹和残留 burst，避免动作结束后补跑旧武器动作。
-- `PlayerStateHub` 已将 `CanAim / CanFire / CanReload / CanUseMedical / CanThrow` 与 utility action 对齐，HUD 与玩法层的动作可用性状态更加一致。
-- 第一人称武器表现层与第三人称本地武器表现层都会在 `Medical / Throwable` 动作期间隐藏武器，避免人物和镜像里仍保持持枪姿态。
-- `FpsPlayerFpArms.controller` 与 `FpsPlayerFullBody.controller` 已补上 `Medical / Throw` 状态和 AnyState 触发器，并接入占位动作 `FpsPlayer_Medical.anim`、`FpsPlayer_Throw.anim`。
-- 当前动作资源仍是占位版，后续可以继续替换为更贴近医疗包 / 投掷物使用流程的专属动作。
-- 受 Unity MCP 域重载后返回空响应影响，这一轮主要做了文件级落地与结构校验；仍建议在编辑器恢复后做一次 Play Mode 人工验收。
 
 ### 完成标准
 
@@ -428,20 +385,6 @@ PlayerAimController
 5. 增加脚步动画事件与声音联动。
 6. 增加受击方向动画、死亡方向动画、倒地表现。
 
-### 当前落地情况（2026-03-29）
-
-- 已新增 `PlayerLocomotionPresentation`，把第一人称视角高度同步、head bob 和本地镜头摆动从 `PrototypeFpsMovementModule` 中抽离。
-- 已新增 `PlayerMovementNoiseEmitter`，把步行 / 冲刺 / 起跳 / 落地噪声发射从 `PrototypeFpsMovementModule` 中抽离。
-- `PrototypeFpsMovementModule` 现在已把视角摆动和噪声上报委托给上述组件，本体开始回收到运动学权威逻辑。
-- 这一轮为了保留现有调参手感，head bob / 蹲起镜头 / 噪声半径等参数暂时仍在 `PrototypeFpsMovementModule` 中作为 host settings 存放。
-- 已新增 `WeaponPresentationProfile`，并让 `PrototypeWeaponDefinition` 可以挂接对应 profile；`PlayerWeaponPresentationController` 在 profile 存在时会优先使用武器自身的 ADS fallback、recoil、equip / reload / melee motion 与 locomotion sway 参数。
-- 已为当前主武器 / 副武器 / 近战及其学校 / 医院变体补上首批 profile 资产：
-  - `WeaponPresentationProfile_Carbine`
-  - `WeaponPresentationProfile_Sidearm`
-  - `WeaponPresentationProfile_CombatKnife`
-- 当前新组件采用自动补齐方式挂接，后续建议在编辑器恢复后显式挂到 `FpsPlayer.prefab` 并完成人工验收。
-- 当前仍未完成的是“给现有武器系统化补 profile 资产”以及 IK / 更细换弹阶段等内容，这是下一续接重点。
-
 ### 完成标准
 
 - 后续加入新枪、新动作、新人物技能时，主要是加状态和加资产，而不是回头修改主控制器大逻辑。
@@ -456,9 +399,9 @@ PlayerAimController
 | 阶段 1 | `PlayerLookController`、`PlayerHudPresenter` | 无强制 | 原有玩法无回归 | 已完成 |
 | 阶段 2 | `PlayerStateHub`、`PlayerActionChannel` | 无强制 | 状态一致性验证 | 已完成 |
 | 阶段 3 | `PlayerFullBodyAnimatorDriver` | FullBody Animator Controller | 第三人称移动 / 开火 / 死亡 | 基础版已完成 |
-| 阶段 4 | `PlayerWeaponPresentationController`、`PlayerFpArmsAnimatorDriver` | FP Arms Animator Controller、武器表现配置 | 第一人称 ADS / Fire / Reload | 基础版已完成 |
-| 阶段 5 | 医疗 / 投掷动作接入 | 医疗 / 投掷动画资源 | 上半身动作互斥验证 | 基础版已完成 |
-| 阶段 6 | 进一步模块拆分与表现参数化 | Recoil / Sway / IK / 细节动画资源 | 长线稳定性验证 | 已启动 |
+| 阶段 4 | `PlayerWeaponPresentationController`、`PlayerFpArmsAnimatorDriver` | FP Arms Animator Controller、武器表现配置 | 第一人称 ADS / Fire / Reload | 未开始 |
+| 阶段 5 | 医疗 / 投掷动作接入 | 医疗 / 投掷动画资源 | 上半身动作互斥验证 | 未开始 |
+| 阶段 6 | 进一步模块拆分与表现参数化 | Recoil / Sway / IK / 细节动画资源 | 长线稳定性验证 | 未开始 |
 
 ---
 

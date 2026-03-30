@@ -8,7 +8,6 @@ public class PlayerAnimationRigRefs : MonoBehaviour
     [SerializeField] private Transform characterVisualRigRoot;
     [SerializeField] private Animator characterVisualAnimator;
     [SerializeField] private Transform firstPersonArmsRigRoot;
-    [SerializeField] private Animator firstPersonArmsAnimator;
 
     [Header("View")]
     [SerializeField] private Camera viewCamera;
@@ -23,7 +22,6 @@ public class PlayerAnimationRigRefs : MonoBehaviour
     public Transform CharacterVisualRigRoot => characterVisualRigRoot;
     public Animator CharacterVisualAnimator => characterVisualAnimator;
     public Transform FirstPersonArmsRigRoot => firstPersonArmsRigRoot;
-    public Animator FirstPersonArmsAnimator => firstPersonArmsAnimator;
     public Camera ViewCamera => viewCamera;
     public Transform Muzzle => muzzle;
     public Transform PrimaryWeaponViewAnchor => primaryWeaponViewAnchor;
@@ -36,11 +34,6 @@ public class PlayerAnimationRigRefs : MonoBehaviour
         if (characterVisualAnimator == null && characterVisualRigRoot != null)
         {
             characterVisualAnimator = characterVisualRigRoot.GetComponentInChildren<Animator>(true);
-        }
-
-        if (firstPersonArmsAnimator == null && firstPersonArmsRigRoot != null)
-        {
-            firstPersonArmsAnimator = firstPersonArmsRigRoot.GetComponentInChildren<Animator>(true);
         }
     }
 #endif

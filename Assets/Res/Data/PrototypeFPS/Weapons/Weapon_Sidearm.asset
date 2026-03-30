@@ -19,7 +19,6 @@ MonoBehaviour:
   description: 一把可靠的半自动备用手枪。
   meleeWeapon: 0
   firstPersonViewPrefab: {fileID: 1020674589845976761, guid: cb800ad7d030e184e8bbf4e47a6537e6, type: 3}
-  presentationProfile: {fileID: 11400000, guid: e945164b33cc48d58ec7bd93cc476d3d, type: 2}
   ammoDefinition: {fileID: 11400000, guid: ed11aa65e02e7884f80a957b93a4003d, type: 2}
   firearmDamage: 85
   magazineSize: 15
