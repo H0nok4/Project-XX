@@ -11,6 +11,7 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private InventoryContainer secureInventory;
     [SerializeField] private InventoryContainer specialInventory;
     [SerializeField] private PlayerInteractionState interactionState;
+    [SerializeField] private PlayerAimPointResolver aimPointResolver;
 
     [Header("Query")]
     [SerializeField] private float interactDistance = 3f;
@@ -28,7 +29,9 @@ public class PlayerInteractor : MonoBehaviour
     public InventoryContainer PrimaryInventory => primaryInventory;
     public InventoryContainer SecureInventory => secureInventory;
     public InventoryContainer SpecialInventory => specialInventory;
-    public Camera InteractionCamera => interactionCamera;
+    public Camera InteractionCamera => aimPointResolver != null && aimPointResolver.ActiveAimCamera != null
+        ? aimPointResolver.ActiveAimCamera
+        : interactionCamera;
     public IInteractable CurrentInteractable => currentQuery.Interactable;
     public bool HasInteractionTarget => currentQuery.HasValue;
 
@@ -110,12 +113,14 @@ public class PlayerInteractor : MonoBehaviour
     {
         currentQuery = default;
 
-        if (interactionCamera == null)
+        if (interactionCamera == null && aimPointResolver == null)
         {
             return;
         }
 
-        Ray ray = new Ray(interactionCamera.transform.position, interactionCamera.transform.forward);
+        Ray ray = aimPointResolver != null
+            ? aimPointResolver.CurrentAimRay
+            : new Ray(interactionCamera.transform.position, interactionCamera.transform.forward);
         RaycastHit[] hits = Physics.RaycastAll(ray, interactDistance, interactionMask, triggerInteraction);
         if (hits == null || hits.Length == 0)
         {
@@ -155,9 +160,16 @@ public class PlayerInteractor : MonoBehaviour
             fpsInput = GetComponent<PrototypeFpsInput>();
         }
 
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
+        }
+
         if (interactionCamera == null)
         {
-            interactionCamera = GetComponentInChildren<Camera>();
+            interactionCamera = aimPointResolver != null && aimPointResolver.ActiveAimCamera != null
+                ? aimPointResolver.ActiveAimCamera
+                : GetComponentInChildren<Camera>();
         }
 
         if (primaryInventory == null)

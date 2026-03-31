@@ -40,6 +40,7 @@ public class PrototypeFpsController : MonoBehaviour
     [SerializeField] private PlayerOrientationController orientationController;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerAimController aimController;
+    [SerializeField] private PlayerAimPointResolver aimPointResolver;
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
@@ -69,6 +70,7 @@ public class PrototypeFpsController : MonoBehaviour
         EnsureCombatSettings();
 
         weaponController = GetOrCreateWeaponController();
+        aimPointResolver = GetOrCreateAimPointResolver();
         aimController = GetOrCreateAimController();
         medicalController = GetOrCreateMedicalController();
         throwableController = GetOrCreateThrowableController();
@@ -468,12 +470,13 @@ public class PrototypeFpsController : MonoBehaviour
                 impactMarkerLifetime,
                 shootMask,
                 firearmNoiseRadius,
-                meleeNoiseRadius);
+                meleeNoiseRadius,
+                aimPointResolver);
         }
 
         if (aimController != null)
         {
-            aimController.ApplyHostSettings(viewCamera, weaponController, movementModule);
+            aimController.ApplyHostSettings(viewCamera, weaponController, movementModule, aimPointResolver);
         }
 
         if (orientationController != null)
@@ -488,7 +491,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (throwableController != null)
         {
-            throwableController.ApplyHostSettings(viewCamera, medicalFeedbackLifetime);
+            throwableController.ApplyHostSettings(viewCamera, medicalFeedbackLifetime, aimPointResolver);
         }
 
         if (lookController != null)
@@ -517,7 +520,8 @@ public class PrototypeFpsController : MonoBehaviour
                 skillManager,
                 progressionRuntime,
                 actionChannel,
-                GetComponent<PlayerShoulderCameraController>());
+                GetComponent<PlayerShoulderCameraController>(),
+                aimPointResolver);
         }
 
         if (hudPresenter != null)
@@ -548,6 +552,18 @@ public class PrototypeFpsController : MonoBehaviour
 
         aimController = controller;
         return controller;
+    }
+
+    private PlayerAimPointResolver GetOrCreateAimPointResolver()
+    {
+        PlayerAimPointResolver resolver = aimPointResolver != null ? aimPointResolver : GetComponent<PlayerAimPointResolver>();
+        if (resolver == null)
+        {
+            resolver = gameObject.AddComponent<PlayerAimPointResolver>();
+        }
+
+        aimPointResolver = resolver;
+        return resolver;
     }
 
     private PlayerOrientationController GetOrCreateOrientationController()
@@ -714,6 +730,11 @@ public class PrototypeFpsController : MonoBehaviour
             aimController = GetComponent<PlayerAimController>();
         }
 
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
+        }
+
         if (medicalController == null)
         {
             medicalController = GetComponent<PlayerMedicalController>();
@@ -781,6 +802,13 @@ public class PrototypeFpsController : MonoBehaviour
         if (!Application.isPlaying && aimController == null)
         {
             aimController = gameObject.AddComponent<PlayerAimController>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        if (!Application.isPlaying && aimPointResolver == null)
+        {
+            aimPointResolver = gameObject.AddComponent<PlayerAimPointResolver>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
@@ -861,6 +889,21 @@ public class PrototypeFpsController : MonoBehaviour
         if (muzzle == null)
         {
             muzzle = rigRefs != null ? rigRefs.Muzzle : null;
+        }
+
+        if (primaryViewModel == null)
+        {
+            primaryViewModel = rigRefs != null ? rigRefs.PrimaryWeaponViewAnchor : null;
+        }
+
+        if (secondaryViewModel == null)
+        {
+            secondaryViewModel = rigRefs != null ? rigRefs.SecondaryWeaponViewAnchor : null;
+        }
+
+        if (meleeViewModel == null)
+        {
+            meleeViewModel = rigRefs != null ? rigRefs.MeleeWeaponViewAnchor : null;
         }
 
         if (muzzle == null && viewCamera != null)

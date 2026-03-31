@@ -78,6 +78,9 @@ public struct PlayerRuntimeStateSnapshot
     public float CameraYaw;
     public float CameraDistance;
     public float AimBlend;
+    public Vector3 AimWorldPoint;
+    public float BodyMoveX;
+    public float BodyMoveY;
     public float PlanarSpeed;
     public float VelocityY;
     public float CharacterYawDeltaToCamera;
@@ -113,6 +116,7 @@ public sealed class PlayerStateHub : MonoBehaviour
     [SerializeField] private PlayerOrientationController orientationController;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerAimController aimController;
+    [SerializeField] private PlayerAimPointResolver aimPointResolver;
     [SerializeField] private PlayerShoulderCameraController shoulderCameraController;
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
@@ -149,7 +153,8 @@ public sealed class PlayerStateHub : MonoBehaviour
         PlayerSkillManager hostSkillManager,
         PlayerProgressionRuntime hostProgressionRuntime,
         PlayerActionChannel hostActionChannel,
-        PlayerShoulderCameraController hostShoulderCameraController)
+        PlayerShoulderCameraController hostShoulderCameraController,
+        PlayerAimPointResolver hostAimPointResolver)
     {
         if (hostInput != null)
         {
@@ -220,6 +225,11 @@ public sealed class PlayerStateHub : MonoBehaviour
         {
             shoulderCameraController = hostShoulderCameraController;
         }
+
+        if (hostAimPointResolver != null)
+        {
+            aimPointResolver = hostAimPointResolver;
+        }
     }
 
     public void BeginFrame()
@@ -243,6 +253,7 @@ public sealed class PlayerStateHub : MonoBehaviour
         PlayerWeaponController.WeaponHudState weaponHudState = default;
         bool hasWeaponHudState = weaponController != null && weaponController.TryGetHudState(out weaponHudState);
         BuildStaminaHudState(out float staminaNormalized, out Color staminaColor, out string staminaLabel);
+        BuildBodyMovementState(out float bodyMoveX, out float bodyMoveY);
 
         float reloadRemaining = hasWeaponHudState && weaponHudState.IsReloading
             ? Mathf.Max(0f, weaponHudState.ReloadEndTime - Time.time)
@@ -300,6 +311,13 @@ public sealed class PlayerStateHub : MonoBehaviour
             CameraYaw = shoulderCameraController != null ? shoulderCameraController.CameraYaw : transform.eulerAngles.y,
             CameraDistance = shoulderCameraController != null ? shoulderCameraController.CurrentDistance : 0f,
             AimBlend = aimController != null ? aimController.AimBlend : 0f,
+            AimWorldPoint = aimController != null
+                ? aimController.CurrentAimWorldPoint
+                : aimPointResolver != null
+                    ? aimPointResolver.CurrentAimWorldPoint
+                    : transform.position + transform.forward * 40f,
+            BodyMoveX = bodyMoveX,
+            BodyMoveY = bodyMoveY,
             PlanarSpeed = movementModule != null ? movementModule.PlanarSpeed : 0f,
             VelocityY = movementModule != null ? movementModule.VerticalVelocity : 0f,
             CharacterYawDeltaToCamera = orientationController != null ? orientationController.BodyYawDeltaToCamera : 0f,
@@ -369,6 +387,11 @@ public sealed class PlayerStateHub : MonoBehaviour
         if (shoulderCameraController == null)
         {
             shoulderCameraController = GetComponent<PlayerShoulderCameraController>();
+        }
+
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
         }
 
         if (medicalController == null)
@@ -464,6 +487,30 @@ public sealed class PlayerStateHub : MonoBehaviour
                 ? $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  力竭 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
                 : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}  恢复 {playerVitals.StaminaRecoveryBlockedRemaining:0.0}s"
             : $"体力 {Mathf.RoundToInt(playerVitals.CurrentStamina)}/{Mathf.RoundToInt(playerVitals.MaxStamina)}";
+    }
+
+    private void BuildBodyMovementState(out float bodyMoveX, out float bodyMoveY)
+    {
+        bodyMoveX = 0f;
+        bodyMoveY = 0f;
+
+        if (movementModule == null)
+        {
+            return;
+        }
+
+        Vector3 planarVelocity = movementModule.PlanarVelocity;
+        planarVelocity.y = 0f;
+        if (planarVelocity.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        float bodyYaw = orientationController != null ? orientationController.BodyWorldYaw : transform.eulerAngles.y;
+        Vector3 localVelocity = Quaternion.Inverse(Quaternion.Euler(0f, bodyYaw, 0f)) * planarVelocity;
+        float speedReference = Mathf.Max(0.01f, movementModule.SelectedStandingMoveSpeed);
+        bodyMoveX = Mathf.Clamp(localVelocity.x / speedReference, -1.5f, 1.5f);
+        bodyMoveY = Mathf.Clamp(localVelocity.z / speedReference, -1.5f, 1.5f);
     }
 
     private string BuildHudDetailText(bool hasWeaponHudState, PlayerWeaponController.WeaponHudState hudState)

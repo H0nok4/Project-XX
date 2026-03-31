@@ -7,6 +7,7 @@ public sealed class PlayerAimController : MonoBehaviour
     [SerializeField] private Camera viewCamera;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PrototypeFpsMovementModule movementModule;
+    [SerializeField] private PlayerAimPointResolver aimPointResolver;
 
     [Header("Aim")]
     [SerializeField] private float fallbackAimFieldOfView = 58f;
@@ -20,6 +21,11 @@ public sealed class PlayerAimController : MonoBehaviour
     public bool IsAiming => aimBlend >= 0.999f;
     public float AimBlend => aimBlend;
     public bool ShouldHideHipFireCrosshair => aimBlend >= crosshairHideThreshold;
+    public Vector3 CurrentAimWorldPoint => aimPointResolver != null
+        ? aimPointResolver.CurrentAimWorldPoint
+        : viewCamera != null
+            ? viewCamera.transform.position + viewCamera.transform.forward * 40f
+            : transform.position + transform.forward * 40f;
 
     private void Awake()
     {
@@ -35,7 +41,8 @@ public sealed class PlayerAimController : MonoBehaviour
     public void ApplyHostSettings(
         Camera hostCamera,
         PlayerWeaponController hostWeaponController,
-        PrototypeFpsMovementModule hostMovementModule)
+        PrototypeFpsMovementModule hostMovementModule,
+        PlayerAimPointResolver hostAimPointResolver = null)
     {
         if (hostCamera != null)
         {
@@ -50,6 +57,11 @@ public sealed class PlayerAimController : MonoBehaviour
         if (hostMovementModule != null)
         {
             movementModule = hostMovementModule;
+        }
+
+        if (hostAimPointResolver != null)
+        {
+            aimPointResolver = hostAimPointResolver;
         }
 
         CacheHipFieldOfView();
@@ -147,6 +159,11 @@ public sealed class PlayerAimController : MonoBehaviour
         if (movementModule == null)
         {
             movementModule = GetComponent<PrototypeFpsMovementModule>();
+        }
+
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
         }
     }
 

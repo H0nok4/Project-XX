@@ -5,9 +5,6 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PlayerWeaponController : MonoBehaviour
 {
-    // Prefer explicit optic/scope markers over fallback iron sight markers when multiple poses exist.
-    private static readonly string[] AimPoseNames = { "ScopePose", "AdsPose", "AimPose", "IronSightPose" };
-
     private enum WeaponSlot
     {
         Primary = 0,
@@ -85,6 +82,8 @@ public class PlayerWeaponController : MonoBehaviour
     [SerializeField] private Transform primaryViewModel;
     [SerializeField] private Transform secondaryViewModel;
     [SerializeField] private Transform meleeViewModel;
+    [SerializeField] private PlayerWeaponPresentationController weaponPresentationController;
+    [SerializeField] private PlayerAimPointResolver aimPointResolver;
 
     [Header("Combat")]
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
@@ -118,12 +117,6 @@ public class PlayerWeaponController : MonoBehaviour
     private readonly WeaponRuntime secondaryRuntime = new WeaponRuntime { Slot = WeaponSlot.Secondary };
     private readonly WeaponRuntime meleeRuntime = new WeaponRuntime { Slot = WeaponSlot.Melee };
     private WeaponSlot activeWeaponSlot = WeaponSlot.Primary;
-    private GameObject primaryViewModelInstance;
-    private GameObject secondaryViewModelInstance;
-    private GameObject meleeViewModelInstance;
-    private PrototypeWeaponDefinition primaryViewModelSource;
-    private PrototypeWeaponDefinition secondaryViewModelSource;
-    private PrototypeWeaponDefinition meleeViewModelSource;
     private float hitMarkerTimer;
     private float characterDamageMultiplier = 1f;
     private float characterFireRateMultiplier = 1f;
@@ -172,7 +165,7 @@ public class PlayerWeaponController : MonoBehaviour
         EnsureCombatSettings();
         ResolveViewCamera();
         ResolveMuzzle();
-        ResolveViewModels();
+        SyncWeaponPresentation();
     }
 
     public void BeginFrame()
@@ -185,9 +178,10 @@ public class PlayerWeaponController : MonoBehaviour
     private void OnValidate()
     {
         EnsureCombatSettings();
+        ResolveReferences();
         ResolveViewCamera();
         ResolveMuzzle();
-        ResolveViewModels();
+        SyncWeaponPresentation();
     }
 
     public void SetPlayerDependencies(PrototypeUnitVitals vitals, InventoryContainer inventoryContainer)
@@ -216,7 +210,8 @@ public class PlayerWeaponController : MonoBehaviour
         float hostImpactMarkerLifetime,
         LayerMask hostShootMask,
         float hostFirearmNoiseRadius,
-        float hostMeleeNoiseRadius)
+        float hostMeleeNoiseRadius,
+        PlayerAimPointResolver hostAimPointResolver = null)
     {
         if (useHostSettings)
         {
@@ -239,10 +234,15 @@ public class PlayerWeaponController : MonoBehaviour
             meleeNoiseRadius = hostMeleeNoiseRadius;
         }
 
+        if (hostAimPointResolver != null)
+        {
+            aimPointResolver = hostAimPointResolver;
+        }
+
         ResolveViewCamera();
         ResolveMuzzle();
         EnsureCombatSettings();
-        ResolveViewModels();
+        SyncWeaponPresentation();
     }
 
     public void InitializeRuntime()
@@ -310,31 +310,15 @@ public class PlayerWeaponController : MonoBehaviour
     public void UpdateAimPresentation(float aimBlend)
     {
         currentAimBlend = Mathf.Clamp01(aimBlend);
-
-        ApplyViewModelAimPose(
-            primaryRuntime,
-            primaryViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Primary ? currentAimBlend : 0f,
-            primaryAdsViewModelLocalPosition,
-            primaryAdsViewModelLocalEulerAngles);
-        ApplyViewModelAimPose(
-            secondaryRuntime,
-            secondaryViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Secondary ? currentAimBlend : 0f,
-            secondaryAdsViewModelLocalPosition,
-            secondaryAdsViewModelLocalEulerAngles);
-        ApplyViewModelAimPose(
-            meleeRuntime,
-            meleeViewModelInstance,
-            activeWeaponSlot == WeaponSlot.Melee ? currentAimBlend : 0f,
-            meleeAdsViewModelLocalPosition,
-            meleeAdsViewModelLocalEulerAngles);
+        SyncWeaponPresentation();
+        weaponPresentationController?.UpdateAimPresentation(currentAimBlend);
     }
 
     public void ResetAimPresentationImmediate()
     {
         currentAimBlend = 0f;
-        UpdateAimPresentation(0f);
+        SyncWeaponPresentation();
+        weaponPresentationController?.ResetAimPresentationImmediate();
     }
 
     public void TickVisuals(float deltaTime)
@@ -735,25 +719,8 @@ public class PlayerWeaponController : MonoBehaviour
 
     public void RefreshWeaponViewModels()
     {
-        EnsureWeaponViewModel(primaryRuntime, primaryViewModel, ref primaryViewModelInstance, ref primaryViewModelSource);
-        EnsureWeaponViewModel(secondaryRuntime, secondaryViewModel, ref secondaryViewModelInstance, ref secondaryViewModelSource);
-        EnsureWeaponViewModel(meleeRuntime, meleeViewModel, ref meleeViewModelInstance, ref meleeViewModelSource);
-        UpdateAimPresentation(currentAimBlend);
-
-        if (primaryViewModel != null)
-        {
-            primaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Primary);
-        }
-
-        if (secondaryViewModel != null)
-        {
-            secondaryViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Secondary);
-        }
-
-        if (meleeViewModel != null)
-        {
-            meleeViewModel.gameObject.SetActive(activeWeaponSlot == WeaponSlot.Melee);
-        }
+        SyncWeaponPresentation();
+        weaponPresentationController?.RefreshPresentation();
     }
 
     private void ProcessBurst(WeaponRuntime runtime)
@@ -798,12 +765,14 @@ public class PlayerWeaponController : MonoBehaviour
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
         float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
         float shotRange = baseRange * characterRangeMultiplier;
-        Vector3 direction = GetSpreadDirection(runtime.Definition.SpreadAngle * characterSpreadMultiplier * externalSpreadMultiplier);
+        Vector3 shotOrigin = muzzle != null ? muzzle.position : viewCamera.transform.position;
+        Vector3 baseDirection = GetCombatAimDirection(shotOrigin);
+        Vector3 direction = GetSpreadDirection(baseDirection, runtime.Definition.SpreadAngle * characterSpreadMultiplier * externalSpreadMultiplier);
         PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
 
-        if (TryGetCombatHit(viewCamera.transform.position, direction, shotRange, out RaycastHit hit))
+        if (TryGetCombatHit(shotOrigin, direction, shotRange, out RaycastHit hit))
         {
-            ResolveCombatHit(hit, damageInfo, shotForce);
+            ResolveCombatHit(hit, damageInfo, shotForce, direction);
         }
 
         fireTriggeredThisFrame = true;
@@ -827,10 +796,12 @@ public class PlayerWeaponController : MonoBehaviour
         runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown / GetPassiveFireRateMultiplier();
         float meleeRadius = Mathf.Max(meleeNoiseRadius, runtime.Definition.MeleeRange * 3.8f);
         ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, meleeRadius);
+        Vector3 attackOrigin = viewCamera.transform.position;
+        Vector3 attackDirection = GetCombatAimDirection(attackOrigin);
 
-        if (TryGetMeleeHit(runtime.Definition.MeleeRange, runtime.Definition.MeleeRadius, out RaycastHit hit))
+        if (TryGetMeleeHit(runtime.Definition.MeleeRange, runtime.Definition.MeleeRadius, attackOrigin, attackDirection, out RaycastHit hit))
         {
-            ResolveCombatHit(hit, BuildMeleeDamageInfo(runtime), meleeImpactForce);
+            ResolveCombatHit(hit, BuildMeleeDamageInfo(runtime), meleeImpactForce, attackDirection);
         }
 
         fireTriggeredThisFrame = true;
@@ -842,10 +813,8 @@ public class PlayerWeaponController : MonoBehaviour
         return TrySelectCombatHit(hits, out hit);
     }
 
-    private bool TryGetMeleeHit(float range, float radius, out RaycastHit hit)
+    private bool TryGetMeleeHit(float range, float radius, Vector3 origin, Vector3 direction, out RaycastHit hit)
     {
-        Vector3 origin = viewCamera.transform.position;
-        Vector3 direction = viewCamera.transform.forward;
         RaycastHit[] hits = Physics.SphereCastAll(origin, radius, direction, range, shootMask, QueryTriggerInteraction.Collide);
         return TrySelectCombatHit(hits, out hit);
     }
@@ -964,9 +933,14 @@ public class PlayerWeaponController : MonoBehaviour
         };
     }
 
-    private void ResolveCombatHit(RaycastHit hit, PrototypeUnitVitals.DamageInfo damageInfo, float force)
+    private void ResolveCombatHit(RaycastHit hit, PrototypeUnitVitals.DamageInfo damageInfo, float force, Vector3 impactDirection)
     {
         hitMarkerTimer = 0.08f;
+        Vector3 resolvedImpactDirection = impactDirection.sqrMagnitude > 0.0001f
+            ? impactDirection.normalized
+            : viewCamera != null
+                ? viewCamera.transform.forward
+                : transform.forward;
 
         PrototypeUnitHitbox unitHitbox = hit.collider.GetComponent<PrototypeUnitHitbox>();
         if (unitHitbox == null)
@@ -996,14 +970,14 @@ public class PlayerWeaponController : MonoBehaviour
 
             if (breakable != null)
             {
-                breakable.ApplyDamage(damageInfo, hit.point, viewCamera.transform.forward, force);
+                breakable.ApplyDamage(damageInfo, hit.point, resolvedImpactDirection, force);
                 shouldApplyImpactForce = false;
             }
         }
 
         if (shouldApplyImpactForce && hit.rigidbody != null && force > 0f)
         {
-            hit.rigidbody.AddForce(viewCamera.transform.forward * force, ForceMode.Impulse);
+            hit.rigidbody.AddForce(resolvedImpactDirection * force, ForceMode.Impulse);
         }
 
         SpawnImpactMarker(hit);
@@ -1459,16 +1433,74 @@ public class PlayerWeaponController : MonoBehaviour
         return inventory.CountItem(runtime.Definition.AmmoDefinition);
     }
 
+    private void SyncWeaponPresentation()
+    {
+        ResolvePresentationController();
+        if (weaponPresentationController == null)
+        {
+            return;
+        }
+
+        weaponPresentationController.ApplyHostSettings(
+            viewCamera,
+            this,
+            primaryViewModel,
+            secondaryViewModel,
+            meleeViewModel,
+            primaryAdsViewModelLocalPosition,
+            primaryAdsViewModelLocalEulerAngles,
+            secondaryAdsViewModelLocalPosition,
+            secondaryAdsViewModelLocalEulerAngles,
+            meleeAdsViewModelLocalPosition,
+            meleeAdsViewModelLocalEulerAngles);
+    }
+
+    private void ResolvePresentationController()
+    {
+        if (weaponPresentationController != null)
+        {
+            return;
+        }
+
+        weaponPresentationController = GetComponent<PlayerWeaponPresentationController>();
+        if (weaponPresentationController != null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            weaponPresentationController = gameObject.AddComponent<PlayerWeaponPresentationController>();
+            return;
+        }
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            weaponPresentationController = gameObject.AddComponent<PlayerWeaponPresentationController>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+#endif
+    }
+
     private void ResolveViewCamera()
     {
         if (viewCamera == null)
         {
-            viewCamera = GetComponentInChildren<Camera>();
+            PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
         }
     }
 
     private void ResolveMuzzle()
     {
+        if (muzzle == null)
+        {
+            PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+            muzzle = rigRefs != null ? rigRefs.Muzzle : null;
+        }
+
         if (muzzle == null && viewCamera != null)
         {
             Transform muzzleTransform = viewCamera.transform.Find("Muzzle");
@@ -1479,318 +1511,37 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
-    private void ResolveViewModels()
+    private Vector3 GetCombatAimDirection(Vector3 origin)
     {
-        if (viewCamera == null)
+        if (aimPointResolver != null)
         {
-            return;
-        }
-
-        primaryViewModel = GetOrCreateViewModelAnchor(primaryViewModel, "WeaponView_Primary");
-        secondaryViewModel = GetOrCreateViewModelAnchor(secondaryViewModel, "WeaponView_Secondary");
-        meleeViewModel = GetOrCreateViewModelAnchor(meleeViewModel, "WeaponView_Melee");
-    }
-
-    private Transform GetOrCreateViewModelAnchor(Transform currentAnchor, string anchorName)
-    {
-        if (viewCamera == null)
-        {
-            return currentAnchor;
-        }
-
-        if (currentAnchor != null)
-        {
-            return currentAnchor;
-        }
-
-        Transform found = viewCamera.transform.Find(anchorName);
-        if (found != null)
-        {
-            return found;
-        }
-
-        GameObject anchorObject = new GameObject(anchorName);
-        anchorObject.transform.SetParent(viewCamera.transform, false);
-        return anchorObject.transform;
-    }
-
-    private void EnsureWeaponViewModel(
-        WeaponRuntime runtime,
-        Transform anchor,
-        ref GameObject currentInstance,
-        ref PrototypeWeaponDefinition currentSource)
-    {
-        if (anchor == null)
-        {
-            DestroyViewModelInstance(ref currentInstance);
-            currentSource = null;
-            return;
-        }
-
-        PrototypeWeaponDefinition nextSource = runtime != null && runtime.IsConfigured ? runtime.Definition : null;
-        GameObject nextPrefab = nextSource != null ? nextSource.FirstPersonViewPrefab : null;
-        bool needsRefresh = currentSource != nextSource || currentInstance == null;
-
-        if (!needsRefresh)
-        {
-            return;
-        }
-
-        DestroyViewModelInstance(ref currentInstance);
-        ClearViewModelAnchor(anchor);
-        currentSource = nextSource;
-
-        if (nextPrefab == null)
-        {
-            return;
-        }
-
-        currentInstance = Instantiate(nextPrefab, anchor, false);
-        currentInstance.name = nextPrefab.name;
-    }
-
-    private void ApplyViewModelAimPose(
-        WeaponRuntime runtime,
-        GameObject instance,
-        float aimBlend,
-        Vector3 fallbackLocalPosition,
-        Vector3 fallbackLocalEulerAngles)
-    {
-        if (instance == null)
-        {
-            return;
-        }
-
-        float clampedBlend = runtime != null
-            && runtime.IsConfigured
-            && runtime.Definition != null
-            && runtime.Definition.IsFirearmWeapon
-            ? Mathf.Clamp01(aimBlend)
-            : 0f;
-
-        Vector3 targetLocalPosition = Vector3.zero;
-        Quaternion targetLocalRotation = Quaternion.identity;
-        if (clampedBlend > 0f
-            && TryGetViewModelAimPose(runtime, instance.transform, fallbackLocalPosition, fallbackLocalEulerAngles, out Vector3 adsLocalPosition, out Quaternion adsLocalRotation))
-        {
-            targetLocalPosition = adsLocalPosition;
-            targetLocalRotation = adsLocalRotation;
-        }
-
-        Transform instanceTransform = instance.transform;
-        instanceTransform.localPosition = Vector3.Lerp(Vector3.zero, targetLocalPosition, clampedBlend);
-        instanceTransform.localRotation = Quaternion.Slerp(Quaternion.identity, targetLocalRotation, clampedBlend);
-    }
-
-    private bool TryGetViewModelAimPose(
-        WeaponRuntime runtime,
-        Transform viewModelRoot,
-        Vector3 fallbackLocalPosition,
-        Vector3 fallbackLocalEulerAngles,
-        out Vector3 targetLocalPosition,
-        out Quaternion targetLocalRotation)
-    {
-        Transform aimPose = FindAimPoseTransform(viewModelRoot);
-        if (aimPose != null)
-        {
-            Quaternion poseLocalRotation = Quaternion.Inverse(viewModelRoot.rotation) * aimPose.rotation;
-            Vector3 poseLocalPosition = viewModelRoot.InverseTransformPoint(aimPose.position);
-            targetLocalRotation = Quaternion.Inverse(poseLocalRotation);
-            targetLocalPosition = -(targetLocalRotation * poseLocalPosition);
-            return true;
-        }
-
-        if (runtime != null && runtime.Definition != null && runtime.Definition.HasAdsPoseOverride)
-        {
-            targetLocalPosition = runtime.Definition.AdsViewModelLocalPosition;
-            targetLocalRotation = Quaternion.Euler(runtime.Definition.AdsViewModelLocalEulerAngles);
-            return true;
-        }
-
-        targetLocalPosition = fallbackLocalPosition;
-        targetLocalRotation = Quaternion.Euler(fallbackLocalEulerAngles);
-        return true;
-    }
-
-    private static Transform FindAimPoseTransform(Transform root)
-    {
-        if (root == null)
-        {
-            return null;
-        }
-
-        Transform bestActiveMatch = null;
-        int bestActivePriority = int.MaxValue;
-        int bestActiveDepth = int.MinValue;
-        Transform bestInactiveMatch = null;
-        int bestInactivePriority = int.MaxValue;
-        int bestInactiveDepth = int.MinValue;
-
-        FindAimPoseRecursive(
-            root,
-            0,
-            ref bestActiveMatch,
-            ref bestActivePriority,
-            ref bestActiveDepth,
-            ref bestInactiveMatch,
-            ref bestInactivePriority,
-            ref bestInactiveDepth);
-
-        return bestActiveMatch != null ? bestActiveMatch : bestInactiveMatch;
-    }
-
-    private static void FindAimPoseRecursive(
-        Transform parent,
-        int depth,
-        ref Transform bestActiveMatch,
-        ref int bestActivePriority,
-        ref int bestActiveDepth,
-        ref Transform bestInactiveMatch,
-        ref int bestInactivePriority,
-        ref int bestInactiveDepth)
-    {
-        if (parent == null)
-        {
-            return;
-        }
-
-        for (int childIndex = 0; childIndex < parent.childCount; childIndex++)
-        {
-            Transform child = parent.GetChild(childIndex);
-            int namePriority = GetAimPoseNamePriority(child.name);
-            if (namePriority >= 0)
+            Vector3 resolvedDirection = aimPointResolver.GetDirectionFrom(origin);
+            if (resolvedDirection.sqrMagnitude > 0.0001f)
             {
-                if (child.gameObject.activeInHierarchy)
-                {
-                    if (IsBetterAimPoseCandidate(child, namePriority, depth, bestActiveMatch, bestActivePriority, bestActiveDepth))
-                    {
-                        bestActiveMatch = child;
-                        bestActivePriority = namePriority;
-                        bestActiveDepth = depth;
-                    }
-                }
-                else if (IsBetterAimPoseCandidate(child, namePriority, depth, bestInactiveMatch, bestInactivePriority, bestInactiveDepth))
-                {
-                    bestInactiveMatch = child;
-                    bestInactivePriority = namePriority;
-                    bestInactiveDepth = depth;
-                }
-            }
-
-            FindAimPoseRecursive(
-                child,
-                depth + 1,
-                ref bestActiveMatch,
-                ref bestActivePriority,
-                ref bestActiveDepth,
-                ref bestInactiveMatch,
-                ref bestInactivePriority,
-                ref bestInactiveDepth);
-        }
-    }
-
-    private static int GetAimPoseNamePriority(string transformName)
-    {
-        if (string.IsNullOrWhiteSpace(transformName))
-        {
-            return -1;
-        }
-
-        for (int index = 0; index < AimPoseNames.Length; index++)
-        {
-            if (string.Equals(transformName, AimPoseNames[index], StringComparison.Ordinal))
-            {
-                return index;
+                return resolvedDirection.normalized;
             }
         }
 
-        return -1;
+        return viewCamera != null ? viewCamera.transform.forward : transform.forward;
     }
 
-    private static bool IsBetterAimPoseCandidate(
-        Transform candidate,
-        int candidatePriority,
-        int candidateDepth,
-        Transform currentBest,
-        int currentPriority,
-        int currentDepth)
+    private Vector3 GetSpreadDirection(Vector3 baseDirection, float spreadAngle)
     {
-        if (candidate == null)
-        {
-            return false;
-        }
-
-        if (currentBest == null)
-        {
-            return true;
-        }
-
-        if (candidatePriority != currentPriority)
-        {
-            return candidatePriority < currentPriority;
-        }
-
-        if (candidateDepth != currentDepth)
-        {
-            return candidateDepth > currentDepth;
-        }
-
-        return string.CompareOrdinal(candidate.name, currentBest.name) < 0;
-    }
-
-    private void ClearViewModelAnchor(Transform anchor)
-    {
-        if (anchor == null)
-        {
-            return;
-        }
-
-        for (int childIndex = anchor.childCount - 1; childIndex >= 0; childIndex--)
-        {
-            DestroyViewModelObject(anchor.GetChild(childIndex).gameObject);
-        }
-    }
-
-    private void DestroyViewModelInstance(ref GameObject instance)
-    {
-        if (instance == null)
-        {
-            return;
-        }
-
-        DestroyViewModelObject(instance);
-        instance = null;
-    }
-
-    private void DestroyViewModelObject(GameObject target)
-    {
-        if (target == null)
-        {
-            return;
-        }
-
-        if (Application.isPlaying)
-        {
-            Destroy(target);
-            return;
-        }
-
-        DestroyImmediate(target);
-    }
-
-    private Vector3 GetSpreadDirection(float spreadAngle)
-    {
-        Vector3 direction = viewCamera.transform.forward;
+        Vector3 direction = baseDirection.sqrMagnitude > 0.0001f
+            ? baseDirection.normalized
+            : viewCamera != null
+                ? viewCamera.transform.forward
+                : transform.forward;
         if (spreadAngle <= 0.001f)
         {
             return direction;
         }
 
         Vector2 spread = UnityEngine.Random.insideUnitCircle * spreadAngle;
-        direction = Quaternion.AngleAxis(spread.x, viewCamera.transform.up)
-            * Quaternion.AngleAxis(spread.y, viewCamera.transform.right)
-            * direction;
-        return direction.normalized;
+        Vector3 basisUp = viewCamera != null ? viewCamera.transform.up : Vector3.up;
+        Quaternion basis = Quaternion.LookRotation(direction, basisUp);
+        Vector3 spreadDirection = basis * (Quaternion.Euler(-spread.y, spread.x, 0f) * Vector3.forward);
+        return spreadDirection.normalized;
     }
 
     private static int CompareHitDistance(RaycastHit left, RaycastHit right)
@@ -1849,6 +1600,8 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void ResolveReferences()
     {
+        PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+
         if (playerVitals == null)
         {
             playerVitals = GetComponent<PrototypeUnitVitals>();
@@ -1867,6 +1620,31 @@ public class PlayerWeaponController : MonoBehaviour
         if (progressionRuntime == null)
         {
             progressionRuntime = GetComponent<PlayerProgressionRuntime>();
+        }
+
+        if (weaponPresentationController == null)
+        {
+            weaponPresentationController = GetComponent<PlayerWeaponPresentationController>();
+        }
+
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
+        }
+
+        if (primaryViewModel == null)
+        {
+            primaryViewModel = rigRefs != null ? rigRefs.PrimaryWeaponViewAnchor : null;
+        }
+
+        if (secondaryViewModel == null)
+        {
+            secondaryViewModel = rigRefs != null ? rigRefs.SecondaryWeaponViewAnchor : null;
+        }
+
+        if (meleeViewModel == null)
+        {
+            meleeViewModel = rigRefs != null ? rigRefs.MeleeWeaponViewAnchor : null;
         }
 
     }

@@ -36,6 +36,20 @@
   - 探索态下可见身体 / HitboxRig 已按移动方向转向
   - 瞄准态下可见身体 / HitboxRig 已回正到相机 yaw
   - `PlayerStateHub` 已开始汇总相机与朝向相关状态
+- 阶段 3：已完成第一版桥接
+  - `PlayerAimPointResolver` 已落地
+  - 屏幕中心 aim point 已成为武器、投掷、交互共用的方向来源
+  - `PlayerWeaponController` 已接入“屏幕中心瞄准点 + 枪口修正”首版
+  - `PlayerStateHub` 已开始输出 `AimWorldPoint`
+- 阶段 4：已开始第一版
+  - `PlayerFullBodyAnimatorDriver` 已开始输出方向型 locomotion 与 TPS 朝向相关参数
+  - `FpsPlayerFullBody.controller` 已补上 `Equip / Medical / Throw` 上半身占位状态
+  - 第三人称身体动画已开始从“基础能播”往“可承接完整动作路径”推进
+- 阶段 5：已完成第一版兼容抽取
+  - `PlayerWeaponPresentationController` 已落地
+  - `PlayerWeaponController.RefreshWeaponViewModels / UpdateAimPresentation` 已降级为兼容转发入口
+  - 第一人称视图模型实例化与 ADS 姿态逻辑已迁往独立表现层
+  - `PlayerWeaponController` 内部旧的第一人称 view-model / ADS pose 实现已清理
 
 后续每推进一段，都在这里更新状态，避免只剩抽象目标而看不出实际做到哪里。
 
@@ -228,6 +242,20 @@
 - 右键瞄准时射击结果与屏幕中心基本一致。
 - 投掷和交互不再出现明显的视差错误。
 
+### 当前状态（2026-03-31）
+
+- 状态：已完成第一版桥接
+- 已落地：
+  - `PlayerAimPointResolver`
+  - 基于第三人称实际输出相机的屏幕中心瞄准点解析
+  - `PlayerWeaponController` 射击方向改为优先朝向 aim point，并把命中冲击方向同步到真实弹道方向
+  - `PlayerThrowableController` 投掷方向改为参考统一 aim point
+  - `PlayerInteractor` 交互查询已改用统一 aim ray
+  - `PlayerAimController / PlayerStateHub` 已可对外输出当前 `AimWorldPoint`
+- 本阶段保留的兼容项：
+  - 仍沿用现有 `ViewCamera` / 枪口 / 第一人称武器挂点作为过渡期发射与表现基础
+  - 贴墙、极近距离目标与第三人称武器实体 socket 的最终精修仍留在后续打磨阶段
+
 ### 可暂停点
 
 做到这里，TPS 战斗闭环即可开始进入持续验证。
@@ -260,7 +288,19 @@
 - 第三人称动作已经足以支撑主游玩体验。
 - 第一人称视图模型即使暂时保留，也不再是必须依赖项。
 
----
+### 当前状态（2026-03-31）
+
+- 状态：已开始第一版
+- 已落地：
+  - `PlayerFullBodyAnimatorDriver` 现已输出 `MoveX`、`MoveY`、`AimBlend`、`WeaponSlot`、`WeaponCategory`、`IsFacingCameraYaw`、`CharacterYawDeltaToCamera`
+  - `PlayerStateHub` 已开始为第三人称动画汇总按身体朝向计算的局部移动分量
+  - `FpsPlayerFullBody.controller` 已接入 `Equip / Medical / Throw` 占位状态，`PlayerActionChannel` 发出的对应触发已不再被全身 Animator 忽略
+- 本阶段仍待补：
+  - 正式的第三人称瞄准移动、医疗、投掷动作资产
+  - 基于 `MoveX / MoveY` 的更完整 TPS 方向性 locomotion 资源与 BlendTree
+  - 第三人称武器 socket、挂点和动画联动的进一步收敛
+
+--- 
 
 ## 阶段 5：拆出武器表现层，收缩 FPS 兼容路径
 
@@ -284,6 +324,21 @@
 
 - `PlayerWeaponController` 只保留玩法权威职责。
 - TPS 武器表现不再依赖 `ViewCamera` 子节点。
+
+### 当前状态（2026-03-31）
+
+- 状态：已完成第一版兼容抽取
+- 已落地：
+  - `PlayerWeaponPresentationController`
+  - 第一人称视图模型实例化、切枪显隐、ADS pose 计算与应用已从 `PlayerWeaponController` 迁往独立表现层
+  - `PlayerWeaponController.UpdateAimPresentation / ResetAimPresentationImmediate / RefreshWeaponViewModels` 已降级为对表现层的兼容转发
+  - `PlayerAnimationRigRefs` 已开始补齐 `Muzzle / WeaponView_*` 显式引用解析
+  - `PlayerWeaponController` 已删除旧的第一人称视图模型实例缓存、锚点创建与 ADS pose 搜索/应用实现
+  - `PlayerAnimationRigRefs` 与 `FpsPlayer.prefab` 已开始补齐运行时/序列化 weapon anchor 引用，减少对 `ViewCamera.Find(...)` 的回退
+- 本阶段仍待补：
+  - 枪口火光、壳体抛出、后坐力与 sway 的进一步迁移
+  - 第三人称武器 socket、枪口和动画联动方式的正式落地
+  - 继续把 `ViewCamera` 子节点作为武器表现硬依赖的残余路径收缩为可选兼容层
 
 ---
 

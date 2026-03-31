@@ -12,6 +12,7 @@ public class PlayerThrowableController : MonoBehaviour
     [SerializeField] private LayerMask explosionMask = Physics.DefaultRaycastLayers;
 
     private Camera viewCamera;
+    private PlayerAimPointResolver aimPointResolver;
     private PrototypeUnitVitals playerVitals;
     private InventoryContainer primaryInventory;
     private PlayerInteractor interactor;
@@ -42,14 +43,20 @@ public class PlayerThrowableController : MonoBehaviour
         primaryInventory = inventoryContainer;
         skillManager = GetComponent<PlayerSkillManager>();
         interactor = GetComponent<PlayerInteractor>();
+        aimPointResolver = GetComponent<PlayerAimPointResolver>();
     }
 
-    public void ApplyHostSettings(Camera camera, float hostFeedbackLifetime)
+    public void ApplyHostSettings(Camera camera, float hostFeedbackLifetime, PlayerAimPointResolver hostAimPointResolver = null)
     {
         if (useHostSettings)
         {
             viewCamera = camera;
             feedbackLifetime = hostFeedbackLifetime;
+        }
+
+        if (hostAimPointResolver != null)
+        {
+            aimPointResolver = hostAimPointResolver;
         }
 
         EnsureSettings();
@@ -176,7 +183,8 @@ public class PlayerThrowableController : MonoBehaviour
             skillManager,
             explosionMask);
 
-        Vector3 launchVelocity = viewCamera.transform.forward * definition.ThrowVelocity + Vector3.up * definition.ThrowUpwardVelocity;
+        Vector3 launchDirection = ResolveThrowableDirection(projectile.transform.position);
+        Vector3 launchVelocity = launchDirection * definition.ThrowVelocity + Vector3.up * definition.ThrowUpwardVelocity;
         rigidbody.linearVelocity = launchVelocity;
     }
 
@@ -184,6 +192,20 @@ public class PlayerThrowableController : MonoBehaviour
     {
         Transform origin = viewCamera != null ? viewCamera.transform : transform;
         return origin.position + origin.forward * throwOriginForwardOffset + origin.up * throwOriginUpOffset;
+    }
+
+    private Vector3 ResolveThrowableDirection(Vector3 origin)
+    {
+        if (aimPointResolver != null)
+        {
+            Vector3 resolvedDirection = aimPointResolver.GetDirectionFrom(origin);
+            if (resolvedDirection.sqrMagnitude > 0.0001f)
+            {
+                return resolvedDirection.normalized;
+            }
+        }
+
+        return viewCamera != null ? viewCamera.transform.forward : transform.forward;
     }
 
     private PrototypeUnitVitals.DamageInfo BuildThrowableDamageInfo(ItemInstance throwableItem)
@@ -306,6 +328,11 @@ public class PlayerThrowableController : MonoBehaviour
 
     private void ResolveReferences()
     {
+        if (aimPointResolver == null)
+        {
+            aimPointResolver = GetComponent<PlayerAimPointResolver>();
+        }
+
         if (viewCamera == null)
         {
             viewCamera = GetComponentInChildren<Camera>();

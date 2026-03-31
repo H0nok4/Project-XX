@@ -20,16 +20,25 @@
 - 已完成：
   - 新增 `PlayerShoulderCameraController`
   - 新增 `PlayerOrientationController`
+  - 新增 `PlayerAimPointResolver`
   - `FpsPlayer.prefab` 已接入 `ShoulderFollowTarget` 与 `ShoulderCameraRig`
   - `WorldCamera + CinemachineBrain` 已作为第三人称实际输出相机
   - `ViewCamera` 已降级为玩法兼容相机，继续供现有武器 / 投掷 / 交互链使用
   - 鼠标滚轮缩放、瞄准时相机收近、`SceneObject / Ground` 避障层已接入第一版
   - 角色探索态下已可按移动方向驱动可见身体 / HitboxRig 朝向，瞄准态下已回正到相机 yaw
-  - `PlayerStateHub` 已开始汇总 `CameraYaw`、`CameraDistance`、`IsAimCamera`、`CharacterYawDeltaToCamera`
+  - `PlayerWeaponController` 已接入第一版 TPS 瞄准点与枪口修正
+  - 投掷与交互方向已开始共享统一 aim point
+  - `PlayerStateHub` 已开始汇总 `CameraYaw`、`CameraDistance`、`IsAimCamera`、`CharacterYawDeltaToCamera`、`AimWorldPoint`
+  - `PlayerFullBodyAnimatorDriver` 已开始输出方向型 locomotion、武器槽位和 TPS 朝向差值参数
+  - `FpsPlayerFullBody.controller` 已补齐 `Equip / Medical / Throw` 上半身占位状态入口
+  - `PlayerWeaponPresentationController` 已接管第一人称视图模型实例化、切枪显隐与 ADS 姿态逻辑的第一版兼容层
+  - `PlayerAnimationRigRefs` 已开始在运行时懒解析 `WeaponView_* / Muzzle`，`FpsPlayer.prefab` 也已补齐首批显式 weapon anchor 引用
 - 已知待补：
   - 镜头默认构图、肩后偏移、跟随阻尼、瞄准收紧幅度还需要专门调手感
   - 当前“TPS 朝向”仍是桥接版本，玩家根节点与原玩法链仍保留兼容性的 FPS/Yaw 假设
-  - TPS 瞄准点、开火对齐、投掷 / 交互视差修正仍在后续阶段
+  - 当前 TPS 瞄准点仍是桥接首版，贴墙压枪、近距离极限视差和第三人称武器实体 socket 仍需继续细化
+  - 当前第三人称身体动画仍以占位资源为主，真正的瞄准移动、医疗、投掷表现仍需后续资源化
+  - `PlayerWeaponController` 已完成第一轮旧 view-model / ADS pose 兼容实现清理，但 `ViewCamera` 兼容引用链仍未完全退出系统
 
 本文档后续描述以“桥接迁移”作为默认策略，即在保留现有玩法链的前提下，逐阶段把主体验切换到第三人称越肩。
 

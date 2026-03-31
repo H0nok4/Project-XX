@@ -412,9 +412,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PrototypeFpsController
   viewCamera: {fileID: 9140621087734334902}
   muzzle: {fileID: 0}
-  primaryViewModel: {fileID: 0}
-  secondaryViewModel: {fileID: 0}
-  meleeViewModel: {fileID: 0}
+  primaryViewModel: {fileID: 3413876919203538724}
+  secondaryViewModel: {fileID: 2775713829735199734}
+  meleeViewModel: {fileID: 3293743218989163138}
   mouseSensitivity: 0.14
   maxLookAngle: 85
   showHud: 1
@@ -794,9 +794,9 @@ MonoBehaviour:
   shoulderFollowTarget: {fileID: 2181094828940838304}
   muzzle: {fileID: 0}
   shoulderCamera: {fileID: 5064406877084071388}
-  primaryWeaponViewAnchor: {fileID: 0}
-  secondaryWeaponViewAnchor: {fileID: 0}
-  meleeWeaponViewAnchor: {fileID: 0}
+  primaryWeaponViewAnchor: {fileID: 3413876919203538724}
+  secondaryWeaponViewAnchor: {fileID: 2775713829735199734}
+  meleeWeaponViewAnchor: {fileID: 3293743218989163138}
 --- !u!114 &2135510986745141264
 MonoBehaviour:
   m_ObjectHideFlags: 0
