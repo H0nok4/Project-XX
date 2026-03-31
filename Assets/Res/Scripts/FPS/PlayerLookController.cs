@@ -5,6 +5,7 @@ public sealed class PlayerLookController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Camera viewCamera;
+    [SerializeField] private Transform pitchRoot;
 
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
@@ -42,7 +43,7 @@ public sealed class PlayerLookController : MonoBehaviour
     {
         ResolveReferences();
 
-        if (fpsInput == null || viewCamera == null || Cursor.lockState != CursorLockMode.Locked)
+        if (fpsInput == null || viewCamera == null || pitchRoot == null || Cursor.lockState != CursorLockMode.Locked)
         {
             return;
         }
@@ -53,24 +54,34 @@ public sealed class PlayerLookController : MonoBehaviour
 
         pitch -= mouseDelta.y * mouseSensitivity;
         pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
-        viewCamera.transform.localEulerAngles = new Vector3(pitch, 0f, 0f);
+        pitchRoot.localEulerAngles = new Vector3(pitch, 0f, 0f);
     }
 
     public void ResetPitch()
     {
         pitch = 0f;
 
-        if (viewCamera != null)
+        if (pitchRoot != null)
         {
-            viewCamera.transform.localEulerAngles = Vector3.zero;
+            pitchRoot.localEulerAngles = Vector3.zero;
         }
     }
 
     private void ResolveReferences()
     {
+        PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
         if (viewCamera == null)
         {
-            viewCamera = GetComponentInChildren<Camera>();
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
+        }
+
+        if (pitchRoot == null)
+        {
+            pitchRoot = rigRefs != null
+                ? rigRefs.CameraPitchRoot
+                : viewCamera != null
+                    ? viewCamera.transform.parent
+                    : null;
         }
     }
 

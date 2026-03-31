@@ -198,6 +198,22 @@
 
 - 任一玩家功能迭代不再需要理解整个大控制器
 
+### 当前主视角专项
+
+如果项目主视角正式从第一人称切换为第三人称越肩式，请以以下文档作为阶段 D 的当前执行基线：
+
+- `Docs/TpsShoulderPlayerControlRefactorPlan.md`
+- `Docs/TpsShoulderPlayerControlRoadmap.md`
+
+该专项默认建立在现有 `PlayerStateHub`、`PlayerActionChannel`、`PlayerAnimationRigRefs`、`PlayerFullBodyAnimatorDriver` 和 `FpsPlayer.prefab` 的现状之上，优先调整相机、朝向、瞄准点与第三人称表现链，而不是继续沿着第一人称 arms/view model 路径扩展。
+
+当前专项进度记录：
+
+- 阶段 0：已完成
+- 阶段 1：已完成第一版肩后相机桥接
+- 阶段 1.5：基础能力已接入，继续调镜头手感与避障表现
+- 阶段 2：已完成第一版角色朝向接入
+
 ---
 
 ## 阶段 E：拆分 AI 控制器

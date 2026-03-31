@@ -37,6 +37,7 @@ public class PrototypeFpsController : MonoBehaviour
 
     [Header("Controllers")]
     [SerializeField] private PlayerLookController lookController;
+    [SerializeField] private PlayerOrientationController orientationController;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerAimController aimController;
     [SerializeField] private PlayerMedicalController medicalController;
@@ -59,26 +60,13 @@ public class PrototypeFpsController : MonoBehaviour
 
     private void Awake()
     {
+        ResolveViewReferences();
         movementModule = GetOrCreateMovementModule();
         fpsInput = GetOrCreateInput();
         interactionState = GetOrCreateInteractionState();
         playerVitals = GetComponent<PrototypeUnitVitals>();
         inventory = GetComponent<InventoryContainer>();
         EnsureCombatSettings();
-
-        if (viewCamera == null)
-        {
-            viewCamera = GetComponentInChildren<Camera>();
-        }
-
-        if (muzzle == null && viewCamera != null)
-        {
-            Transform muzzleTransform = viewCamera.transform.Find("Muzzle");
-            if (muzzleTransform != null)
-            {
-                muzzle = muzzleTransform;
-            }
-        }
 
         weaponController = GetOrCreateWeaponController();
         aimController = GetOrCreateAimController();
@@ -87,6 +75,7 @@ public class PrototypeFpsController : MonoBehaviour
         skillManager = GetOrCreateSkillManager();
         progressionRuntime = GetOrCreateProgressionRuntime();
         lookController = GetOrCreateLookController();
+        orientationController = GetOrCreateOrientationController();
         hudPresenter = GetOrCreateHudPresenter();
         actionChannel = GetOrCreateActionChannel();
         stateHub = GetOrCreateStateHub();
@@ -127,6 +116,7 @@ public class PrototypeFpsController : MonoBehaviour
     {
         LockCursor(true);
         aimController?.ResetAimImmediately();
+        orientationController?.SnapBodyToCameraYaw();
         weaponController?.RefreshWeaponViewModels();
         stateHub?.RefreshSnapshot();
         hudPresenter?.RefreshHud();
@@ -267,6 +257,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         weaponController?.HandleWeaponInput(fpsInput);
         aimController?.TickAim(fpsInput, false);
+        orientationController?.TickOrientation();
         if (actionChannel != null)
         {
             actionChannel.ExecuteGameplayActions(fpsInput);
@@ -307,6 +298,7 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         lookController?.ResetPitch();
+        orientationController?.SnapBodyToCameraYaw();
     }
 
     public string GetSuggestedPickupSlotLabel(PrototypeWeaponDefinition weaponDefinition)
@@ -484,6 +476,11 @@ public class PrototypeFpsController : MonoBehaviour
             aimController.ApplyHostSettings(viewCamera, weaponController, movementModule);
         }
 
+        if (orientationController != null)
+        {
+            orientationController.ApplyHostSettings(movementModule, aimController);
+        }
+
         if (medicalController != null)
         {
             medicalController.ApplyHostSettings(medicalUseCooldown, medicalFeedbackLifetime);
@@ -512,13 +509,15 @@ public class PrototypeFpsController : MonoBehaviour
                 playerVitals,
                 movementModule,
                 lookController,
+                orientationController,
                 weaponController,
                 aimController,
                 medicalController,
                 throwableController,
                 skillManager,
                 progressionRuntime,
-                actionChannel);
+                actionChannel,
+                GetComponent<PlayerShoulderCameraController>());
         }
 
         if (hudPresenter != null)
@@ -548,6 +547,18 @@ public class PrototypeFpsController : MonoBehaviour
         }
 
         aimController = controller;
+        return controller;
+    }
+
+    private PlayerOrientationController GetOrCreateOrientationController()
+    {
+        PlayerOrientationController controller = orientationController != null ? orientationController : GetComponent<PlayerOrientationController>();
+        if (controller == null)
+        {
+            controller = gameObject.AddComponent<PlayerOrientationController>();
+        }
+
+        orientationController = controller;
         return controller;
     }
 
@@ -656,20 +667,7 @@ public class PrototypeFpsController : MonoBehaviour
     private void OnValidate()
     {
         EnsureCombatSettings();
-
-        if (viewCamera == null)
-        {
-            viewCamera = GetComponentInChildren<Camera>();
-        }
-
-        if (muzzle == null && viewCamera != null)
-        {
-            Transform muzzleTransform = viewCamera.transform.Find("Muzzle");
-            if (muzzleTransform != null)
-            {
-                muzzle = muzzleTransform;
-            }
-        }
+        ResolveViewReferences();
 
         if (fpsInput == null)
         {
@@ -704,6 +702,11 @@ public class PrototypeFpsController : MonoBehaviour
         if (lookController == null)
         {
             lookController = GetComponent<PlayerLookController>();
+        }
+
+        if (orientationController == null)
+        {
+            orientationController = GetComponent<PlayerOrientationController>();
         }
 
         if (aimController == null)
@@ -789,6 +792,13 @@ public class PrototypeFpsController : MonoBehaviour
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
+        if (!Application.isPlaying && orientationController == null)
+        {
+            orientationController = gameObject.AddComponent<PlayerOrientationController>();
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
         if (!Application.isPlaying && progressionRuntime == null)
         {
             progressionRuntime = gameObject.AddComponent<PlayerProgressionRuntime>();
@@ -837,6 +847,29 @@ public class PrototypeFpsController : MonoBehaviour
         if (shootMask.value == 0 || shootMask.value == ~0)
         {
             shootMask = Physics.DefaultRaycastLayers;
+        }
+    }
+
+    private void ResolveViewReferences()
+    {
+        PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+        if (viewCamera == null)
+        {
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
+        }
+
+        if (muzzle == null)
+        {
+            muzzle = rigRefs != null ? rigRefs.Muzzle : null;
+        }
+
+        if (muzzle == null && viewCamera != null)
+        {
+            Transform muzzleTransform = viewCamera.transform.Find("Muzzle");
+            if (muzzleTransform != null)
+            {
+                muzzle = muzzleTransform;
+            }
         }
     }
 

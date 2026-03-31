@@ -58,6 +58,9 @@ public struct PlayerRuntimeStateSnapshot
     public bool CanThrow;
     public bool ShowCrosshair;
     public bool ShowHitMarker;
+    public bool IsAimCamera;
+    public bool IsShoulderRight;
+    public bool IsFacingCameraYaw;
     public bool HasHeavyBleed;
     public bool HasLightBleed;
     public bool HasFracture;
@@ -72,9 +75,12 @@ public struct PlayerRuntimeStateSnapshot
     public bool MedicalTriggered;
     public bool ThrowTriggered;
     public float Pitch;
+    public float CameraYaw;
+    public float CameraDistance;
     public float AimBlend;
     public float PlanarSpeed;
     public float VelocityY;
+    public float CharacterYawDeltaToCamera;
     public float MovementSpeedRatio;
     public float CurrentStamina;
     public float MaxStamina;
@@ -104,8 +110,10 @@ public sealed class PlayerStateHub : MonoBehaviour
     [SerializeField] private PrototypeUnitVitals playerVitals;
     [SerializeField] private PrototypeFpsMovementModule movementModule;
     [SerializeField] private PlayerLookController lookController;
+    [SerializeField] private PlayerOrientationController orientationController;
     [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private PlayerAimController aimController;
+    [SerializeField] private PlayerShoulderCameraController shoulderCameraController;
     [SerializeField] private PlayerMedicalController medicalController;
     [SerializeField] private PlayerThrowableController throwableController;
     [SerializeField] private PlayerSkillManager skillManager;
@@ -133,13 +141,15 @@ public sealed class PlayerStateHub : MonoBehaviour
         PrototypeUnitVitals hostVitals,
         PrototypeFpsMovementModule hostMovementModule,
         PlayerLookController hostLookController,
+        PlayerOrientationController hostOrientationController,
         PlayerWeaponController hostWeaponController,
         PlayerAimController hostAimController,
         PlayerMedicalController hostMedicalController,
         PlayerThrowableController hostThrowableController,
         PlayerSkillManager hostSkillManager,
         PlayerProgressionRuntime hostProgressionRuntime,
-        PlayerActionChannel hostActionChannel)
+        PlayerActionChannel hostActionChannel,
+        PlayerShoulderCameraController hostShoulderCameraController)
     {
         if (hostInput != null)
         {
@@ -164,6 +174,11 @@ public sealed class PlayerStateHub : MonoBehaviour
         if (hostLookController != null)
         {
             lookController = hostLookController;
+        }
+
+        if (hostOrientationController != null)
+        {
+            orientationController = hostOrientationController;
         }
 
         if (hostWeaponController != null)
@@ -199,6 +214,11 @@ public sealed class PlayerStateHub : MonoBehaviour
         if (hostActionChannel != null)
         {
             actionChannel = hostActionChannel;
+        }
+
+        if (hostShoulderCameraController != null)
+        {
+            shoulderCameraController = hostShoulderCameraController;
         }
     }
 
@@ -251,6 +271,7 @@ public sealed class PlayerStateHub : MonoBehaviour
             IsCrouching = movementModule != null && movementModule.IsCrouching,
             IsSprinting = movementModule != null && movementModule.IsSprinting,
             IsAiming = aimController != null && aimController.IsAiming,
+            IsAimCamera = shoulderCameraController != null && shoulderCameraController.IsAimCamera,
             CanAim = aimController != null && weaponController != null && weaponController.CanAimActiveWeapon,
             HasWeapon = hasWeapon,
             IsReloading = isReloading,
@@ -260,6 +281,8 @@ public sealed class PlayerStateHub : MonoBehaviour
             CanThrow = isAlive && !isUiFocused,
             ShowCrosshair = aimController == null || !aimController.ShouldHideHipFireCrosshair,
             ShowHitMarker = weaponController != null && weaponController.ShowHitMarker,
+            IsShoulderRight = shoulderCameraController == null || shoulderCameraController.IsShoulderRight,
+            IsFacingCameraYaw = orientationController == null || orientationController.IsFacingCameraYaw,
             HasHeavyBleed = playerVitals != null && playerVitals.HasHeavyBleed,
             HasLightBleed = playerVitals != null && playerVitals.HasLightBleed,
             HasFracture = playerVitals != null && playerVitals.HasFracture,
@@ -274,9 +297,12 @@ public sealed class PlayerStateHub : MonoBehaviour
             MedicalTriggered = medicalController != null && medicalController.MedicalTriggeredThisFrame,
             ThrowTriggered = throwableController != null && throwableController.ThrowableTriggeredThisFrame,
             Pitch = lookController != null ? lookController.Pitch : 0f,
+            CameraYaw = shoulderCameraController != null ? shoulderCameraController.CameraYaw : transform.eulerAngles.y,
+            CameraDistance = shoulderCameraController != null ? shoulderCameraController.CurrentDistance : 0f,
             AimBlend = aimController != null ? aimController.AimBlend : 0f,
             PlanarSpeed = movementModule != null ? movementModule.PlanarSpeed : 0f,
             VelocityY = movementModule != null ? movementModule.VerticalVelocity : 0f,
+            CharacterYawDeltaToCamera = orientationController != null ? orientationController.BodyYawDeltaToCamera : 0f,
             MovementSpeedRatio = movementModule != null ? movementModule.SelectedMovementSpeedRatio : 1f,
             CurrentStamina = playerVitals != null ? playerVitals.CurrentStamina : 0f,
             MaxStamina = playerVitals != null ? playerVitals.MaxStamina : 0f,
@@ -325,6 +351,11 @@ public sealed class PlayerStateHub : MonoBehaviour
             lookController = GetComponent<PlayerLookController>();
         }
 
+        if (orientationController == null)
+        {
+            orientationController = GetComponent<PlayerOrientationController>();
+        }
+
         if (weaponController == null)
         {
             weaponController = GetComponent<PlayerWeaponController>();
@@ -333,6 +364,11 @@ public sealed class PlayerStateHub : MonoBehaviour
         if (aimController == null)
         {
             aimController = GetComponent<PlayerAimController>();
+        }
+
+        if (shoulderCameraController == null)
+        {
+            shoulderCameraController = GetComponent<PlayerShoulderCameraController>();
         }
 
         if (medicalController == null)

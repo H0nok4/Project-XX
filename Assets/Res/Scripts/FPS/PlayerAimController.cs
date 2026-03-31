@@ -135,7 +135,8 @@ public sealed class PlayerAimController : MonoBehaviour
     {
         if (viewCamera == null)
         {
-            viewCamera = GetComponentInChildren<Camera>();
+            PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
         }
 
         if (weaponController == null)

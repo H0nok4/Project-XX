@@ -840,7 +840,8 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
         if (viewCamera == null)
         {
-            viewCamera = GetComponentInChildren<Camera>();
+            PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
         }
 
 #if UNITY_EDITOR
@@ -864,6 +865,12 @@ public class PrototypeFpsMovementModule : MonoBehaviour
 
     private void EnsureReferences()
     {
+        if (viewCamera == null)
+        {
+            PlayerAnimationRigRefs rigRefs = GetComponent<PlayerAnimationRigRefs>();
+            viewCamera = rigRefs != null ? rigRefs.ViewCamera : GetComponentInChildren<Camera>();
+        }
+
         if (characterController == null)
         {
             characterController = GetComponent<CharacterController>();
