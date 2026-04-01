@@ -9,6 +9,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     [Header("References")]
     [Tooltip("第一人称视角摄像机，用于同步蹲起视角高度。")]
     [SerializeField] private Camera viewCamera;
+    [SerializeField] private PlayerAimController aimController;
 
     [Header("Movement")]
     [Tooltip("站立状态下、100%速度档位时的基础移动速度。")]
@@ -72,6 +73,8 @@ public class PrototypeFpsMovementModule : MonoBehaviour
     [SerializeField] private float crouchTransitionSpeed = 10f;
     [Tooltip("蹲下时台阶跨越能力相对站立时的倍率。")]
     [SerializeField] private float crouchStepOffsetMultiplier = 0.45f;
+    [Tooltip("右键精确瞄准时的移动速度倍率。")]
+    [SerializeField, Range(0.1f, 1f)] private float precisionAimMoveSpeedMultiplier = 0.72f;
     [Tooltip("冲刺起步加速到满冲刺速度所需的时间。")]
     [SerializeField] private float sprintAccelerationTime = 0.32f;
     [Tooltip("停止冲刺后从冲刺速度回落的时间。")]
@@ -455,6 +458,11 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         if (playerVitals != null)
         {
             targetSpeed *= playerVitals.MovementPenaltyMultiplier;
+        }
+
+        if (aimController != null)
+        {
+            targetSpeed *= Mathf.Lerp(1f, precisionAimMoveSpeedMultiplier, aimController.AimBlend);
         }
 
         return targetSpeed;
@@ -890,6 +898,11 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         {
             playerVitals = GetComponent<PrototypeUnitVitals>();
         }
+
+        if (aimController == null)
+        {
+            aimController = GetComponent<PlayerAimController>();
+        }
     }
 
     private void EnsureMovementSettings()
@@ -925,6 +938,7 @@ public class PrototypeFpsMovementModule : MonoBehaviour
         crouchCameraDrop = Mathf.Max(crouchCameraDrop, 0.05f);
         crouchTransitionSpeed = Mathf.Max(crouchTransitionSpeed, 0.1f);
         crouchStepOffsetMultiplier = Mathf.Clamp(crouchStepOffsetMultiplier, 0f, 1f);
+        precisionAimMoveSpeedMultiplier = Mathf.Clamp(precisionAimMoveSpeedMultiplier, 0.1f, 1f);
         sprintAccelerationTime = Mathf.Max(0.01f, sprintAccelerationTime);
         sprintDecelerationTime = Mathf.Max(0.01f, sprintDecelerationTime);
         stanceClearancePadding = Mathf.Clamp(stanceClearancePadding, 0f, 0.2f);

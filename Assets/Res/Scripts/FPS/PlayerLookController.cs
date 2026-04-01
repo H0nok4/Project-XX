@@ -9,7 +9,8 @@ public sealed class PlayerLookController : MonoBehaviour
 
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
-    [SerializeField] private float maxLookAngle = 85f;
+    [SerializeField] private float maxLookUpAngle = 40f;
+    [SerializeField] private float maxLookDownAngle = 55f;
 
     private float pitch;
 
@@ -27,7 +28,11 @@ public sealed class PlayerLookController : MonoBehaviour
         ClampSettings();
     }
 
-    public void ApplyHostSettings(Camera hostCamera, float hostMouseSensitivity, float hostMaxLookAngle)
+    public void ApplyHostSettings(
+        Camera hostCamera,
+        float hostMouseSensitivity,
+        float hostMaxLookUpAngle,
+        float hostMaxLookDownAngle)
     {
         if (hostCamera != null)
         {
@@ -35,7 +40,8 @@ public sealed class PlayerLookController : MonoBehaviour
         }
 
         mouseSensitivity = hostMouseSensitivity;
-        maxLookAngle = hostMaxLookAngle;
+        maxLookUpAngle = hostMaxLookUpAngle;
+        maxLookDownAngle = hostMaxLookDownAngle;
         ClampSettings();
     }
 
@@ -53,7 +59,7 @@ public sealed class PlayerLookController : MonoBehaviour
         transform.Rotate(Vector3.up * lookYawDelta);
 
         pitch -= mouseDelta.y * mouseSensitivity;
-        pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
+        pitch = Mathf.Clamp(pitch, -maxLookUpAngle, maxLookDownAngle);
         pitchRoot.localEulerAngles = new Vector3(pitch, 0f, 0f);
     }
 
@@ -88,6 +94,7 @@ public sealed class PlayerLookController : MonoBehaviour
     private void ClampSettings()
     {
         mouseSensitivity = Mathf.Max(0.0001f, mouseSensitivity);
-        maxLookAngle = Mathf.Clamp(maxLookAngle, 1f, 89f);
+        maxLookUpAngle = Mathf.Clamp(maxLookUpAngle, 1f, 89f);
+        maxLookDownAngle = Mathf.Clamp(maxLookDownAngle, 1f, 89f);
     }
 }

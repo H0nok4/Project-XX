@@ -758,14 +758,14 @@ public class PlayerWeaponController : MonoBehaviour
         runtime.MagazineAmmo--;
         float secondsPerShot = runtime.Definition.SecondsPerShot / GetPassiveFireRateMultiplier();
         runtime.NextAttackTime = Time.time + Mathf.Max(0.01f, secondsPerShot);
-        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, firearmNoiseRadius);
+        Vector3 shotOrigin = GetCombatOrigin();
+        ReportCombatNoise(shotOrigin, firearmNoiseRadius);
 
         AmmoDefinition ammo = runtime.Definition.AmmoDefinition;
         float shotDamage = GetFirearmBaseDamage(runtime, ammo);
         float shotForce = (ammo != null ? ammo.ImpactForce : shootForce) + runtime.Definition.AddedImpactForce;
         float baseRange = runtime.Definition.EffectiveRange > 0f ? runtime.Definition.EffectiveRange : shootDistance;
         float shotRange = baseRange * characterRangeMultiplier;
-        Vector3 shotOrigin = muzzle != null ? muzzle.position : viewCamera.transform.position;
         Vector3 baseDirection = GetCombatAimDirection(shotOrigin);
         Vector3 direction = GetSpreadDirection(baseDirection, runtime.Definition.SpreadAngle * characterSpreadMultiplier * externalSpreadMultiplier);
         PrototypeUnitVitals.DamageInfo damageInfo = BuildFirearmDamageInfo(runtime, shotDamage, ammo);
@@ -795,8 +795,8 @@ public class PlayerWeaponController : MonoBehaviour
 
         runtime.NextAttackTime = Time.time + runtime.Definition.MeleeCooldown / GetPassiveFireRateMultiplier();
         float meleeRadius = Mathf.Max(meleeNoiseRadius, runtime.Definition.MeleeRange * 3.8f);
-        ReportCombatNoise(muzzle != null ? muzzle.position : viewCamera.transform.position, meleeRadius);
-        Vector3 attackOrigin = viewCamera.transform.position;
+        Vector3 attackOrigin = GetCombatOrigin();
+        ReportCombatNoise(attackOrigin, meleeRadius);
         Vector3 attackDirection = GetCombatAimDirection(attackOrigin);
 
         if (TryGetMeleeHit(runtime.Definition.MeleeRange, runtime.Definition.MeleeRadius, attackOrigin, attackDirection, out RaycastHit hit))
@@ -1509,6 +1509,29 @@ public class PlayerWeaponController : MonoBehaviour
                 muzzle = muzzleTransform;
             }
         }
+    }
+
+    private Vector3 GetCombatOrigin()
+    {
+        Transform presentationMuzzle = weaponPresentationController != null
+            ? weaponPresentationController.ActiveWorldMuzzle
+            : null;
+        if (presentationMuzzle != null)
+        {
+            return presentationMuzzle.position;
+        }
+
+        if (muzzle != null)
+        {
+            return muzzle.position;
+        }
+
+        if (viewCamera != null)
+        {
+            return viewCamera.transform.position;
+        }
+
+        return transform.position + Vector3.up * 1.45f;
     }
 
     private Vector3 GetCombatAimDirection(Vector3 origin)

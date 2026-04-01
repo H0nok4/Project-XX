@@ -12,8 +12,12 @@ public class PrototypeFpsController : MonoBehaviour
 
     [Header("Look")]
     [SerializeField] private float mouseSensitivity = 0.14f;
-    [SerializeField] private float maxLookAngle = 85f;
+    [SerializeField] private float maxLookUpAngle = 40f;
+    [SerializeField] private float maxLookDownAngle = 55f;
     [SerializeField] private bool showHud = true;
+
+    [Header("Bootstrap")]
+    [SerializeField] private bool bootstrapCombatRuntime = true;
 
     [Header("Combat")]
     [SerializeField] private PrototypeWeaponDefinition primaryWeapon;
@@ -69,17 +73,17 @@ public class PrototypeFpsController : MonoBehaviour
         inventory = GetComponent<InventoryContainer>();
         EnsureCombatSettings();
 
-        weaponController = GetOrCreateWeaponController();
+        weaponController = bootstrapCombatRuntime ? GetOrCreateWeaponController() : GetComponent<PlayerWeaponController>();
         aimPointResolver = GetOrCreateAimPointResolver();
-        aimController = GetOrCreateAimController();
-        medicalController = GetOrCreateMedicalController();
-        throwableController = GetOrCreateThrowableController();
-        skillManager = GetOrCreateSkillManager();
-        progressionRuntime = GetOrCreateProgressionRuntime();
+        aimController = bootstrapCombatRuntime ? GetOrCreateAimController() : GetComponent<PlayerAimController>();
+        medicalController = bootstrapCombatRuntime ? GetOrCreateMedicalController() : GetComponent<PlayerMedicalController>();
+        throwableController = bootstrapCombatRuntime ? GetOrCreateThrowableController() : GetComponent<PlayerThrowableController>();
+        skillManager = bootstrapCombatRuntime ? GetOrCreateSkillManager() : GetComponent<PlayerSkillManager>();
+        progressionRuntime = bootstrapCombatRuntime ? GetOrCreateProgressionRuntime() : GetComponent<PlayerProgressionRuntime>();
         lookController = GetOrCreateLookController();
         orientationController = GetOrCreateOrientationController();
-        hudPresenter = GetOrCreateHudPresenter();
-        actionChannel = GetOrCreateActionChannel();
+        hudPresenter = bootstrapCombatRuntime ? GetOrCreateHudPresenter() : GetComponent<PlayerHudPresenter>();
+        actionChannel = bootstrapCombatRuntime ? GetOrCreateActionChannel() : GetComponent<PlayerActionChannel>();
         stateHub = GetOrCreateStateHub();
 
         ApplyControllerSettings();
@@ -481,7 +485,7 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (orientationController != null)
         {
-            orientationController.ApplyHostSettings(movementModule, aimController);
+            orientationController.ApplyHostSettings(fpsInput, movementModule, aimController, weaponController);
         }
 
         if (medicalController != null)
@@ -496,7 +500,11 @@ public class PrototypeFpsController : MonoBehaviour
 
         if (lookController != null)
         {
-            lookController.ApplyHostSettings(viewCamera, mouseSensitivity, maxLookAngle);
+            lookController.ApplyHostSettings(
+                viewCamera,
+                mouseSensitivity,
+                maxLookUpAngle,
+                maxLookDownAngle);
         }
 
         if (actionChannel != null)
@@ -710,10 +718,7 @@ public class PrototypeFpsController : MonoBehaviour
             movementModule = GetComponent<PrototypeFpsMovementModule>();
         }
 
-        if (weaponController == null)
-        {
-            weaponController = GetComponent<PlayerWeaponController>();
-        }
+        weaponController = GetComponent<PlayerWeaponController>();
 
         if (lookController == null)
         {
@@ -725,45 +730,24 @@ public class PrototypeFpsController : MonoBehaviour
             orientationController = GetComponent<PlayerOrientationController>();
         }
 
-        if (aimController == null)
-        {
-            aimController = GetComponent<PlayerAimController>();
-        }
+        aimController = GetComponent<PlayerAimController>();
 
         if (aimPointResolver == null)
         {
             aimPointResolver = GetComponent<PlayerAimPointResolver>();
         }
 
-        if (medicalController == null)
-        {
-            medicalController = GetComponent<PlayerMedicalController>();
-        }
+        medicalController = GetComponent<PlayerMedicalController>();
 
-        if (throwableController == null)
-        {
-            throwableController = GetComponent<PlayerThrowableController>();
-        }
+        throwableController = GetComponent<PlayerThrowableController>();
 
-        if (skillManager == null)
-        {
-            skillManager = GetComponent<PlayerSkillManager>();
-        }
+        skillManager = GetComponent<PlayerSkillManager>();
 
-        if (progressionRuntime == null)
-        {
-            progressionRuntime = GetComponent<PlayerProgressionRuntime>();
-        }
+        progressionRuntime = GetComponent<PlayerProgressionRuntime>();
 
-        if (hudPresenter == null)
-        {
-            hudPresenter = GetComponent<PlayerHudPresenter>();
-        }
+        hudPresenter = GetComponent<PlayerHudPresenter>();
 
-        if (actionChannel == null)
-        {
-            actionChannel = GetComponent<PlayerActionChannel>();
-        }
+        actionChannel = GetComponent<PlayerActionChannel>();
 
         if (stateHub == null)
         {
@@ -792,14 +776,14 @@ public class PrototypeFpsController : MonoBehaviour
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
-        if (!Application.isPlaying && skillManager == null)
+        if (bootstrapCombatRuntime && !Application.isPlaying && skillManager == null)
         {
             skillManager = gameObject.AddComponent<PlayerSkillManager>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
-        if (!Application.isPlaying && aimController == null)
+        if (bootstrapCombatRuntime && !Application.isPlaying && aimController == null)
         {
             aimController = gameObject.AddComponent<PlayerAimController>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
@@ -827,21 +811,21 @@ public class PrototypeFpsController : MonoBehaviour
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
-        if (!Application.isPlaying && progressionRuntime == null)
+        if (bootstrapCombatRuntime && !Application.isPlaying && progressionRuntime == null)
         {
             progressionRuntime = gameObject.AddComponent<PlayerProgressionRuntime>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
-        if (!Application.isPlaying && hudPresenter == null)
+        if (bootstrapCombatRuntime && !Application.isPlaying && hudPresenter == null)
         {
             hudPresenter = gameObject.AddComponent<PlayerHudPresenter>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
-        if (!Application.isPlaying && actionChannel == null)
+        if (bootstrapCombatRuntime && !Application.isPlaying && actionChannel == null)
         {
             actionChannel = gameObject.AddComponent<PlayerActionChannel>();
             UnityEditor.EditorUtility.SetDirty(gameObject);
@@ -872,6 +856,8 @@ public class PrototypeFpsController : MonoBehaviour
         medicalFeedbackLifetime = Mathf.Max(0.25f, medicalFeedbackLifetime);
         firearmNoiseRadius = Mathf.Max(0f, firearmNoiseRadius);
         meleeNoiseRadius = Mathf.Max(0f, meleeNoiseRadius);
+        maxLookUpAngle = Mathf.Clamp(maxLookUpAngle, 1f, 89f);
+        maxLookDownAngle = Mathf.Clamp(maxLookDownAngle, 1f, 89f);
         if (shootMask.value == 0 || shootMask.value == ~0)
         {
             shootMask = Physics.DefaultRaycastLayers;

@@ -14,6 +14,7 @@ public static class BaseHubSceneBuilder
     private const string BaseScenePath = "Assets/Scenes/BaseScene.unity";
     private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
+    private const string PlayerPrefabPath = "Assets/Res/Prefabs/Player/BaseHubPlayer.prefab";
     private const string ResourcesFolder = "Assets/Resources";
     private const string MaterialFolder = "Assets/Res/Materials/BaseHub";
     private const string WorldTextMaterialPath = "Assets/Res/Materials/BaseHub/Mat_WorldText.mat";
@@ -231,6 +232,68 @@ public static class BaseHubSceneBuilder
     }
 
     private static GameObject CreatePlayer(Vector3 position)
+    {
+        GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+        if (playerPrefab == null)
+        {
+            Debug.LogError($"[BaseHubSceneBuilder] Missing player prefab at '{PlayerPrefabPath}'.");
+            return CreateLegacyPlayer(position);
+        }
+
+        GameObject player = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
+        if (player == null)
+        {
+            Debug.LogError($"[BaseHubSceneBuilder] Failed to instantiate player prefab '{PlayerPrefabPath}'.");
+            return CreateLegacyPlayer(position);
+        }
+
+        player.name = "BaseHubPlayer";
+        player.transform.SetPositionAndRotation(position, Quaternion.identity);
+        player.layer = IgnoreRaycastLayer;
+
+        PrototypeUnitVitals playerVitals = player.GetComponent<PrototypeUnitVitals>();
+        if (playerVitals != null)
+        {
+            SetSerializedBool(playerVitals, "bootstrapStatusEffects", false);
+        }
+
+        InventoryContainer inventory = player.GetComponent<InventoryContainer>();
+        inventory?.Configure("鍩哄湴闅忚韩", 4, 12f);
+
+        PrototypeFpsController fpsController = player.GetComponent<PrototypeFpsController>();
+        if (fpsController != null)
+        {
+            SetSerializedBool(fpsController, "bootstrapCombatRuntime", false);
+            SetSerializedBool(fpsController, "showHud", false);
+            SetSerializedReference(fpsController, "primaryWeapon", null);
+            SetSerializedReference(fpsController, "secondaryWeapon", null);
+            SetSerializedReference(fpsController, "meleeWeapon", null);
+        }
+
+        PlayerInteractor interactor = player.GetComponent<PlayerInteractor>();
+        if (interactor != null)
+        {
+            SetSerializedBool(interactor, "autoAddInventoryWindowController", false);
+        }
+
+        PlayerHudPresenter hudPresenter = player.GetComponent<PlayerHudPresenter>();
+        if (hudPresenter != null)
+        {
+            SetSerializedBool(hudPresenter, "showHud", false);
+        }
+
+        PlayerWeaponController weaponController = player.GetComponent<PlayerWeaponController>();
+        if (weaponController != null)
+        {
+            SetSerializedReference(weaponController, "primaryWeapon", null);
+            SetSerializedReference(weaponController, "secondaryWeapon", null);
+            SetSerializedReference(weaponController, "meleeWeapon", null);
+        }
+
+        return player;
+    }
+
+    private static GameObject CreateLegacyPlayer(Vector3 position)
     {
         GameObject player = new GameObject("BaseHubPlayer");
         player.transform.position = position;

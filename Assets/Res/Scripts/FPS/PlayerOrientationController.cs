@@ -5,14 +5,18 @@ public sealed class PlayerOrientationController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private PlayerAnimationRigRefs rigRefs;
+    [SerializeField] private PrototypeFpsInput fpsInput;
     [SerializeField] private PrototypeFpsMovementModule movementModule;
     [SerializeField] private PlayerAimController aimController;
+    [SerializeField] private PlayerWeaponController weaponController;
     [SerializeField] private Transform visualRoot;
     [SerializeField] private Transform hitboxRoot;
 
     [Header("Turning")]
     [SerializeField] private float locomotionTurnSpeed = 540f;
     [SerializeField] private float aimTurnSpeed = 720f;
+    [SerializeField] private float hipFireSnapTurnSpeed = 2160f;
+    [SerializeField] private float hipFireFacingHoldDuration = 0.18f;
     [SerializeField] private float movementFacingSpeedThreshold = 0.15f;
     [SerializeField] private float facingCameraTolerance = 4f;
 
@@ -20,6 +24,7 @@ public sealed class PlayerOrientationController : MonoBehaviour
     private Transform cachedHitboxRoot;
     private Quaternion visualBaseLocalRotation = Quaternion.identity;
     private Quaternion hitboxBaseLocalRotation = Quaternion.identity;
+    private float hipFireFacingHoldTimer;
 
     public float BodyYawDeltaToCamera
     {
@@ -57,9 +62,16 @@ public sealed class PlayerOrientationController : MonoBehaviour
     }
 
     public void ApplyHostSettings(
+        PrototypeFpsInput hostInput,
         PrototypeFpsMovementModule hostMovementModule,
-        PlayerAimController hostAimController)
+        PlayerAimController hostAimController,
+        PlayerWeaponController hostWeaponController)
     {
+        if (hostInput != null)
+        {
+            fpsInput = hostInput;
+        }
+
         if (hostMovementModule != null)
         {
             movementModule = hostMovementModule;
@@ -68,6 +80,11 @@ public sealed class PlayerOrientationController : MonoBehaviour
         if (hostAimController != null)
         {
             aimController = hostAimController;
+        }
+
+        if (hostWeaponController != null)
+        {
+            weaponController = hostWeaponController;
         }
     }
 
@@ -79,9 +96,12 @@ public sealed class PlayerOrientationController : MonoBehaviour
             return;
         }
 
-        bool useAimFacing = aimController != null && aimController.AimBlend > 0.01f;
+        UpdateHipFireFacingState();
+
+        bool usePrecisionAimFacing = aimController != null && aimController.AimBlend > 0.01f;
+        bool useCombatFacing = usePrecisionAimFacing || hipFireFacingHoldTimer > 0f;
         float targetLocalYaw = BodyYawDeltaToCamera;
-        if (useAimFacing)
+        if (useCombatFacing)
         {
             targetLocalYaw = 0f;
         }
@@ -96,7 +116,11 @@ public sealed class PlayerOrientationController : MonoBehaviour
             }
         }
 
-        float turnSpeed = useAimFacing ? aimTurnSpeed : locomotionTurnSpeed;
+        float turnSpeed = usePrecisionAimFacing
+            ? aimTurnSpeed
+            : hipFireFacingHoldTimer > 0f
+                ? hipFireSnapTurnSpeed
+                : locomotionTurnSpeed;
         ApplyLocalYawOffset(targetLocalYaw, turnSpeed);
     }
 
@@ -119,9 +143,19 @@ public sealed class PlayerOrientationController : MonoBehaviour
             movementModule = GetComponent<PrototypeFpsMovementModule>();
         }
 
+        if (fpsInput == null)
+        {
+            fpsInput = GetComponent<PrototypeFpsInput>();
+        }
+
         if (aimController == null)
         {
             aimController = GetComponent<PlayerAimController>();
+        }
+
+        if (weaponController == null)
+        {
+            weaponController = GetComponent<PlayerWeaponController>();
         }
 
         if (visualRoot == null)
@@ -139,6 +173,8 @@ public sealed class PlayerOrientationController : MonoBehaviour
     {
         locomotionTurnSpeed = Mathf.Max(0f, locomotionTurnSpeed);
         aimTurnSpeed = Mathf.Max(0f, aimTurnSpeed);
+        hipFireSnapTurnSpeed = Mathf.Max(aimTurnSpeed, hipFireSnapTurnSpeed);
+        hipFireFacingHoldDuration = Mathf.Max(0f, hipFireFacingHoldDuration);
         movementFacingSpeedThreshold = Mathf.Max(0f, movementFacingSpeedThreshold);
         facingCameraTolerance = Mathf.Clamp(facingCameraTolerance, 0.1f, 45f);
     }
@@ -161,6 +197,38 @@ public sealed class PlayerOrientationController : MonoBehaviour
     private bool HasControllableRoot()
     {
         return visualRoot != null || hitboxRoot != null;
+    }
+
+    private void UpdateHipFireFacingState()
+    {
+        hipFireFacingHoldTimer = Mathf.Max(0f, hipFireFacingHoldTimer - Time.deltaTime);
+        if (fpsInput == null || weaponController == null)
+        {
+            return;
+        }
+
+        if (movementModule != null && movementModule.IsSprinting)
+        {
+            return;
+        }
+
+        bool canHipFireFace = weaponController.CanAimActiveWeapon;
+        if (!canHipFireFace)
+        {
+            return;
+        }
+
+        if (fpsInput.ShootHeld)
+        {
+            hipFireFacingHoldTimer = hipFireFacingHoldDuration;
+        }
+
+        if (fpsInput.ShootPressedThisFrame)
+        {
+            hipFireFacingHoldTimer = hipFireFacingHoldDuration;
+            ApplyRootRotation(visualRoot, visualBaseLocalRotation, 0f);
+            ApplyRootRotation(hitboxRoot, hitboxBaseLocalRotation, 0f);
+        }
     }
 
     private void ApplyLocalYawOffset(float targetLocalYaw, float turnSpeed)

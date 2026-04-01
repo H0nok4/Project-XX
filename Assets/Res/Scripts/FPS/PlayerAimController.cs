@@ -19,6 +19,7 @@ public sealed class PlayerAimController : MonoBehaviour
     private float aimBlend;
 
     public bool IsAiming => aimBlend >= 0.999f;
+    public bool IsPrecisionAiming => aimBlend > 0.01f;
     public float AimBlend => aimBlend;
     public bool ShouldHideHipFireCrosshair => aimBlend >= crosshairHideThreshold;
     public Vector3 CurrentAimWorldPoint => aimPointResolver != null

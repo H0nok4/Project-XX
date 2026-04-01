@@ -1,0 +1,220 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &8093238878805049372
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 932179901347675075, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: autoAddInventoryWindowController
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 7.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355004890824287733, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2089951740223885939, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: m_Name
+      value: BaseHubPlayer
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: skillManager
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: actionChannel
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: aimController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: weaponController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: medicalController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: progressionRuntime
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4152624860077582580, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: throwableController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4984177451276279741, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: aimController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: showHud
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: meleeWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: hudPresenter
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: skillManager
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: actionChannel
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: aimController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: primaryWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: secondaryWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: weaponController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: medicalController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: progressionRuntime
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: throwableController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5340108001734860912, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: bootstrapCombatRuntime
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5478371403018833683, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: maxSlots
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 5478371403018833683, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: maxWeight
+      value: 12
+      objectReference: {fileID: 0}
+    - target: {fileID: 5478371403018833683, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: containerName
+      value: "\u57FA\u5730\u968F\u8EAB"
+      objectReference: {fileID: 0}
+    - target: {fileID: 7164856652051639996, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: skillManager
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7164856652051639996, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: statusEffects
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7164856652051639996, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: bootstrapStatusEffects
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7164856652051639996, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: equippedArmor.Array.data[0].instanceId
+      value: fe070c5fe25048e0a94741b980d11620
+      objectReference: {fileID: 0}
+    - target: {fileID: 7164856652051639996, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: equippedArmor.Array.data[1].instanceId
+      value: 14c03974c0874406a3fb9a49880b12b4
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647067005523283412, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: meleeWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647067005523283412, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: primaryWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647067005523283412, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: secondaryWeapon
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 8948305784541875875, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: aimController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 8948305784541875875, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: weaponController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 9128988018178174887, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: aimController
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 9194296757554298712, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+      propertyPath: showHud
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 7647067005523283412, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 7209982169540916001, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 4931773985015384317, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 6766341283401466889, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 2422854619317872445, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 4897080723203826990, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 9194296757554298712, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 6640308454469696831, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 1930798354655049346, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 8393747879506036492, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 7765911988497177980, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 6063311446641284814, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    - {fileID: 6709518417193053794, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 935228b1629f70c4aa2333e6e06510f5, type: 3}

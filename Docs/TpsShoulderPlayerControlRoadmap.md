@@ -16,7 +16,7 @@
 
 ---
 
-## 1.1 当前进度记录（2026-03-31）
+## 1.1 当前进度记录（2026-04-01，已追加到本轮 TPS 交互修正）
 
 为便于后续回查，本路线图从现在开始记录阶段进度。
 
@@ -29,12 +29,14 @@
   - 滚轮缩放、瞄准收近、基础肩后构图已接上
 - 阶段 1.5：基础能力已接入，继续调参
   - 滚轮距离上下限已明确
-  - `SceneObject / Ground` 避障层已写入 `CinemachineThirdPersonFollow`
+  - `Default / SceneObject / Ground` 避障层已写入 `CinemachineThirdPersonFollow`
+  - 已补上输出相机的手动 `SphereCast` 防穿墙钳制，镜头遇到遮挡时会向玩家方向回缩
   - 仍需继续调构图、阻尼、狭窄空间表现与瞄准收近手感
 - 阶段 2：已完成第一版
   - `PlayerOrientationController` 已落地
   - 探索态下可见身体 / HitboxRig 已按移动方向转向
-  - 瞄准态下可见身体 / HitboxRig 已回正到相机 yaw
+  - 左键 hip-fire 开火时可见身体 / HitboxRig 会瞬时对齐到相机 yaw，并在短时间内保持射击朝向
+  - 右键精确瞄准时可见身体 / HitboxRig 已回正到相机 yaw，且移动速度会下降
   - `PlayerStateHub` 已开始汇总相机与朝向相关状态
 - 阶段 3：已完成第一版桥接
   - `PlayerAimPointResolver` 已落地
@@ -44,12 +46,22 @@
 - 阶段 4：已开始第一版
   - `PlayerFullBodyAnimatorDriver` 已开始输出方向型 locomotion 与 TPS 朝向相关参数
   - `FpsPlayerFullBody.controller` 已补上 `Equip / Medical / Throw` 上半身占位状态
+  - 持枪默认待机已切到 ready / aim 上半身姿态，右键精瞄继续通过 `AimBlend`、机位和速度差异体现“更精确”
   - 第三人称身体动画已开始从“基础能播”往“可承接完整动作路径”推进
 - 阶段 5：已完成第一版兼容抽取
   - `PlayerWeaponPresentationController` 已落地
   - `PlayerWeaponController.RefreshWeaponViewModels / UpdateAimPresentation` 已降级为兼容转发入口
   - 第一人称视图模型实例化与 ADS 姿态逻辑已迁往独立表现层
   - `PlayerWeaponController` 内部旧的第一人称 view-model / ADS pose 实现已清理
+  - 第三人称武器已接入右手 socket、骨骼缩放补偿与运行时生成的 world muzzle 兜底
+- 阶段 6：已完成“交互”子项第一版
+  - `PlayerInteractor` 已从纯 FPS 中心射线升级为 TPS 友好的三段式查询：
+    - 相机中心射线
+    - 相机小半径容错 SphereCast
+    - 玩家交互原点朝准星方向的 reach SphereCast
+  - 相机查询距离已按“相机到玩家交互原点的后撤距离”补偿，不再因为肩后镜头在玩家身后而打不到玩家眼前目标
+  - 非触发器遮挡现在会正确阻挡更远交互物，避免隔墙 / 穿柜交互
+  - 交互目标会按屏幕中心偏差、相机距离和玩家可触达距离综合评分，提升第三人称下的准星容错
 
 后续每推进一段，都在这里更新状态，避免只剩抽象目标而看不出实际做到哪里。
 
@@ -163,7 +175,7 @@
 ### 当前状态
 
 - 状态：基础能力已接入，后续持续调参
-- 说明：本轮已补上滚轮范围约束与 `SceneObject / Ground` 避障层写入，后续重点转为机位和手感微调
+- 说明：本轮已补上滚轮范围约束、`Default / SceneObject / Ground` 避障层写入与手动防穿墙钳制，后续重点转为机位和手感微调
 
 ---
 
@@ -198,7 +210,9 @@
 - 已落地：
   - `PlayerOrientationController`
   - `CharacterVisualRig / HitboxRig` 在探索态下按平面速度方向转向
-  - `CharacterVisualRig / HitboxRig` 在瞄准态下回正到相机 yaw
+  - `CharacterVisualRig / HitboxRig` 在右键精瞄态下回正到相机 yaw
+  - hip-fire 开火时会瞬时吸附到相机 yaw，并在射击窗口内维持 TPS 射击朝向
+  - `PrototypeFpsMovementModule` 已接入右键精瞄减速倍率
   - `PlayerStateHub` 输出 `CameraYaw`、`CameraDistance`、`IsAimCamera`、`IsFacingCameraYaw`、`CharacterYawDeltaToCamera`
 - 本阶段保留的兼容项：
   - 玩家根节点 yaw 与旧玩法链仍保持兼容
@@ -249,12 +263,20 @@
   - `PlayerAimPointResolver`
   - 基于第三人称实际输出相机的屏幕中心瞄准点解析
   - `PlayerWeaponController` 射击方向改为优先朝向 aim point，并把命中冲击方向同步到真实弹道方向
+  - `PlayerWeaponController` 开火 / 近战起点已优先改为第三人称 world muzzle
   - `PlayerThrowableController` 投掷方向改为参考统一 aim point
   - `PlayerInteractor` 交互查询已改用统一 aim ray
   - `PlayerAimController / PlayerStateHub` 已可对外输出当前 `AimWorldPoint`
 - 本阶段保留的兼容项：
   - 仍沿用现有 `ViewCamera` / 枪口 / 第一人称武器挂点作为过渡期发射与表现基础
   - 贴墙、极近距离目标与第三人称武器实体 socket 的最终精修仍留在后续打磨阶段
+
+### 本轮实测结论补记
+
+- 持枪默认上半身已进入 `FpsPlayer_Aim`，不再继续沿用空手待机。
+- 第三人称武器已不再受角色骨骼 `lossyScale=100` 放大影响，运行时世界武器保持正确尺度。
+- 当世界武器 prefab 不提供显式 `Muzzle` 时，系统会自动生成 `__GeneratedWorldMuzzle`，确保第三人称开火起点可用。
+- 通过临时测试障碍验证，肩后相机在目标距离约 `2.8m` 时可被压缩到约 `1.06m`，说明最终输出镜头的防穿墙钳制已生效。
 
 ### 可暂停点
 
@@ -362,6 +384,17 @@
 ### 完成标准
 
 - 越肩视角下，搜刮、交互、医疗、投掷都不再像“FPS 兼容功能”。
+
+### 当前状态（2026-04-01）
+
+- 状态：交互子项已完成第一版，医疗 / 投掷 / UI 焦点收口仍待继续
+- 已落地：
+  - `PlayerInteractor` 已改用统一 aim ray + TPS 容错查询
+  - 交互查询已从“相机前方固定 3 米”改为“相机补偿查询 + 玩家可触达过滤”
+  - 交互遮挡已不再默认忽略实心环境碰撞体
+- 实测补记：
+  - 隔离合成用例下，旧逻辑在 `3.00m` 相机直射线范围内无法选中玩家眼前目标，而新逻辑可命中
+  - 同一用例下，旧逻辑会穿过阻挡物继续选中后方交互体，而新逻辑会正确返回空目标
 
 ---
 

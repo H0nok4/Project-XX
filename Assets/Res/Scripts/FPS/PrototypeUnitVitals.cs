@@ -429,6 +429,7 @@ public class PrototypeUnitVitals : MonoBehaviour
     [SerializeField, HideInInspector] private List<ArmorState> equippedArmor = new List<ArmorState>();
     [SerializeField] private PrototypeStatusEffectController statusEffects;
     [SerializeField] private PlayerSkillManager skillManager;
+    [SerializeField] private bool bootstrapStatusEffects = true;
     [SerializeField] private bool allowImpactForceWhenAlive = true;
     [SerializeField, HideInInspector] private DamageSourceSnapshot lastDamageSource;
     [SerializeField] private UnityEvent onDied = new UnityEvent();
@@ -1856,7 +1857,7 @@ public class PrototypeUnitVitals : MonoBehaviour
         {
             statusEffects = GetComponent<PrototypeStatusEffectController>();
 
-            if (statusEffects == null && Application.isPlaying)
+            if (statusEffects == null && bootstrapStatusEffects && Application.isPlaying)
             {
                 statusEffects = gameObject.AddComponent<PrototypeStatusEffectController>();
             }
