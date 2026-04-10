@@ -4,38 +4,26 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - DeadZone
-  - Bullet
-  - Loop
-  - RagdollZone
-  - Grass
-  - Stone
-  - Tiles
-  - Skin
-  - Enemy
-  - Distractable
-  - CoverTrigger
-  - Vehicle
-  - Interactable
+  - Laser Line
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - No Player Collision
   - Water
   - UI
   - 
   - 
-  - Vehicle
-  - Character
-  - Bullet
-  - Terrain
-  - VehicleMeshCollider
-  - VehicleWheel
-  - Item
-  - Bones
-  - Walls
-  - Trigger
+  - Player
+  - 
+  - 
+  - Post-Procssing
+  - FPS Object
+  - Enviroment
+  - 
+  - Iteractable
+  - 
+  - 
   - 
   - 
   - 

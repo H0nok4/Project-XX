@@ -4,6 +4,7 @@
 
 - `JUTPS-PackageImportAndAudit.md`
 - `JUTPS-UsageGuide.md`
+- `JUTPS-ReplacePlayerControllerWithFPSFramework.md`
 
 ## 系统拆解
 
@@ -20,4 +21,5 @@
 
 1. 先看 `JUTPS-PackageImportAndAudit.md`
 2. 再看 `Systems/01` 到 `Systems/08`
-3. 最后看 `JUTPS-UsageGuide.md`
+3. 如果要换玩家手感，再看 `JUTPS-ReplacePlayerControllerWithFPSFramework.md`
+4. 最后看 `JUTPS-UsageGuide.md`
