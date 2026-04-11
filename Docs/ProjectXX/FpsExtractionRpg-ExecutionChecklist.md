@@ -43,6 +43,7 @@
 - [x] T-DOC-005 完成开发路线图
 - [x] T-DOC-006 完成可执行任务清单初始化
 - [x] T-DOC-007 完成基于第一人称、基地设施、生存值的文档二次修订
+- [x] T-DOC-008 完成 `Akila + JUTPS` 双框架适配与裁剪方案
 
 ### 工程接入
 
@@ -114,19 +115,24 @@
 ### 5.1 第一人称控制与相机
 
 - [ ] T-R1-001 锁定正式玩法为第一人称，不再保留 TPS 作为主玩法分支
+- [ ] T-R1-001A 锁定 `Akila FPS Framework` 为正式玩家操作底座
 - [ ] T-R1-002 创建 `ProjectXXFirstPersonViewBridge`
 - [ ] T-R1-003 创建第一人称武器与手臂展示层
 - [ ] T-R1-004 跑通第一人称交互射线与准星锚点
-- [ ] T-R1-005 在玩家 prefab 中关闭或隔离非正式第三人称展示逻辑
+- [ ] T-R1-005 在正式玩家 prefab 中关闭或隔离非正式第三人称展示逻辑
+- [ ] T-R1-005A 在测试场景中停用 `JUTPS` 玩家链与玩家 UI
 
 ### 5.2 玩家角色桥接
 
-- [ ] T-R1-006 创建 `ProjectXXCharacterFacade`
+- [ ] T-R1-006 创建 `ProjectXXPlayerFacade`
+- [ ] T-R1-006A 创建 `ProjectXXAkilaPlayerBridge`
 - [ ] T-R1-007 创建 `ProjectXXCharacterStatBridge`
 - [ ] T-R1-008 创建 `ProjectXXCharacterBuffBridge`
 - [ ] T-R1-009 创建 `ProjectXXEquipmentBridge`
 - [ ] T-R1-010 创建 `ProjectXXDamageBridge`
-- [ ] T-R1-011 将桥接组件挂接到 JUTPS 玩家角色 prefab
+- [ ] T-R1-011 将桥接组件挂接到正式 `Akila` 玩家 prefab
+- [ ] T-R1-011A 创建 `JutpsHealthProxy`
+- [ ] T-R1-011B 创建 `JutpsTargetAdapter`
 
 ### 5.3 基础运行时对象
 
@@ -158,6 +164,8 @@
 - [ ] T-R1-028 场景中放入普通敌人刷新点
 - [ ] T-R1-029 场景中放入简单撤离点占位
 - [ ] T-R1-030 跑通第一人称移动、开火、近战、受伤、死亡闭环
+- [ ] T-R1-030A 跑通 `JUTPS` 敌人发现并攻击 `Akila` 玩家
+- [ ] T-R1-030B 跑通 `Akila` 玩家击杀 `JUTPS` 敌人
 
 ### 5.7 R1 验收
 
@@ -421,7 +429,7 @@
 - [ ] T-NEXT-001 处理 `R0` 项目设置污染并固化 URP 基线
 - [ ] T-NEXT-002 建立 `Assets/Res/Scripts/ProjectXX/` 与 `Assets/Res/Data/Definitions/` 目录骨架
 - [ ] T-NEXT-003 创建最小 `Bootstrap` 入口
-- [ ] T-NEXT-004 开始 `R1` 的第一人称视角与输入桥接
+- [ ] T-NEXT-004 开始 `R1` 的 `Akila` 玩家桥与 `JUTPS` 世界兼容桥
 - [ ] T-NEXT-005 创建最小 raid 测试场景
 
 ## 12. 阻塞记录
@@ -432,3 +440,4 @@
 
 - 2026-04-09：初始化执行任务清单
 - 2026-04-09：根据第一人称、BaseHub、设施和生存值设计重构清单
+- 2026-04-11：根据 `Akila FPS Framework` 作为玩家底座的决策修订清单
