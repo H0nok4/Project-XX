@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-在 JUTPS 的角色控制、战斗、交互与基础 AI 底座之上，构建一套适合“单机 PVE 第一人称搜打撤 + 恐怖后末日 + RPG 成长 + 基地经营”的技术架构。
+在 `FPS Framework` 的玩家第一人称执行层、`JUTPS` 的敌人 / 载具 / 世界能力原型层，以及 `Project-XX` 自建规则层之上，构建一套适合“单机 PVE 第一人称搜打撤 + 恐怖后末日 + RPG 成长 + 基地经营”的技术架构。
 
 这套架构要满足：
 
@@ -19,17 +19,20 @@
 
 ## 2. 基本原则
 
-### 原则 1：JUTPS 负责“动作与执行”，Project-XX 负责“规则与数据”
+### 原则 1：`FPS Framework` 负责玩家执行层，`JUTPS` 负责世界执行层，`Project-XX` 负责规则与数据
 
-复用 JUTPS：
+复用 `FPS Framework`：
 
-- 第一人称角色移动底座
-- 基础相机与输入承接
-- 枪械开火
-- 基础近战
-- 基础交互
-- 载具
-- AI 基础感知与控制
+- `Player.prefab` 体系与第一人称玩家控制
+- 玩家相机、观察、输入域与武器展示
+- `FirearmPreset`、`Firearm`、`ProceduralAnimator` 等玩家枪械执行链路
+- `InteractionsManager` 作为玩家交互发现与触发入口
+
+复用 `JUTPS`：
+
+- 敌人 / NPC 原型与 AI 感知、巡逻、攻击骨架
+- `DriveVehicles` 与车辆支线
+- 世界对象、场景行为和部分可复用原型
 
 Project-XX 自建：
 
@@ -39,31 +42,38 @@ Project-XX 自建：
 - 属性、技能、Buff、异常系统
 - 生存值与恢复系统
 - 基地场景、设施、商人入住、制造
-- 精英怪/Boss 词缀与机制系统
+- 精英怪 / Boss 词缀与机制系统
 - 商人、任务、成长、局外仓库
 - 正式 UI
 - 最终存档
 
-### 原则 2：正式产品只交付第一人称玩法
+### 原则 2：双框架只允许一个玩家控制权来源
+
+- 不在同一个玩家根物体上同时挂 `JUCharacterController` 与 `FirstPersonController`
+- `JUTPS` 输入资产不再驱动玩家本体
+- 玩家 HUD、Pause、Settings 和正式交互提示统一由 `Project-XX` 接管
+- 上车、打开界面、暂停等状态切换统一走 Project-XX 输入上下文，而不是让两个包同时接管
+
+### 原则 3：正式产品只交付第一人称玩法
 
 - Raid 与 BaseHub 都以第一人称移动、观察、战斗、搜刮和交互
 - 玩家可持枪，也可使用近战武器
 - 第三人称如有保留，只能作为调试或非正式镜头，不得成为主玩法分支
 - 输入、相机、HUD、交互射线、武器展示都必须按 FPS 需求设计
 
-### 原则 3：Raid、BaseHub、Meta Profile 严格分层
+### 原则 4：Raid、BaseHub、Meta Profile 严格分层
 
 - `Raid Runtime` 负责战斗、搜刮、死亡、撤离、掉落、怪物、场景事件
 - `BaseHub Runtime` 负责基地第一人称移动、设施使用、商人交互、建造和局外恢复
 - `Meta Profile` 负责持久化角色档案、仓库、成长、任务、商人状态和基地状态
 
-### 原则 4：数据驱动优先
+### 原则 5：数据驱动优先
 
 - 定义层尽量用 `ScriptableObject`
 - 运行时状态尽量用纯 C# 对象
 - MonoBehaviour 负责表现、桥接与场景生命周期
 
-### 原则 5：正式 UI 统一走 Project-XX 规范
+### 原则 6：正式 UI 统一走 Project-XX 规范
 
 所有新 runtime UI 必须：
 
@@ -72,7 +82,7 @@ Project-XX 自建：
 - 使用 `*Template`
 - 挂载到 `PrototypeRuntimeUiManager`
 
-不要继续扩展 JUTPS 自带 UI 作为正式方案。
+不要继续扩展 `FPS Framework` 或 `JUTPS` 自带 UI 作为正式方案。
 
 ## 3. 高层架构
 
@@ -83,17 +93,14 @@ Project-XX 自建：
 来源：
 
 - Unity
+- FPS Framework
 - JUTPS
 
 职责：
 
-- 第一人称玩家控制
-- 武器和近战动作
-- 相机
-- 基础交互
-- 载具
-- AI 基础感知与控制
-- 场景中的物理、动画和表现
+- `FPS Framework`：玩家控制、玩家相机、玩家枪械、玩家交互发现与输入域
+- `JUTPS`：敌人 AI、载具、世界对象与部分原型能力
+- Unity：场景中的物理、动画和通用表现
 
 ## 3.2 Raid Domain 层
 
@@ -182,6 +189,8 @@ Project-XX 自建：
 - `Description`
 - `Icon`
 - `WorldPrefab`
+- `ExecutionBinding`
+  - 玩家侧可映射到 `FPS Framework FirearmPreset`
 - `InventorySize`
   - 例如 `1x1`、`1x2`、`2x2`
 - `Weight`
@@ -541,92 +550,69 @@ Project-XX 自建：
 - `BossDirectorService`
 - `RaidEventService`
 
-## 7. 与 JUTPS 的桥接设计
+## 7. 与 FPS Framework / JUTPS 的桥接设计
 
-## 7.1 第一人称角色与视角桥接
+## 7.1 玩家执行桥
 
 建议新增：
 
-- `ProjectXXCharacterFacade`
-- `ProjectXXFirstPersonViewBridge`
-- `ProjectXXInputContextBridge`
-- `ProjectXXBaseHubPlayerBridge`
+- `RaidPlayerControllerFacade`
+- `RaidPlayerViewBridge`
+- `RaidInputContext`
 
 职责：
 
-- 把 JUTPS 角色控制锁定在正式第一人称玩法
+- 把 `FPS Framework` 的 `Player.prefab` 体系包装成 Project-XX 可消费接口
 - 统一 raid 与 BaseHub 的第一人称输入模式
-- 切换战斗态与基地态允许的动作集合
+- 向上暴露移动、瞄准、开火、交互、死亡等统一能力
 - 同步相机、武器展示、交互射线和 HUD 锚点
 
 策略建议：
 
-- 角色底层继续复用 JUTPS 的移动和受击骨架
-- 第一人称手臂、武器、镜头震动、视野限制由 Project-XX 上层控制
+- 玩家只保留 `FPS Framework` 输入主链路
+- `JUTPS` 输入资产不再驱动玩家本体
+- 打开界面、暂停、上车等状态切换统一通过 `RaidInputContext` 与 `FPSFrameworkCore.IsInputActive`
 - BaseHub 中关闭不需要的战斗动作，但保留第一人称移动与交互
 
-## 7.2 角色数值桥接
+## 7.2 武器桥
 
 建议新增：
 
-- `ProjectXXCharacterStatBridge`
-- `ProjectXXCharacterBuffBridge`
-- `ProjectXXEquipmentBridge`
-- `ProjectXXDamageBridge`
+- `ProjectXXFirearmBridge`
+- `WeaponRuntimeToPresetMapper`
+- `WeaponModifierApplier`
 
 职责：
 
-- 把 Project-XX 的运行时数值同步到 `JUCharacterController`
-- 把装备、Buff、异常、生存值对移动、近战、射击、交互的修正作用到 JUTPS
+- 把 `WeaponDefinition` 与 `ItemInstanceRuntime` 映射到 `FirearmPreset` 和 `Firearm`
+- 把弹药、耐久、词缀、Buff 与生存值修正同步到玩家枪械执行层
+- 让 Project-XX 的规则层决定武器数值，`FPS Framework` 决定玩家手感与表现
 
-例子：
+策略建议：
 
-- 最终移动速度 = JUTPS 基础速度 x 负重修正 x Buff 修正 x 生存值修正 x 异常修正
-- 最终近战伤害 = 基础近战伤害 x 力量修正 x 词缀修正 x 异常修正
-- 最终稳定性 = 武器基础值 x 技能修正 x 恐惧修正 x 疲劳修正
+- 玩家枪械执行层统一使用 `FPS Framework`
+- 敌人仍可暂时保留 `JUTPS` 武器执行链路
+- 武器展示、Procedural 动画和主 / 武器相机 FOV 统一跟随玩家执行桥
 
-## 7.3 武器桥接
+## 7.3 生命与伤害桥
 
 建议新增：
 
-- `ProjectXXWeaponBridge`
-- `ProjectXXAmmoResolver`
-- `ProjectXXWeaponDurabilityBridge`
+- `RaidHealthBridge`
+- `DamageProtocolBridge`
 
-策略：
+职责：
 
-- JUTPS `Weapon` 继续负责开火、射线、抛壳、枪口火焰、基础后坐
-- Project-XX 负责真正的武器实例数据
+- 统一 `FPS Framework` 玩家、`JUTPS` 敌人、Boss 和场景危险之间的伤害事件
+- 把护甲、Buff、异常、生存值和部位规则插入同一套结算协议
+- 统一死亡事件、击杀归属、掉落触发和撤离失败判定
 
-运行时由桥接层把以下信息同步给 JUTPS：
+策略建议：
 
-- 当前弹药
-- 当前耐久
-- 稀有度修正
-- 词缀效果
-- 异常/技能修正
+- 不让 `FPS Framework` 与 `JUTPS` 各自维护一套玩家最终生命结算
+- Project-XX 负责最终伤害规则，桥接层只负责把执行结果推送给各自表现系统
 
-## 7.4 近战桥接
-
-因为敌人大多为近战，建议单独加强这条链路：
-
-- `ProjectXXMeleeBridge`
-- `MeleeHitResolver`
-- `MeleeStaggerService`
-
-目标：
-
-- 近战不是“保底动作”，而是重要战斗维度
-- 支持第一人称近战打击反馈
-- 支持敌人高压近战
-- 支持玩家近战槽位作为死亡保留的稳定输出工具
-
-## 7.5 容器与背包桥接
-
-JUTPS `JUInventory` 不应承担最终仓库逻辑，只建议保留为：
-
-- 当前角色手持切换
-- 局内快捷使用代理
+## 7.4 容器与装备桥
 
 正式格子系统建议完全由 Project-XX 自己实现：
 
@@ -638,33 +624,41 @@ JUTPS `JUInventory` 不应承担最终仓库逻辑，只建议保留为：
 桥接原则：
 
 - Project-XX 决定物品是否存在于容器中
-- JUTPS 只负责场景中实际装备和使用的那部分物体
+- 玩家当前手持、当前展示武器由 `RaidInventoryBridge` 映射到 `FPS Framework`
+- `JUTPS` 只负责敌人、车辆或世界对象实际使用的那部分物体
+- `JUInventory` 不承担最终仓库逻辑，最多保留为局内快捷代理的参考原型
 
-## 7.6 交互桥接
+## 7.5 交互桥
 
 建议新增：
 
-- `ProjectXXInteractableAdapter`
+- `ProjectXXInteractableBridge`
+- `InteractionPromptPresenter`
 - `InteractionRequirementEvaluator`
-- `InteractionExecutionService`
 
-继续复用 JUTPS：
+策略：
 
-- 查找最近交互物
-- 基础交互输入
+- `FPS Framework` 的 `InteractionsManager` 只负责“发现与触发”
+- Project-XX 负责真正的权限判断、任务条件、钥匙检查、容器空间检查与撤离条件
+- 需要进入 `JUTPS` 车辆或世界对象时，由桥接层把触发转发到对应 `JUTPS` 逻辑
 
-Project-XX 负责：
+## 7.6 JUTPS 世界能力桥
 
-- 是否有钥匙/任务条件
-- 是否有足够容器空间
-- 是否允许撤离
-- 是否允许开启 Boss 事件
-- 是否允许局内商店交易
-- 是否允许建造、使用或升级基地设施
+建议新增：
+
+- `JutpsVehicleBridge`
+- `JutpsEnemyFacade`
+- `JutpsWorldActorBridge`
+
+职责：
+
+- 把 `JUTPS` 的车辆、AI、世界对象接入 Project-XX 的规则域
+- 玩家上车时关闭 `FPS Framework` 玩家移动输入，下车时恢复
+- 敌人继续保留 `JUTPS` 感知与攻击骨架，由 Project-XX 在上层施加精英、Boss 和掉落逻辑
 
 ## 7.7 AI 扩展
 
-保留 JUTPS：
+保留 `JUTPS`：
 
 - `FieldOfView`
 - `HearSensor`
@@ -1138,7 +1132,7 @@ Project-XX 负责：
 
 职责：
 
-- 生成基地态第一人称玩家
+- 生成基地态 `FPS Framework` 玩家与对应输入上下文
 - 仓库
 - 配装
 - 商人
@@ -1150,27 +1144,38 @@ Project-XX 负责：
 
 职责：
 
-- 生成玩家和装备映射
-- 生成容器、敌人、Boss、事件、撤离点和任务目标
-- 运行 JUTPS 战斗层
+- 生成 `FPS Framework` 玩家和装备映射
+- 生成 `JUTPS` 敌人、车辆、世界对象、容器、Boss、事件、撤离点和任务目标
+- 运行 `FPS Framework` 玩家执行层
+- 运行 `JUTPS` 敌人 / 载具 / 世界能力层
 - 运行 Project-XX 规则层
 
 ## 16. 开发顺序建议
 
-### M0：底座验证
+### M0：双框架边界与联合测试场景验证
 
-- 稳定 JUTPS 接入
-- 跑通第一人称视角、战斗、近战、敌人、撤离
+- 稳定 `FPS Framework` / `JUTPS` 接入
+- 确认玩家用 `FPS Framework`、敌人 / 载具用 `JUTPS`
+- 跑通 `FPSF Player + JUTPS Enemy + Project-XX HUD`
 
-### M1：局内闭环
+### M1：玩家执行层与伤害协议
 
+- 玩家执行桥
+- 武器桥
+- 生命与伤害桥
+- 最小交互点
+- 基础玩家战斗闭环
+
+### M2：局内交互、载具与搜打撤闭环
+
+- 交互桥
+- 载具桥
 - 格子背包
 - 容器搜刮
 - 死亡丢失结算
-- 基础敌人、精英、Boss
-- 基础掉落
+- 撤离回写
 
-### M2：局外基地闭环
+### M3：局外基地闭环
 
 - BaseHub 场景
 - 仓库
@@ -1178,7 +1183,7 @@ Project-XX 负责：
 - 任务
 - 设施建造
 
-### M3：成长与持续状态
+### M4：成长与持续状态
 
 - 属性
 - 技能
@@ -1188,31 +1193,37 @@ Project-XX 负责：
 
 ## 17. 当前主要技术风险
 
-### 风险 1：JUTPS 原库存系统过于简化
+### 风险 1：`FPS Framework` 与 `JUTPS` 在玩家侧发生双控制器冲突
 
 结论：
 
-- 不能承担最终格子仓库与容器方案
+- 必须严格保证玩家根物体只有一套正式控制器和一条正式输入链路
 
-### 风险 2：JUTPS UI 路线与项目正式 UI 路线不一致
-
-结论：
-
-- 只能参考，不能继续扩建
-
-### 风险 3：JUTPS 原始体验偏 TPS 根系，第一人称交付需要额外桥接
+### 风险 2：双输入、双 HUD、双交互发现器同时运行
 
 结论：
 
-- 必须尽早锁定第一人称相机、武器展示、交互射线和动画策略
+- `FPS Framework`、`JUTPS` 与 Project-XX 必须明确谁负责输入、谁负责提示、谁负责权限判断
 
-### 风险 4：基地与 Raid 共用角色状态，容易出现状态同步错误
+### 风险 3：玩家与敌人分属两个包，伤害与死亡协议容易不一致
+
+结论：
+
+- 必须尽早收敛到统一的 `DamageProtocolBridge`
+
+### 风险 4：`JUTPS` 原库存系统和原 UI 方案过于原型化
+
+结论：
+
+- 只能参考，不能承担最终格子仓库、正式 HUD 和正式结算
+
+### 风险 5：基地与 Raid 共用角色状态，容易出现状态同步错误
 
 结论：
 
 - 必须明确 `PlayerProfileRuntime`、`BaseHubRuntimeState` 和 `RaidPlayerRuntime` 的数据边界
 
-### 风险 5：生存值和 Buff 叠加后容易出现数值膨胀
+### 风险 6：生存值和 Buff 叠加后容易出现数值膨胀
 
 结论：
 
@@ -1220,15 +1231,17 @@ Project-XX 负责：
 
 ## 18. 最终建议
 
-对这个项目来说，最合理的技术路线不是“完全重写”，也不是“完全继承 JUTPS”，而是：
+对这个项目来说，最合理的技术路线不是“完全重写”，也不是“完全继承某一个包”，而是：
 
-- 让 `JUTPS` 负责第一人称角色、武器、移动、基础战斗执行
+- 让 `FPS Framework` 负责玩家第一人称执行层
+- 让 `JUTPS` 负责敌人、AI、车辆和世界对象原型层
 - 让 `Project-XX` 负责局内外规则、容器、成长、基地、商人、生存值和正式界面
 
 一句话概括：
 
-- `JUTPS = 身体、动作、武器、基础战斗`
-- `Project-XX = 容器、规则、成长、基地、商人、任务、生存与产品化结构`
+- `FPS Framework = 玩家执行层`
+- `JUTPS = 世界与敌人原型层`
+- `Project-XX = 正式规则与产品层`
 
 ## 19. 推荐代码目录落位
 
@@ -1245,7 +1258,9 @@ Project-XX 负责：
 - `Assets/Res/Scripts/ProjectXX/Services`
 - `Assets/Res/Scripts/ProjectXX/Infrastructure/Save`
 - `Assets/Res/Scripts/ProjectXX/Infrastructure/Definitions`
+- `Assets/Res/Scripts/ProjectXX/Bridges/FPSFramework`
 - `Assets/Res/Scripts/ProjectXX/Bridges/JUTPS`
+- `Assets/Res/Scripts/ProjectXX/Bridges/Common`
 - `Assets/Res/Scripts/ProjectXX/Presentation/Hud`
 - `Assets/Res/Scripts/ProjectXX/Presentation/Inventory`
 - `Assets/Res/Scripts/ProjectXX/Presentation/Character`
@@ -1337,9 +1352,9 @@ Project-XX 负责：
 4. `RaidSessionService` 创建新的 `RaidSessionRuntime`。
 5. 切换到目标 `Raid_<MapId>` 场景。
 6. `Bootstrap` 注入当前 Profile、Loadout、MapDefinition。
-7. 场景生成玩家角色，并挂接 JUTPS 桥接组件。
+7. 场景生成 `FPS Framework` 玩家角色，并挂接 `RaidPlayerControllerFacade`、`ProjectXXFirearmBridge`、`RaidHealthBridge` 等桥接组件。
 8. 把当前生存值快照复制到 `RaidPlayerRuntime`。
-9. 场景生成敌人、精英修正、Boss、容器、撤离点和任务目标。
+9. 场景生成 `JUTPS` 敌人、车辆、世界对象、精英修正、Boss、容器、撤离点和任务目标，并通过 `JutpsEnemyFacade` / `JutpsVehicleBridge` 接入规则层。
 10. HUD 初始化并开始监听 raid 运行时状态。
 
 ## 20.6 容器转移流程
@@ -1429,12 +1444,17 @@ Project-XX 负责：
 - 局内角色状态权威来源：`RaidPlayerRuntime`
 - 生存值持久状态权威来源：`SurvivalRuntimeState`
 - 容器格子状态权威来源：`InventoryGridRuntime / ContainerRuntime`
-- 角色动作执行权威来源：`JUCharacterController`
-- 武器开火表现权威来源：`JUTPS Weapon`
+- 玩家动作执行权威来源：`FPS Framework Player / FirstPersonController`
+- 敌人 / 载具动作执行权威来源：`JUTPS` AI / `DriveVehicles`
+- 玩家武器开火表现权威来源：`FPS Framework Firearm`
+- 敌人武器开火表现权威来源：当前敌人所用的 `JUTPS Weapon` 或其等价执行组件
 - UI 只读展示权威来源：对应 Runtime State，不拥有最终状态
 
 ### 必须遵守的同步规则
 
+- `FPS Framework` 与 `JUTPS` 不同时驱动同一个玩家根物体。
+- 玩家输入上下文切换统一经过 `RaidInputContext` 或其等价桥接层。
+- `FPS Framework` 的 `InteractionsManager` 只负责发现与触发，权限判断必须回到 Project-XX。
 - JUTPS 不直接保存局外仓库状态。
 - UI 不直接修改 MonoBehaviour 上的“临时变量”作为最终状态。
 - 存档只从 Runtime State 汇总，不直接从 UI 读。

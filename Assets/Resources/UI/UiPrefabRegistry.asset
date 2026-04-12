@@ -1,0 +1,102 @@
+﻿%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ec4ea490d5c2684da2531cc5083a5d5, type: 3}
+  m_Name: UiPrefabRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::UiPrefabRegistry
+  entries:
+  - prefabId: BaseHubOverlay
+    resourcePath: UI/Base/BaseHubOverlay
+    prefab: {fileID: 100100000, guid: 2e0ef36794fd8f84499eb762c61476cb, type: 3}
+  - prefabId: PrototypeCombatTextEntry
+    resourcePath: UI/FPS/PrototypeCombatTextEntry
+    prefab: {fileID: 100100000, guid: 35ce308093c9c594caeb46486673c8f4, type: 3}
+  - prefabId: PrototypeFpsHud
+    resourcePath: UI/FPS/PrototypeFpsHud
+    prefab: {fileID: 100100000, guid: d55196cfab7bd8a46867fa90c898fade, type: 3}
+  - prefabId: PrototypeTargetHealthBar
+    resourcePath: UI/FPS/PrototypeTargetHealthBar
+    prefab: {fileID: 100100000, guid: a484e05a268964343a7854d9a7f75c29, type: 3}
+  - prefabId: InteractionPrompt
+    resourcePath: UI/Interaction/InteractionPrompt
+    prefab: {fileID: 100100000, guid: f1a8abbb8e2a26242b32e129e51c82e9, type: 3}
+  - prefabId: LootContainerWindow
+    resourcePath: UI/Loot/LootContainerWindow
+    prefab: {fileID: 100100000, guid: 4e5e1b73dcd4ed646b77cf7dd41640ff, type: 3}
+  - prefabId: PlayerInventoryWindow
+    resourcePath: UI/Loot/PlayerInventoryWindow
+    prefab: {fileID: 100100000, guid: f1aca7b3a43266540933f4f0b926ed01, type: 3}
+  - prefabId: RaidDragGhost
+    resourcePath: UI/Loot/RaidDragGhost
+    prefab: {fileID: 100100000, guid: fd32aca100314784eb63f29928c1e98e, type: 3}
+  - prefabId: RaidInventoryItemCard
+    resourcePath: UI/Loot/RaidInventoryItemCard
+    prefab: {fileID: 100100000, guid: a44009ca92005674b84f6f154b756750, type: 3}
+  - prefabId: RaidInventorySection
+    resourcePath: UI/Loot/RaidInventorySection
+    prefab: {fileID: 100100000, guid: 20beb4459b854cf418f4ca22fc82ec5c, type: 3}
+  - prefabId: RaidInventorySlotCard
+    resourcePath: UI/Loot/RaidInventorySlotCard
+    prefab: {fileID: 100100000, guid: 1a95c160cef8d544cbc5a1888531994c, type: 3}
+  - prefabId: PrototypeMainMenuButton
+    resourcePath: UI/MainMenu/PrototypeMainMenuButton
+    prefab: {fileID: 100100000, guid: 519d2c5bfa901914291533571e0daf7b, type: 3}
+  - prefabId: PrototypeMainMenuCard
+    resourcePath: UI/MainMenu/PrototypeMainMenuCard
+    prefab: {fileID: 100100000, guid: 148718786d7a3a447b1e35bf76cddd7b, type: 3}
+  - prefabId: PrototypeMainMenuPanel
+    resourcePath: UI/MainMenu/PrototypeMainMenuPanel
+    prefab: {fileID: 100100000, guid: 51e849892df69804d8ab927a74ba5bc4, type: 3}
+  - prefabId: PrototypeMainMenuUgui
+    resourcePath: UI/PrototypeMainMenuUgui
+    prefab: {fileID: 100100000, guid: c75352c67f7c33642a31dc44ba567b9f, type: 3}
+  - prefabId: DialogueOptionButton
+    resourcePath: UI/Quest/DialogueOptionButton
+    prefab: {fileID: 100100000, guid: 8dc11d08169e8a54f92526da1e0e6d00, type: 3}
+  - prefabId: DialogueWindow
+    resourcePath: UI/Quest/DialogueWindow
+    prefab: {fileID: 100100000, guid: b13c3ecc57b77c24f90d2b726d6ac0c3, type: 3}
+  - prefabId: QuestJournal
+    resourcePath: UI/Quest/QuestJournal
+    prefab: {fileID: 100100000, guid: 6faec9d9ebefa2b4a9421611e972c1b4, type: 3}
+  - prefabId: QuestJournalDetail
+    resourcePath: UI/Quest/QuestJournalDetail
+    prefab: {fileID: 100100000, guid: 09927dfed49c3e74180b9cef8ff52677, type: 3}
+  - prefabId: QuestJournalListItem
+    resourcePath: UI/Quest/QuestJournalListItem
+    prefab: {fileID: 100100000, guid: 03e61e202d40a6549926a5ce42bf2f8d, type: 3}
+  - prefabId: QuestJournalObjectiveLine
+    resourcePath: UI/Quest/QuestJournalObjectiveLine
+    prefab: {fileID: 100100000, guid: 3098e863834ac034fb79b6cc86e32765, type: 3}
+  - prefabId: QuestToast
+    resourcePath: UI/Quest/QuestToast
+    prefab: {fileID: 100100000, guid: fddd5c36c79435b4cb685355f38fd173, type: 3}
+  - prefabId: QuestTrackerHud
+    resourcePath: UI/Quest/QuestTrackerHud
+    prefab: {fileID: 100100000, guid: f7fdc0b4ba31fb04387922c6e0b0b0e1, type: 3}
+  - prefabId: RaidHud
+    resourcePath: UI/Raid/RaidHud
+    prefab: {fileID: 100100000, guid: 3514136e8befaa9408b172534acf57c0, type: 3}
+  - prefabId: RaidResultView
+    resourcePath: UI/Raid/RaidResultView
+    prefab: {fileID: 100100000, guid: accd1d834abdc644d8d3814eb584e427, type: 3}
+  - prefabId: RaidReturnButton
+    resourcePath: UI/Raid/RaidReturnButton
+    prefab: {fileID: 100100000, guid: a93248e96d455784a9d3048b1b589aa0, type: 3}
+  - prefabId: StudentIdCardFace
+    resourcePath: UI/StudentID/StudentIdCardFace
+    prefab: {fileID: 100100000, guid: 2befa7951fc768b46a38eb894e94d127, type: 3}
+  - prefabId: StudentIdCardNameEntryWindow
+    resourcePath: UI/StudentID/StudentIdCardNameEntryWindow
+    prefab: {fileID: 100100000, guid: fea8f00d5d4b3bf4c8eb246bfae5ae70, type: 3}
+  - prefabId: StudentIdCardNameOverlay
+    resourcePath: UI/StudentID/StudentIdCardNameOverlay
+    prefab: {fileID: 100100000, guid: 8249a7c147b7a3b49afaed4bb3d993b1, type: 3}

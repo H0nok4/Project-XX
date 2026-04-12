@@ -3,13 +3,12 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
-public sealed class StudentIdCardNameEntryView : ViewBase
+public sealed class StudentIdCardNameEntryView : PrefabViewBase<StudentIdCardNameEntryWindowTemplate>
 {
-    private const string ViewPrefabResourcePath = "UI/StudentID/StudentIdCardNameEntryWindow";
+    private const string ViewPrefabPath = "UI/StudentID/StudentIdCardNameEntryWindow";
 
     private static StudentIdCardNameEntryView instance;
 
@@ -29,8 +28,6 @@ public sealed class StudentIdCardNameEntryView : ViewBase
     private TMP_Text placeholderText;
     private Button confirmButton;
     private Button cancelButton;
-    private StudentIdCardNameEntryWindowTemplate viewTemplate;
-
     private Action<string> confirmCallback;
     private Action<string> valueChangedCallback;
     private Action cancelCallback;
@@ -39,59 +36,23 @@ public sealed class StudentIdCardNameEntryView : ViewBase
 
     public static StudentIdCardNameEntryView GetOrCreate()
     {
-        if (instance != null)
-        {
-            instance.Prepare();
-            return instance;
-        }
-
-        instance = FindFirstObjectByType<StudentIdCardNameEntryView>();
-        if (instance != null)
-        {
-            instance.Prepare();
-            return instance;
-        }
-
-        GameObject root = new GameObject("StudentIdCardNameEntryView");
-        instance = root.AddComponent<StudentIdCardNameEntryView>();
+        instance = UiRouter.GetOrCreate<StudentIdCardNameEntryView>();
         instance.Prepare();
         return instance;
     }
 
     public bool IsOpen => IsViewVisible;
 
+    public override bool RegistersWithUiWindowService => true;
+    public override int ManagedInputPriority => 100;
+    protected override string ViewPrefabId => "StudentIdCardNameEntryWindow";
+    protected override string ViewPrefabResourcePath => ViewPrefabPath;
     protected override PrototypeUiLayer Layer => PrototypeUiLayer.Modal;
     protected override bool AddTransparentRootGraphic => false;
     protected override bool VisibleOnAwake => false;
     protected override bool RootGraphicRaycastTarget => true;
-    protected override bool ApplyRuntimeFontToChildren => true;
     protected override string ViewName => "StudentIdCardNameEntry";
     protected override Color RootGraphicColor => new Color(0.02f, 0.03f, 0.05f, 0.76f);
-
-    protected override RectTransform CreateViewRoot()
-    {
-        RectTransform parent = UiManager.GetLayerRoot(Layer);
-        GameObject prefabAsset = Resources.Load<GameObject>(ViewPrefabResourcePath);
-        if (prefabAsset == null)
-        {
-            Debug.LogWarning($"[{GetType().Name}] Missing view prefab at Resources/{ViewPrefabResourcePath}.", this);
-            return null;
-        }
-
-        GameObject instanceObject = Instantiate(prefabAsset, parent, false);
-        instanceObject.name = prefabAsset.name;
-
-        viewTemplate = instanceObject.GetComponent<StudentIdCardNameEntryWindowTemplate>();
-        if (viewTemplate == null || viewTemplate.Root == null)
-        {
-            Destroy(instanceObject);
-            viewTemplate = null;
-            Debug.LogWarning($"[{GetType().Name}] Student ID name entry prefab is missing {nameof(StudentIdCardNameEntryWindowTemplate)}.", this);
-            return null;
-        }
-
-        return viewTemplate.Root;
-    }
 
     public void Open(string initialName, bool canCancel, Action<string> onConfirm, Action onCancel, Action<string> onValueChanged = null)
     {
@@ -146,33 +107,28 @@ public sealed class StudentIdCardNameEntryView : ViewBase
         base.OnDestroy();
     }
 
-    protected override void BuildView(RectTransform root)
+    protected override RectTransform ResolveViewRoot(StudentIdCardNameEntryWindowTemplate template)
     {
-        if (root == null)
-        {
-            return;
-        }
+        return template != null ? template.Root : null;
+    }
 
-        if (viewTemplate == null || viewTemplate.Root != root)
-        {
-            viewTemplate = root.GetComponent<StudentIdCardNameEntryWindowTemplate>();
-        }
-
-        if (viewTemplate == null)
+    protected override void BuildPrefabView(StudentIdCardNameEntryWindowTemplate template, RectTransform root)
+    {
+        if (template == null)
         {
             Debug.LogWarning($"[{GetType().Name}] Missing {nameof(StudentIdCardNameEntryWindowTemplate)} on instantiated view root.", this);
             return;
         }
 
-        panelRoot = viewTemplate.Panel;
-        titleText = viewTemplate.TitleText;
-        subtitleText = viewTemplate.SubtitleText;
-        fieldLabelText = viewTemplate.FieldLabelText;
-        nameInputField = viewTemplate.NameInputField;
-        inputText = viewTemplate.InputText;
-        placeholderText = viewTemplate.PlaceholderText;
-        confirmButton = viewTemplate.ConfirmButton;
-        cancelButton = viewTemplate.CancelButton;
+        panelRoot = template.Panel;
+        titleText = template.TitleText;
+        subtitleText = template.SubtitleText;
+        fieldLabelText = template.FieldLabelText;
+        nameInputField = template.NameInputField;
+        inputText = template.InputText;
+        placeholderText = template.PlaceholderText;
+        confirmButton = template.ConfirmButton;
+        cancelButton = template.CancelButton;
 
         ApplyStaticLabels();
         HookTemplateCallbacks();
@@ -190,7 +146,6 @@ public sealed class StudentIdCardNameEntryView : ViewBase
 
     protected override void OnViewRootDestroyed()
     {
-        viewTemplate = null;
         panelRoot = null;
         titleText = null;
         subtitleText = null;
@@ -279,23 +234,26 @@ public sealed class StudentIdCardNameEntryView : ViewBase
         nameInputField.caretPosition = nameInputField.text.Length;
     }
 
-    private void Update()
+    public override bool TryHandleUiSubmit()
     {
-        if (!IsViewVisible || Keyboard.current == null)
+        if (!IsViewVisible)
         {
-            return;
+            return false;
         }
 
-        if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
+        TryConfirm();
+        return true;
+    }
+
+    public override bool TryHandleUiCancel()
+    {
+        if (!IsViewVisible || !allowCancel)
         {
-            TryConfirm();
-            return;
+            return false;
         }
 
-        if (allowCancel && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            Cancel();
-        }
+        Cancel();
+        return true;
     }
 
     private void TryConfirm()

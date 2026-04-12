@@ -2,20 +2,18 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 [DefaultExecutionOrder(-40)]
 [DisallowMultipleComponent]
-public sealed class StudentIdCardNameEntryWindowController : WindowBase
+public sealed class StudentIdCardNameEntryWindowController : PrefabWindowBase<StudentIdCardNameEntryWindowTemplate>
 {
-    private const string WindowPrefabResourcePath = "UI/StudentID/StudentIdCardNameEntryWindow";
+    private const string WindowPrefabPath = "UI/StudentID/StudentIdCardNameEntryWindow";
 
     private static StudentIdCardNameEntryWindowController instance;
 
     [SerializeField] private string fieldLabel = "姓名";
 
-    private StudentIdCardNameEntryWindowTemplate windowView;
     private Action<string> confirmCallback;
     private Action<string> valueChangedCallback;
     private Action cancelCallback;
@@ -24,23 +22,15 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
 
     public static StudentIdCardNameEntryWindowController GetOrCreate()
     {
-        if (instance != null)
-        {
-            return instance;
-        }
-
-        instance = FindFirstObjectByType<StudentIdCardNameEntryWindowController>();
-        if (instance != null)
-        {
-            return instance;
-        }
-
-        GameObject root = new GameObject("StudentIdCardNameEntryWindowController");
-        return root.AddComponent<StudentIdCardNameEntryWindowController>();
+        instance = UiRouter.GetOrCreate<StudentIdCardNameEntryWindowController>();
+        return instance;
     }
 
     public bool IsOpen => IsWindowVisible;
 
+    public override int ManagedInputPriority => 100;
+    protected override string WindowPrefabId => "StudentIdCardNameEntryWindow";
+    protected override string WindowPrefabResourcePath => WindowPrefabPath;
     protected override PrototypeUiLayer WindowLayer => PrototypeUiLayer.Modal;
     protected override bool VisibleOnAwake => false;
     protected override string WindowName => "StudentIdCardNameEntryWindow";
@@ -73,7 +63,7 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
     public void Open(string initialName, bool canCancel, Action<string> onConfirm, Action onCancel, Action<string> onValueChanged = null)
     {
         EnsureWindow();
-        if (windowView == null || windowView.NameInputField == null)
+        if (Template == null || Template.NameInputField == null)
         {
             return;
         }
@@ -84,15 +74,15 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
         cancelCallback = onCancel;
 
         HookTemplateCallbacks();
-        if (windowView.FieldLabelText != null)
+        if (Template.FieldLabelText != null)
         {
-            windowView.FieldLabelText.text = fieldLabel;
+            Template.FieldLabelText.text = fieldLabel;
         }
 
-        windowView.NameInputField.text = string.IsNullOrWhiteSpace(initialName) ? string.Empty : initialName.Trim();
-        if (windowView.CancelButton != null)
+        Template.NameInputField.text = string.IsNullOrWhiteSpace(initialName) ? string.Empty : initialName.Trim();
+        if (Template.CancelButton != null)
         {
-            windowView.CancelButton.gameObject.SetActive(allowCancel);
+            Template.CancelButton.gameObject.SetActive(allowCancel);
         }
 
         RefreshConfirmState();
@@ -120,27 +110,19 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
         HideWindow();
     }
 
-    protected override PrototypeUiToolkit.WindowChrome CreateWindowChrome()
+    protected override PrototypeUiToolkit.WindowChrome CreatePrefabWindowChrome(StudentIdCardNameEntryWindowTemplate template)
     {
-        RectTransform parent = UiManager.GetLayerRoot(WindowLayer);
-        if (TryInstantiateWindowPrefab(parent, out PrototypeUiToolkit.WindowChrome chrome))
-        {
-            PrototypeUiToolkit.SetVisible(chrome.Root, false);
-            return chrome;
-        }
-
-        windowView = null;
-        return base.CreateWindowChrome();
+        return template != null ? template.CreateWindowChrome() : null;
     }
 
-    protected override void BuildWindow(PrototypeUiToolkit.WindowChrome chrome)
+    protected override void BuildPrefabWindow(StudentIdCardNameEntryWindowTemplate template, PrototypeUiToolkit.WindowChrome chrome)
     {
         if (chrome == null || chrome.Root == null)
         {
             return;
         }
 
-        if (windowView != null && windowView.Root == chrome.Root)
+        if (template != null && template.Root == chrome.Root)
         {
             HookTemplateCallbacks();
         }
@@ -149,8 +131,8 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
     protected override void OnWindowVisibilityChanged(bool visible)
     {
         base.OnWindowVisibilityChanged(visible);
-        if (!visible && EventSystem.current != null && windowView != null && windowView.NameInputField != null
-            && EventSystem.current.currentSelectedGameObject == windowView.NameInputField.gameObject)
+        if (!visible && EventSystem.current != null && Template != null && Template.NameInputField != null
+            && EventSystem.current.currentSelectedGameObject == Template.NameInputField.gameObject)
         {
             EventSystem.current.SetSelectedGameObject(null);
         }
@@ -158,86 +140,61 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
 
     protected override void OnWindowRootDestroyed()
     {
-        windowView = null;
+        if (focusCoroutine != null)
+        {
+            StopCoroutine(focusCoroutine);
+            focusCoroutine = null;
+        }
+
+        base.OnWindowRootDestroyed();
     }
 
-    private void Update()
+    public override bool TryHandleUiSubmit()
     {
-        if (!IsOpen || Keyboard.current == null)
+        if (!IsOpen)
         {
-            return;
+            return false;
         }
 
-        if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
-        {
-            TryConfirm();
-            return;
-        }
-
-        if (allowCancel && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            Cancel();
-        }
+        TryConfirm();
+        return true;
     }
 
-    private bool TryInstantiateWindowPrefab(RectTransform parent, out PrototypeUiToolkit.WindowChrome chrome)
+    public override bool TryHandleUiCancel()
     {
-        chrome = null;
-        GameObject prefabAsset = Resources.Load<GameObject>(WindowPrefabResourcePath);
-        if (prefabAsset == null)
+        if (!IsOpen || !allowCancel)
         {
             return false;
         }
 
-        GameObject instanceObject = Instantiate(prefabAsset, parent, false);
-        instanceObject.name = prefabAsset.name;
-
-        windowView = instanceObject.GetComponent<StudentIdCardNameEntryWindowTemplate>();
-        if (windowView == null || windowView.Root == null)
-        {
-            Destroy(instanceObject);
-            windowView = null;
-            return false;
-        }
-
-        chrome = windowView.CreateWindowChrome();
-        if (chrome == null || chrome.Root == null)
-        {
-            Destroy(instanceObject);
-            windowView = null;
-            chrome = null;
-            return false;
-        }
-
-        PrototypeUiToolkit.ApplyFontRecursively(chrome.Root, RuntimeFont);
-        HookTemplateCallbacks();
+        Cancel();
         return true;
     }
 
     private void HookTemplateCallbacks()
     {
-        if (windowView == null)
+        if (Template == null)
         {
             return;
         }
 
-        if (windowView.NameInputField != null)
+        if (Template.NameInputField != null)
         {
-            windowView.NameInputField.onValueChanged.RemoveListener(HandleNameValueChanged);
-            windowView.NameInputField.onValueChanged.AddListener(HandleNameValueChanged);
+            Template.NameInputField.onValueChanged.RemoveListener(HandleNameValueChanged);
+            Template.NameInputField.onValueChanged.AddListener(HandleNameValueChanged);
         }
 
-        if (windowView.ConfirmButton != null)
+        if (Template.ConfirmButton != null)
         {
-            windowView.ConfirmButton.onClick.RemoveAllListeners();
-            windowView.ConfirmButton.onClick.AddListener(TryConfirm);
+            Template.ConfirmButton.onClick.RemoveAllListeners();
+            Template.ConfirmButton.onClick.AddListener(TryConfirm);
         }
 
-        if (windowView.CancelButton != null)
+        if (Template.CancelButton != null)
         {
-            windowView.CancelButton.onClick.RemoveAllListeners();
-            windowView.CancelButton.onClick.AddListener(Cancel);
-            windowView.CancelButton.gameObject.SetActive(allowCancel);
+            Template.CancelButton.onClick.RemoveAllListeners();
+            Template.CancelButton.onClick.AddListener(Cancel);
+            Template.CancelButton.gameObject.SetActive(allowCancel);
         }
     }
 
@@ -246,7 +203,7 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
         yield return null;
         focusCoroutine = null;
 
-        if (!IsOpen || windowView == null || windowView.NameInputField == null)
+        if (!IsOpen || Template == null || Template.NameInputField == null)
         {
             yield break;
         }
@@ -254,22 +211,22 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
         EventSystem currentEventSystem = EventSystem.current;
         if (currentEventSystem != null)
         {
-            currentEventSystem.SetSelectedGameObject(windowView.NameInputField.gameObject);
+            currentEventSystem.SetSelectedGameObject(Template.NameInputField.gameObject);
         }
 
-        windowView.NameInputField.ActivateInputField();
-        windowView.NameInputField.Select();
-        windowView.NameInputField.caretPosition = windowView.NameInputField.text.Length;
+        Template.NameInputField.ActivateInputField();
+        Template.NameInputField.Select();
+        Template.NameInputField.caretPosition = Template.NameInputField.text.Length;
     }
 
     private void TryConfirm()
     {
-        if (windowView == null || windowView.NameInputField == null)
+        if (Template == null || Template.NameInputField == null)
         {
             return;
         }
 
-        string candidate = SanitizeName(windowView.NameInputField.text);
+        string candidate = SanitizeName(Template.NameInputField.text);
         if (string.IsNullOrWhiteSpace(candidate))
         {
             RefreshConfirmState();
@@ -301,13 +258,13 @@ public sealed class StudentIdCardNameEntryWindowController : WindowBase
 
     private void RefreshConfirmState()
     {
-        if (windowView == null || windowView.ConfirmButton == null)
+        if (Template == null || Template.ConfirmButton == null)
         {
             return;
         }
 
-        string candidate = windowView.NameInputField != null ? SanitizeName(windowView.NameInputField.text) : string.Empty;
-        windowView.ConfirmButton.interactable = !string.IsNullOrWhiteSpace(candidate);
+        string candidate = Template.NameInputField != null ? SanitizeName(Template.NameInputField.text) : string.Empty;
+        Template.ConfirmButton.interactable = !string.IsNullOrWhiteSpace(candidate);
     }
 
     private static string SanitizeName(string value)

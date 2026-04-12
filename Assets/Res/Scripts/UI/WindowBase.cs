@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 
 [DisallowMultipleComponent]
-public abstract class WindowBase : MonoBehaviour
+public abstract class WindowBase : MonoBehaviour, IUiManagedElement
 {
     [Header("Window Base")]
     [SerializeField] private PrototypeUiLayer windowLayer = PrototypeUiLayer.Window;
@@ -29,6 +29,12 @@ public abstract class WindowBase : MonoBehaviour
 
     public bool IsWindowBuilt => windowChrome != null && windowChrome.Root != null;
     public bool IsWindowVisible => windowChrome != null && windowChrome.Root != null && windowChrome.Root.gameObject.activeSelf;
+    public virtual bool RegistersWithUiWindowService => true;
+    public bool IsManagedElementVisible => IsWindowVisible;
+    public PrototypeUiLayer ManagedLayer => WindowLayer;
+    public virtual int ManagedInputPriority => 0;
+    public string ManagedElementName => WindowName;
+    public Object ManagedOwner => this;
 
     protected virtual PrototypeUiLayer WindowLayer => windowLayer;
     protected virtual bool BuildOnAwake => buildOnAwake;
@@ -41,6 +47,12 @@ public abstract class WindowBase : MonoBehaviour
 
     protected virtual void Awake()
     {
+        if (RegistersWithUiWindowService)
+        {
+            UiWindowService.GetOrCreate().Register(this);
+            UiInputService.GetOrCreate();
+        }
+
         if (!BuildOnAwake)
         {
             return;
@@ -52,6 +64,11 @@ public abstract class WindowBase : MonoBehaviour
 
     protected virtual void OnDestroy()
     {
+        if (RegistersWithUiWindowService && UiWindowService.TryGetExisting(out UiWindowService windowService))
+        {
+            windowService.Unregister(this);
+        }
+
         DestroyWindowRoot();
     }
 
@@ -99,6 +116,10 @@ public abstract class WindowBase : MonoBehaviour
 
         PrototypeUiToolkit.SetVisible(windowChrome.Root, visible);
         OnWindowVisibilityChanged(visible);
+        if (RegistersWithUiWindowService)
+        {
+            UiWindowService.GetOrCreate().NotifyVisibilityChanged(this, visible);
+        }
     }
 
     public virtual void DestroyWindowRoot()
@@ -133,6 +154,16 @@ public abstract class WindowBase : MonoBehaviour
 
     protected virtual void OnWindowRootDestroyed()
     {
+    }
+
+    public virtual bool TryHandleUiSubmit()
+    {
+        return false;
+    }
+
+    public virtual bool TryHandleUiCancel()
+    {
+        return false;
     }
 
     // New runtime UI should bind or initialize an authored UGUI prefab here,

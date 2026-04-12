@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
-public abstract class ViewBase : MonoBehaviour
+public abstract class ViewBase : MonoBehaviour, IUiManagedElement
 {
     [Header("View Base")]
     [SerializeField] private PrototypeUiLayer viewLayer = PrototypeUiLayer.Hud;
@@ -27,6 +27,12 @@ public abstract class ViewBase : MonoBehaviour
 
     public bool IsViewBuilt => viewRoot != null;
     public bool IsViewVisible => viewRoot != null && viewRoot.gameObject.activeSelf;
+    public virtual bool RegistersWithUiWindowService => false;
+    public bool IsManagedElementVisible => IsViewVisible;
+    public PrototypeUiLayer ManagedLayer => Layer;
+    public virtual int ManagedInputPriority => 0;
+    public string ManagedElementName => ViewName;
+    public Object ManagedOwner => this;
 
     protected virtual PrototypeUiLayer Layer => viewLayer;
     protected virtual bool StretchToLayer => stretchToLayer;
@@ -40,6 +46,12 @@ public abstract class ViewBase : MonoBehaviour
 
     protected virtual void Awake()
     {
+        if (RegistersWithUiWindowService)
+        {
+            UiWindowService.GetOrCreate().Register(this);
+            UiInputService.GetOrCreate();
+        }
+
         if (!BuildOnAwake)
         {
             return;
@@ -51,6 +63,11 @@ public abstract class ViewBase : MonoBehaviour
 
     protected virtual void OnDestroy()
     {
+        if (RegistersWithUiWindowService && UiWindowService.TryGetExisting(out UiWindowService windowService))
+        {
+            windowService.Unregister(this);
+        }
+
         DestroyViewRoot();
     }
 
@@ -106,6 +123,10 @@ public abstract class ViewBase : MonoBehaviour
         }
 
         OnViewVisibilityChanged(visible);
+        if (RegistersWithUiWindowService)
+        {
+            UiWindowService.GetOrCreate().NotifyVisibilityChanged(this, visible);
+        }
     }
 
     public virtual void DestroyViewRoot()
@@ -143,6 +164,16 @@ public abstract class ViewBase : MonoBehaviour
 
     protected virtual void OnViewRootDestroyed()
     {
+    }
+
+    public virtual bool TryHandleUiSubmit()
+    {
+        return false;
+    }
+
+    public virtual bool TryHandleUiCancel()
+    {
+        return false;
     }
 
     // New runtime UI should bind or initialize an authored UGUI prefab here,
