@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using UnityEngine;
 using System;
 using UnityEngine.Serialization;
+using ProjectXX.Domain.Combat;
 
 namespace Akila.FPSFramework
 {
@@ -367,8 +368,14 @@ namespace Akila.FPSFramework
         /// <param name="damageSource">The source of damage.</param>
         public void Damage(float amount, GameObject damageSource)
         {
+            if (!ProjectXXFactionUtility.CanApplyDamage(damageSource, gameObject))
+            {
+                return;
+            }
+
             health -= amount;
             this.DamageSource = damageSource;
+            ProjectXXFactionUtility.RegisterIncomingDamage(gameObject, damageSource);
 
             autoHealDelayTime = autoHealDelay;
         }

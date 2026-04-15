@@ -6,6 +6,7 @@ using JUTPS.ArmorSystem;
 using JUTPSEditor.JUHeader;
 using System.Collections.Generic;
 using JUTPS.CharacterBrain;
+using ProjectXX.Domain.Combat;
 
 namespace JUTPS
 {
@@ -160,6 +161,9 @@ namespace JUTPS
             if (!TagsToDamage.Contains(other.tag))
                 return;
 
+            if (!CanDamageTarget(other))
+                return;
+
             if (other.gameObject.layer == 9) // Characters layer
             {
                 if (other.gameObject.GetComponentInChildren<DamageableBodyPart>() != null)
@@ -194,6 +198,9 @@ namespace JUTPS
 
                 if (TagsToDamage.Contains(hitCollider.tag))
                 {
+                    if (!CanDamageTarget(hitCollider))
+                        continue;
+
                     IsColliding = true;
                     _oldHit = hitCollider;
                     DoDamage(hitCollider, hits[i].point, hits[i].normal, Damage, HitParticlesList, HitSoundsAudioSource);
@@ -275,8 +282,23 @@ namespace JUTPS
             Invoke(nameof(EnableDamaging), disabledSeconds);
         }
 
+        private bool CanDamageTarget(Collider collider)
+        {
+            if (collider == null)
+                return false;
+
+            GameObject source = _characterOwner ? _characterOwner.gameObject
+                : transform.root != null ? transform.root.gameObject
+                : gameObject;
+
+            return ProjectXXFactionUtility.CanApplyDamage(source, collider.gameObject);
+        }
+
         public void DoDamage(Collider collider, Vector3 point, Vector3 normal, float damage, SurfaceAudiosWithFX[] hitParticles, AudioSource hitAudioSource)
         {
+            if (!CanDamageTarget(collider))
+                return;
+
             DamageableBodyPart bodyPart = collider.GetComponentInChildren<DamageableBodyPart>();
             float realDamage = damage;
 

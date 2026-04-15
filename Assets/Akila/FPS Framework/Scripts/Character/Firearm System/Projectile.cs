@@ -85,6 +85,9 @@ namespace Akila.FPSFramework
             {
                 useAutoScaling = source.preset.tracerRounds;
                 scaleMultipler = source.preset.projectileSize;
+                hittableLayers = source.preset.hittableLayers;
+                defaultDecal = source.preset.defaultDecal;
+                decalDirection = source.preset.decalDirection;
 
                 //Final setup
                 source.Projectiles?.Add(this);

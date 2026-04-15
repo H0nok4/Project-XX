@@ -1,1584 +1,339 @@
 # Project-XX 粗略技术设计文档
 
+更新时间：`2026-04-14`
+
 ## 1. 目标
 
-在 `FPS Framework` 的玩家第一人称执行层、`JUTPS` 的敌人 / 载具 / 世界能力原型层，以及 `Project-XX` 自建规则层之上，构建一套适合“单机 PVE 第一人称搜打撤 + 恐怖后末日 + RPG 成长 + 基地经营”的技术架构。
+在 `Akila FPS Framework` 的玩家第一人称执行层、`JUTPS` 的敌人/世界原型执行层，以及 `Project-XX` 自建规则层之上，构建一套适合：
 
-这套架构要满足：
+- 单机 PVE 第一人称搜打撤
+- 恐怖后末日题材
+- RPG 成长
+- 局内搜刮与局外基地经营
 
-- 单机 PVE 优先
-- 正式玩法严格使用第一人称视角
-- 支持枪械与近战双主线战斗
-- 支持恐怖、怪异、异常、偏科幻或偏魔幻内容
-- 支持塔科夫式容器格子与装备丢失逻辑
-- 支持基地场景、设施建造、商人入住与局外交互
-- 支持饱食度、饮水度、疲劳值的持续管理
-- 支持精英怪、Boss、词缀、Buff、异常机制
-- 支持局内外完整闭环
-- 与 Project-XX 现有 runtime UI 规范兼容
+的技术架构。
+
+这套架构要求：
+
+- 玩家正式玩法严格采用第一人称
+- 玩家、敌人、NPC、搜刮、撤离、局外成长能接成一个长期闭环
+- 第三方框架只负责“执行层”，正式规则和正式 UI 由 Project-XX 接管
 
 ## 2. 基本原则
 
-### 原则 1：`FPS Framework` 负责玩家执行层，`JUTPS` 负责世界执行层，`Project-XX` 负责规则与数据
+### 原则 1：Akila 负责玩家执行层，JUTPS 负责世界执行层，Project-XX 负责规则层
 
-复用 `FPS Framework`：
+`Akila FPS Framework` 负责：
 
-- `Player.prefab` 体系与第一人称玩家控制
-- 玩家相机、观察、输入域与武器展示
-- `FirearmPreset`、`Firearm`、`ProceduralAnimator` 等玩家枪械执行链路
-- `InteractionsManager` 作为玩家交互发现与触发入口
+- 第一人称玩家控制
+- 玩家相机、武器、开火、近战与基础交互发现
 
-复用 `JUTPS`：
+`JUTPS` 负责：
 
-- 敌人 / NPC 原型与 AI 感知、巡逻、攻击骨架
-- `DriveVehicles` 与车辆支线
-- 世界对象、场景行为和部分可复用原型
+- 敌人 AI 感知、追击、攻击
+- 车辆与部分世界原型能力
+- 可复用的 NPC / 敌人行为骨架
 
-Project-XX 自建：
+`Project-XX` 负责：
 
-- 格子背包与容器
-- 装备槽位规则
-- 死亡丢失与保留逻辑
-- 属性、技能、Buff、异常系统
-- 生存值与恢复系统
-- 基地场景、设施、商人入住、制造
-- 精英怪 / Boss 词缀与机制系统
-- 商人、任务、成长、局外仓库
-- 正式 UI
-- 最终存档
+- 规则定义
+- 阵营、伤害许可与动态敌对关系
+- 容器、装备、搜刮、撤离、局外回写
+- 正式 HUD 与正式窗口系统
+- 场景安装、桥接、运行时同步
 
-### 原则 2：双框架只允许一个玩家控制权来源
+### 原则 2：第三方框架不直接定义正式游戏规则
 
-- 不在同一个玩家根物体上同时挂 `JUCharacterController` 与 `FirstPersonController`
-- `JUTPS` 输入资产不再驱动玩家本体
-- 玩家 HUD、Pause、Settings 和正式交互提示统一由 `Project-XX` 接管
-- 上车、打开界面、暂停等状态切换统一走 Project-XX 输入上下文，而不是让两个包同时接管
+第三方框架的默认：
 
-### 原则 3：正式产品只交付第一人称玩法
+- Tag 逻辑
+- 玩家 UI
+- Demo 场景行为
+- 原始伤害/目标筛选
 
-- Raid 与 BaseHub 都以第一人称移动、观察、战斗、搜刮和交互
-- 玩家可持枪，也可使用近战武器
-- 第三人称如有保留，只能作为调试或非正式镜头，不得成为主玩法分支
-- 输入、相机、HUD、交互射线、武器展示都必须按 FPS 需求设计
+都只能视为底层能力，不视为最终产品逻辑。正式规则必须由 `Project-XX` 在桥接层之上统一收口。
 
-### 原则 4：Raid、BaseHub、Meta Profile 严格分层
+### 原则 3：运行时状态与定义资产分层
 
-- `Raid Runtime` 负责战斗、搜刮、死亡、撤离、掉落、怪物、场景事件
-- `BaseHub Runtime` 负责基地第一人称移动、设施使用、商人交互、建造和局外恢复
-- `Meta Profile` 负责持久化角色档案、仓库、成长、任务、商人状态和基地状态
+- 定义资产：尽量使用 `ScriptableObject`
+- 运行时状态：尽量使用纯 C# runtime 对象
+- MonoBehaviour：负责场景表现、生命周期与框架桥接
 
-### 原则 5：数据驱动优先
+## 3. 当前高层架构
 
-- 定义层尽量用 `ScriptableObject`
-- 运行时状态尽量用纯 C# 对象
-- MonoBehaviour 负责表现、桥接与场景生命周期
+建议使用下列层次：
 
-### 原则 6：正式 UI 统一走 Project-XX 规范
-
-所有新 runtime UI 必须：
-
-- 放在 `Assets/Resources/UI/...`
-- 使用 `ViewBase` / `WindowBase`
-- 使用 `*Template`
-- 挂载到 `PrototypeRuntimeUiManager`
-
-不要继续扩展 `FPS Framework` 或 `JUTPS` 自带 UI 作为正式方案。
-
-## 3. 高层架构
-
-建议采用六层结构。
-
-## 3.1 Foundation 层
+### 3.1 Foundation
 
 来源：
 
 - Unity
-- FPS Framework
+- Akila FPS Framework
 - JUTPS
 
 职责：
 
-- `FPS Framework`：玩家控制、玩家相机、玩家枪械、玩家交互发现与输入域
-- `JUTPS`：敌人 AI、载具、世界对象与部分原型能力
-- Unity：场景中的物理、动画和通用表现
+- 物理、动画、相机、输入、基础武器与 AI 执行
 
-## 3.2 Raid Domain 层
+### 3.2 Domain
 
-职责：
+当前已存在的域：
 
-- 局内玩家运行态
-- 局内容器与搜刮逻辑
-- 局内战利品生成
-- 局内敌人、精英、Boss 运行态
-- 局内异常事件与场景机制
-- 局内任务目标推进
-- 局内生存值衰减
-- 局内死亡与撤离结算
-
-## 3.3 BaseHub Domain 层
+- `Domain/Raid`
+- `Domain/Meta`
+- `Domain/Combat`
 
 职责：
 
-- 基地场景中的第一人称玩家运行态
-- 设施建造与升级
-- 设施交互
-- 商人驻留与可见性控制
-- 休息、进食、饮水、制造等局外行为
-- 下一局 Buff 预置
+- Raid 会话状态
+- 玩家与局外档案状态
+- 阵营、敌对关系、伤害许可、动态仇恨
 
-## 3.4 Meta Domain 层
+### 3.3 Bridges
 
-职责：
+目录：
 
-- 玩家 Profile
-- 仓库
-- 配装
-- 商人关系与解锁
-- 任务
-- 技能与成长
-- 长期解锁
-- 基地建设状态
-- 图鉴和研究
-
-## 3.5 Presentation 层
+- `Bridges/FPSFramework`
+- `Bridges/JUTPS`
 
 职责：
 
-- Raid HUD
-- 生存值 HUD
-- 背包与容器界面
-- 装备与角色页
-- 商人界面
-- 任务日志
-- 基地建造界面
-- 设施交互窗口
-- 结算界面
+- 把第三方框架的能力接入 Project-XX 规则
+- 负责跨框架同步，而不是定义核心玩法
 
-## 3.6 Persistence 层
+### 3.4 Infrastructure
+
+目录：
+
+- `Infrastructure/Definitions`
+- 后续的 `Infrastructure/Save`
 
 职责：
 
-- 定义资产加载
-- Profile 存档
-- 基地状态存档
-- Raid 快照
-- 设置存档
-- 版本迁移
+- 定义资产
+- 存档与资源装载
 
-## 4. 定义层设计
+### 3.5 Presentation
 
-## 4.1 物品与装备定义
+当前已落地：
 
-建议建立：
+- `ProjectXXRaidHudController`
+- `ProjectXXExtractionPoint`
 
-- `ItemDefinition`
-- `WeaponDefinition`
-- `MeleeWeaponDefinition`
-- `TacticalDeviceDefinition`
-- `ArmorDefinition`
-- `ChestRigDefinition`
-- `BackpackDefinition`
-- `RelicDefinition`
-- `ConsumableDefinition`
-- `AmmoDefinition`
+后续扩展：
 
-关键字段建议：
-
-- `Id`
-- `DisplayName`
-- `Description`
-- `Icon`
-- `WorldPrefab`
-- `ExecutionBinding`
-  - 玩家侧可映射到 `FPS Framework FirearmPreset`
-- `InventorySize`
-  - 例如 `1x1`、`1x2`、`2x2`
-- `Weight`
-- `Rarity`
-- `MaxDurability`
-- `AffixPool`
-- `Tags`
-
-## 4.2 装备槽位定义
-
-建议建立：
-
-- `EquipmentSlotDefinition`
-
-固定槽位建议：
-
-- `PrimaryWeapon`
-- `SecondaryWeapon`
-- `Melee`
-- `Head`
-- `ChestArmor`
-- `ChestRig`
-- `Backpack`
-- `TacticalDevice`
-- `Relic`
-
-每个槽位建议定义：
-
-- 可接受的物品类型
-- 是否死亡丢失
-- 是否可为空
-- 是否影响容器系统
-- 是否提供防护
-
-## 4.3 容器定义
-
-建议建立：
-
-- `ContainerDefinition`
-
-关键字段：
-
-- `Width`
-- `Height`
-- `CanRotateItems`
-- `AllowedItemTags`
-- `ContainerType`
-
-容器类型示例：
-
-- 背包
-- 胸挂
-- 防护胸挂
-- 战利品箱
-- 尸体容器
-- 特殊任务容器
-
-## 4.4 基地与设施定义
-
-建议建立：
-
-- `FacilityDefinition`
-- `FacilityLevelDefinition`
-- `FacilityRequirementDefinition`
-- `FacilityBuildRecipeDefinition`
-- `FacilityEffectDefinition`
-- `MerchantMoveInRequirementDefinition`
-
-关键字段建议：
-
-- `FacilityId`
-- `DisplayName`
-- `Category`
-- `RequiredFacilities`
-- `RequiredItems`
-- `RequiredQuests`
-- `RequiredPlayerLevel`
-- `RequiredMerchantState`
-- `InteractableType`
-- `UnlockEffects`
-- `LevelEffects`
-
-## 4.5 商人、任务与制造定义
-
-建议建立：
-
-- `MerchantDefinition`
-- `MerchantInventoryDefinition`
-- `MerchantTierDefinition`
-- `QuestDefinition`
-- `QuestObjectiveDefinition`
-- `RecipeDefinition`
-
-关键字段建议：
-
-- 商人初次出现条件
-- 商人入住前置设施
-- 商人声望条件
-- 制造配方材料
-- 制造配方耗时
-- 产物列表
-- 任务对设施或商人的解锁效果
-
-## 4.6 成长、异常与生存定义
-
-建议建立：
-
-- `AttributeDefinition`
-- `SkillDefinition`
-- `BuffDefinition`
-- `AffixDefinition`
-- `StatusEffectDefinition`
-- `MutationDefinition`
-- `SurvivalStatDefinition`
-- `SurvivalThresholdDefinition`
-- `RestBuffDefinition`
-
-作用：
-
-- 统一角色成长
-- 统一装备词缀
-- 统一怪物精英修正
-- 统一异常/污染/诅咒表现
-- 统一饱食度、饮水度、疲劳值规则
-
-## 4.7 敌人与遭遇定义
-
-建议建立：
-
-- `EnemyArchetypeDefinition`
-- `EliteModifierDefinition`
-- `BossPhaseDefinition`
-- `EncounterDefinition`
-- `SpawnGroupDefinition`
-- `RaidEventDefinition`
-
-关键字段：
-
-- 基础生命/防御/速度
-- 近战或远程类型
-- 技能列表
-- 精英词缀池
-- 掉落表
-- 行为参数
-- 感知范围
-
-## 4.8 地图与掉落定义
-
-建议建立：
-
-- `MapDefinition`
-- `LootTableDefinition`
-- `LootAreaDefinition`
-- `ExtractionPointDefinition`
-- `MapProgressionDefinition`
-
-## 5. 运行时状态设计
-
-## 5.1 Profile 层运行时
-
-建议建立：
-
-- `PlayerProfileRuntime`
-- `MerchantRuntimeState`
-- `QuestRuntimeState`
-- `SkillTreeRuntime`
-- `ResearchRuntimeState`
-- `BaseHubRuntimeState`
-- `FacilityRuntimeState`
-- `SurvivalRuntimeState`
-
-### `PlayerProfileRuntime`
-
-至少包含：
-
-- 等级
-- 属性
-- 技能
-- 当前资金
-- 仓库
-- 商人状态
-- 任务状态
-- 已解锁地图/区域
-- 已建造设施
-- 已知配方
-- 当前饱食度、饮水度、疲劳值
-- 下一局预置 Buff
-
-### `BaseHubRuntimeState`
-
-职责：
-
-- 记录当前基地可用设施
-- 记录基地交互点状态
-- 记录商人是否已入住
-- 记录可见建造位和未解锁区域
-- 输出当前可进入的局外功能
-
-### `FacilityRuntimeState`
-
-职责：
-
-- 记录设施等级
-- 记录建造完成状态
-- 记录可交互状态
-- 记录冷却、制作队列或恢复队列
-- 记录设施提供的被动效果
-
-### `SurvivalRuntimeState`
-
-建议字段：
-
-- `Satiety`
-- `Hydration`
-- `Fatigue`
-- `ActiveThresholdIds`
-- `LastUpdatedUtc`
-- `RaidDecayPaused`
-- `PendingNextRaidBuffId`
-
-## 5.2 装备与库存运行时
-
-建议建立：
-
-- `ItemInstanceRuntime`
-- `EquipmentRuntime`
-- `InventoryGridRuntime`
-- `ContainerRuntime`
-- `LoadoutRuntime`
-
-### `ItemInstanceRuntime`
-
-建议字段：
-
-- `DefinitionId`
-- `UniqueId`
-- `CurrentDurability`
-- `Rarity`
-- `Affixes`
-- `StackCount`
-- `Rotation`
-- `BoundState`
-- `CustomData`
-
-### `InventoryGridRuntime`
-
-职责：
-
-- 维护二维格子占用
-- 校验物品能否放入
-- 处理旋转
-- 处理移入/移出/交换
-
-### `EquipmentRuntime`
-
-职责：
-
-- 管理角色槽位物品
-- 处理死亡丢失与保留逻辑
-- 输出当前负重、防护、可用容器等结果
-
-## 5.3 Raid 层运行时
-
-建议建立：
-
-- `RaidSessionRuntime`
-- `RaidPlayerRuntime`
-- `RaidEnemyRuntime`
-- `RaidBossRuntime`
-- `RaidLootRuntime`
-- `RaidExtractionRuntime`
-- `RaidThreatRuntime`
-
-### `RaidPlayerRuntime`
-
-职责：
-
-- 持有玩家局内属性快照
-- 持有当前生命、异常、耐久、负重状态
-- 持有本局实时生存值状态
-- 记录局内拾取、任务推进、击杀与撤离状态
-
-### `RaidEnemyRuntime`
-
-职责：
-
-- 记录敌人实例状态
-- 挂接精英词缀和 Buff
-- 驱动战斗结果修正
-
-### `RaidBossRuntime`
-
-职责：
-
-- 记录阶段
-- 记录机制状态
-- 记录召唤、护盾、弱点等专属逻辑
-
-## 6. 服务层设计
-
-建议建立以下服务。
-
-## 6.1 Profile 与存档
-
-- `ProfileService`
-- `SaveGameService`
-- `SettingsService`
-
-## 6.2 BaseHub 与设施
-
-- `BaseHubService`
-- `FacilityService`
-- `FacilityConstructionService`
-- `BaseInteractionService`
-- `MerchantMoveInService`
-
-## 6.3 生存与恢复
-
-- `SurvivalService`
-- `RestService`
-- `ConsumptionService`
-- `RecipeCraftingService`
-- `RecoveryResolver`
-
-## 6.4 物品与容器
-
-- `ItemFactoryService`
-- `InventoryService`
-- `ContainerTransferService`
-- `EquipmentService`
-- `LootGenerationService`
-
-## 6.5 成长与修正
-
-- `AttributeService`
-- `SkillService`
-- `BuffService`
-- `ModifierResolver`
-
-## 6.6 Raid 流程
-
-- `RaidSessionService`
-- `ExtractionService`
-- `RaidResultService`
-- `DeathLossService`
-
-## 6.7 商人和任务
-
-- `MerchantService`
-- `QuestService`
-- `ProgressionService`
-
-## 6.8 敌人与遭遇
-
-- `EnemySpawnService`
-- `EliteModifierService`
-- `BossDirectorService`
-- `RaidEventService`
-
-## 7. 与 FPS Framework / JUTPS 的桥接设计
-
-## 7.1 玩家执行桥
-
-建议新增：
-
-- `RaidPlayerControllerFacade`
-- `RaidPlayerViewBridge`
-- `RaidInputContext`
-
-职责：
-
-- 把 `FPS Framework` 的 `Player.prefab` 体系包装成 Project-XX 可消费接口
-- 统一 raid 与 BaseHub 的第一人称输入模式
-- 向上暴露移动、瞄准、开火、交互、死亡等统一能力
-- 同步相机、武器展示、交互射线和 HUD 锚点
-
-策略建议：
-
-- 玩家只保留 `FPS Framework` 输入主链路
-- `JUTPS` 输入资产不再驱动玩家本体
-- 打开界面、暂停、上车等状态切换统一通过 `RaidInputContext` 与 `FPSFrameworkCore.IsInputActive`
-- BaseHub 中关闭不需要的战斗动作，但保留第一人称移动与交互
-
-## 7.2 武器桥
-
-建议新增：
-
-- `ProjectXXFirearmBridge`
-- `WeaponRuntimeToPresetMapper`
-- `WeaponModifierApplier`
-
-职责：
-
-- 把 `WeaponDefinition` 与 `ItemInstanceRuntime` 映射到 `FirearmPreset` 和 `Firearm`
-- 把弹药、耐久、词缀、Buff 与生存值修正同步到玩家枪械执行层
-- 让 Project-XX 的规则层决定武器数值，`FPS Framework` 决定玩家手感与表现
-
-策略建议：
-
-- 玩家枪械执行层统一使用 `FPS Framework`
-- 敌人仍可暂时保留 `JUTPS` 武器执行链路
-- 武器展示、Procedural 动画和主 / 武器相机 FOV 统一跟随玩家执行桥
-
-## 7.3 生命与伤害桥
-
-建议新增：
-
-- `RaidHealthBridge`
-- `DamageProtocolBridge`
-
-职责：
-
-- 统一 `FPS Framework` 玩家、`JUTPS` 敌人、Boss 和场景危险之间的伤害事件
-- 把护甲、Buff、异常、生存值和部位规则插入同一套结算协议
-- 统一死亡事件、击杀归属、掉落触发和撤离失败判定
-
-策略建议：
-
-- 不让 `FPS Framework` 与 `JUTPS` 各自维护一套玩家最终生命结算
-- Project-XX 负责最终伤害规则，桥接层只负责把执行结果推送给各自表现系统
-
-## 7.4 容器与装备桥
-
-正式格子系统建议完全由 Project-XX 自己实现：
-
-- `InventoryGridRuntime`
-- `ContainerRuntime`
-- `EquipmentRuntime`
-- `RaidInventoryBridge`
-
-桥接原则：
-
-- Project-XX 决定物品是否存在于容器中
-- 玩家当前手持、当前展示武器由 `RaidInventoryBridge` 映射到 `FPS Framework`
-- `JUTPS` 只负责敌人、车辆或世界对象实际使用的那部分物体
-- `JUInventory` 不承担最终仓库逻辑，最多保留为局内快捷代理的参考原型
-
-## 7.5 交互桥
-
-建议新增：
-
-- `ProjectXXInteractableBridge`
-- `InteractionPromptPresenter`
-- `InteractionRequirementEvaluator`
-
-策略：
-
-- `FPS Framework` 的 `InteractionsManager` 只负责“发现与触发”
-- Project-XX 负责真正的权限判断、任务条件、钥匙检查、容器空间检查与撤离条件
-- 需要进入 `JUTPS` 车辆或世界对象时，由桥接层把触发转发到对应 `JUTPS` 逻辑
-
-## 7.6 JUTPS 世界能力桥
-
-建议新增：
-
-- `JutpsVehicleBridge`
-- `JutpsEnemyFacade`
-- `JutpsWorldActorBridge`
-
-职责：
-
-- 把 `JUTPS` 的车辆、AI、世界对象接入 Project-XX 的规则域
-- 玩家上车时关闭 `FPS Framework` 玩家移动输入，下车时恢复
-- 敌人继续保留 `JUTPS` 感知与攻击骨架，由 Project-XX 在上层施加精英、Boss 和掉落逻辑
-
-## 7.7 AI 扩展
-
-保留 `JUTPS`：
-
-- `FieldOfView`
-- `HearSensor`
-- `Attack`
-- `FollowWaypoint`
-
-新增 Project-XX 上层：
-
-- `EnemyIntentRuntime`
-- `EliteModifierRuntime`
-- `BossMechanicController`
-- `RaidThreatEvaluator`
-- `AmbushDirector`
-
-重点不是让 AI 变成战术军队，而是让它更适合恐怖 PVE：
-
-- 近战群体压迫
-- 突袭与包围
-- 异常技能
-- 精英怪强化逻辑
-- Boss 阶段机制
-
-## 8. 装备与丢失规则技术设计
-
-## 8.1 装备槽位规则
-
-按策划要求，槽位规则如下。
-
-### 死亡丢失
-
-- 主武器
-- 副武器
-- 头部
-- 胸部
-- 胸挂
-- 背包
-
-### 死亡不丢失
-
-- 近战槽位
-- 战术设备
-- 特殊遗物/护符
-
-建议实现：
-
-- 在 `EquipmentSlotDefinition` 中直接配置 `DropOnDeath`
-- `DeathLossService` 根据槽位配置结算掉落和保留
-
-## 8.2 胸部与胸挂规则
-
-需要特殊处理的不是 UI，而是装备合法性。
-
-规则建议：
-
-- `ChestArmor` 可装备护甲
-- `ChestRig` 可装备两类物品：
-  - 普通胸挂：无防护，仅提供容器
-  - 防护胸挂：有防护并提供容器
-
-装备校验逻辑：
-
-- 若 `ChestArmor` 已装备护甲，则 `ChestRig` 只能装备普通胸挂
-- 若 `ChestArmor` 为空，则 `ChestRig` 可装备普通胸挂或防护胸挂
-
-## 8.3 护甲结算
-
-采用“整体护甲值先吃伤害”的设计，不走复杂部位穿透。
-
-建议建立：
-
-- `ArmorRuntime`
-- `ArmorDamageResolver`
-
-伤害流程：
-
-1. 命中胸部/头部时先看对应防护是否存在。
-2. 若有护甲值，则优先扣护甲值。
-3. 护甲值归零后，后续伤害再进入生命值。
-
-## 9. 格子背包与容器系统设计
-
-## 9.1 核心结构
-
-建议建立：
-
-- `GridSize`
-- `GridCoord`
-- `GridOccupancyMap`
-- `InventoryGridRuntime`
-- `ContainerRuntime`
-
-### `InventoryGridRuntime`
-
-职责：
-
-- 放置校验
-- 拖拽交换
-- 旋转校验
-- 占地标记
-- 清空与整理
-
-## 9.2 物品尺寸
-
-每个物品定义必须带尺寸：
-
-- `1x1`
-- `1x2`
-- `2x1`
-- `2x2`
-- `2x3`
-
-必要时支持旋转：
-
-- `CanRotate`
-
-## 9.3 容器种类
-
-建议容器分为：
-
-- 玩家主背包
-- 胸挂
-- 防护胸挂
-- 尸体容器
-- 地图箱体
-- 商店/交付临时容器
-- 特殊任务容器
-
-## 9.4 技术约束
-
-容器系统必须优先完成这些能力：
-
-- 判定能否放入
-- 从一个容器拖到另一个容器
-- 死亡时从角色容器生成战利品容器
-- 撤离时把局内新增物品写回局外仓库
-
-## 10. BaseHub 与设施系统技术设计
-
-## 10.1 BaseHub 场景职责
-
-`BaseHub` 不是菜单，而是正式场景。
-
-场景职责建议：
-
-- 生成基地态第一人称角色
-- 加载已建造设施和当前可交互点
-- 控制商人驻留可见性
-- 提供仓库、配装、任务、商人、建造、休息、制作等入口
-- 接收 raid 结算后的状态回写
-
-## 10.2 设施数据与运行时
-
-建议采用“定义 + 运行时状态”的结构：
-
-- `FacilityDefinition` 负责设施种类和功能
-- `FacilityLevelDefinition` 负责各等级成本与效果
-- `FacilityRuntimeState` 负责当前等级、可用状态、冷却、队列
-
-设施效果建议分为：
-
-- 被动效果
-  - 例如降低疲劳累积、提高制作效率
-- 主动交互
-  - 例如休息、烹饪、提交材料
-- 解锁效果
-  - 例如商人入住、开放新 UI、开放新配方
-
-## 10.3 建造与升级流程
-
-建议建立：
-
-- `FacilityConstructionService`
-- `ConstructionRequirementEvaluator`
-
-标准流程：
-
-1. 玩家在基地交互点选择某个设施位。
-2. 系统读取该建造位允许的设施类型。
-3. `ConstructionRequirementEvaluator` 校验：
-   - 材料是否足够
-   - 前置任务是否完成
-   - 前置设施是否存在
-   - 玩家等级是否满足
-4. 校验通过后扣除材料并更新 `FacilityRuntimeState`。
-5. 刷新基地场景中的设施表现与可用功能。
-
-## 10.4 商人入住条件
-
-商人解锁不只依赖任务，还依赖基地设施。
-
-建议实现：
-
-- `MerchantDefinition` 中配置 `MoveInRequirements`
-- `MerchantMoveInService` 在基地回写时统一评估
-
-入住条件可以组合：
-
-- 某设施存在
-- 某设施达到指定等级
-- 完成某条任务
-- 提交某类道具
-- 玩家达到指定等级或声望
-
-## 10.5 可用设施示例
-
-### 休息间
-
-建议建立：
-
-- `RestService`
-- `RestBuffDefinition`
-
-核心规则：
-
-- 进入休息流程时，消耗时间和可能的资源
-- 清除连续 raid 带来的疲劳类 Debuff
-- 恢复部分或全部疲劳值
-- 给 `SurvivalRuntimeState.PendingNextRaidBuffId` 写入下一局 Buff
-
-### 厨房
-
-建议建立：
-
-- `RecipeCraftingService`
-- `RecipeRuntimeQueue`
-
-核心规则：
-
-- 配方消耗材料，产出食品或饮品
-- 成品通过 `ConsumptionService` 恢复饱食度或饮水度
-- 高级厨房可开放更复杂配方和附加 Buff
-
-## 11. 生存系统技术设计
-
-## 11.1 三项核心数值
-
-建议统一采用百分制：
-
-- `Satiety`
-- `Hydration`
-- `Fatigue`
-
-初版建议范围：
-
-- `0 - 100`
-
-## 11.2 衰减规则
-
-建议建立：
-
-- `SurvivalTickContext`
-- `SurvivalDecayRule`
-- `SurvivalService`
-
-规则：
-
-- 在 raid 中按时间持续衰减
-- 在 BaseHub 中不自动衰减
-- 在 BaseHub 中也不自动恢复
-- 只能通过食物、饮水、休息等明确行为恢复
-- 不同地图、异常区域、天气、Boss 机制可提供额外衰减修正
-
-## 11.3 阈值与 Debuff 映射
-
-建议建立：
-
-- `SurvivalThresholdDefinition`
-- `SurvivalPenaltyResolver`
-
-初版阈值建议：
-
-- `> 75`
-  - 无惩罚
-- `50 - 75`
-  - 轻度惩罚
-- `25 - 50`
-  - 中度惩罚
-- `1 - 25`
-  - 重度惩罚
-- `0`
-  - 极限惩罚
-
-惩罚映射建议：
-
-- 饱食度过低：
-  - 最大体力下降
-  - 负重效率下降
-  - 近战输出和恢复效率下降
-- 饮水度过低：
-  - 视野晃动增强
-  - 耐力回复下降
-  - 瞄准稳定性下降
-- 疲劳值过低：
-  - 交互速度下降
-  - 移动和转向手感变差
-  - 恐惧与异常抗性下降
-
-## 11.4 数值归零时的处理
-
-当任一生存值为 `0` 时：
-
-- 应用该维度的最大 Debuff
-- 在 raid 中允许触发持续生命流失
-- 可通过 `SurvivalThresholdDefinition` 配置伤害频率和数值
-
-建议初版默认规则：
-
-- 三项生存值任何一项归零，均可在 raid 中造成周期性掉血
-- 同时多个维度归零时，伤害或额外惩罚可叠加
-
-## 11.5 恢复与下一局 Buff
-
-恢复来源只允许来自：
-
-- 直接食用食物
-- 直接饮用饮品
-- 使用基地设施休息
-- 特殊药品或异常效果
-
-休息间的实现重点：
-
-- 清理疲劳型 Debuff
-- 回补疲劳值
-- 允许写入下一局临时 Buff
-
-厨房的实现重点：
-
-- 产出恢复饱食度和饮水度的可消耗品
-- 允许某些配方提供下一局短期加成
-
-## 12. 敌人、精英与 Boss 技术设计
-
-## 12.1 敌人模型
-
-建议用“原型 + 运行时修正”的方式：
-
-- `EnemyArchetypeDefinition`
-- `RaidEnemyRuntime`
-
-基础类型：
-
-- 普通近战怪
-- 远程怪
-- 精英怪
-- Boss
-
-## 12.2 精英词缀系统
-
-建议建立：
-
-- `EliteModifierDefinition`
-- `EliteModifierRuntime`
-- `EliteModifierService`
-
-精英词缀可以作用于：
-
-- 最大生命
-- 移动速度
-- 攻击方式
-- Buff 附着
-- 护盾
-- 召唤机制
-- 死亡效果
-
-## 12.3 Boss 机制系统
-
-建议建立：
-
-- `BossDefinition`
-- `BossPhaseDefinition`
-- `BossMechanicController`
-
-阶段驱动内容：
-
-- 技能切换
-- 召唤小怪
-- 场景机关激活
-- 特殊护盾
-- 地图污染增强
-- 撤离限制变化
-
-## 13. UI 技术方案
-
-## 13.1 正式 UI 范围
-
-需要正式落地的界面包括：
-
-- Raid HUD
-- 生存值显示
-- 格子背包/容器窗口
-- 装备页
+- 背包窗口
+- 容器窗口
 - 商人窗口
-- 任务日志
-- 基地设施窗口
-- 建造窗口
-- 配方制作窗口
-- 进图准备页
-- 结算页
+- BaseHub UI
 
-## 13.2 UI 实现规则
+## 4. 当前可运行切片的真实边界
 
-全部新 UI 走：
+当前仓库已经具备：
 
-- `Assets/Resources/UI/...`
-- `ViewBase`
-- `WindowBase`
-- `*Template`
-- `PrototypeRuntimeUiManager`
+- Bootstrap 场景
+- Raid 测试图
+- 第一人称玩家预制体
+- JUTPS 敌人原型
+- Project-XX HUD 与会话状态同步
+- 最小撤离点
+- 阵营/敌对关系基础框架
 
-## 13.3 推荐控制器
+当前尚未具备：
 
-建议建立：
+- 正式容器与搜刮
+- 正式装备槽规则
+- 正式局外仓库
+- 正式友方/中立 NPC 内容样例
+- 精英/Boss 遭遇系统
 
-- `RaidHudView`
-- `SurvivalHudView`
-- `InventoryWindowController`
-- `EquipmentWindowController`
-- `MerchantWindowController`
-- `QuestJournalWindowController`
-- `BaseFacilityWindowController`
-- `RecipeCraftWindowController`
-- `LoadoutWindowController`
-- `RaidResultWindowController`
+## 5. 当前战斗架构
 
-## 14. 存档设计
+## 5.1 玩家侧链路
 
-## 14.1 存档拆分
+关键文件：
 
-不建议把最终系统压到 JUTPS `JUSaveLoad` 上。
-
-建议拆成：
-
-- `ProfileSave.json`
-  - 等级、属性、技能、仓库、商人、任务、地图解锁、生存值
-- `BaseHubSave.json`
-  - 设施建造、设施等级、商人入住、配方、基地交互状态
-- `RaidSave.json`
-  - 当前 raid 快照或调试中断恢复
-- `Settings.json`
-  - 画面、音量、输入、UI 设置
-
-## 14.2 死亡与撤离写档
-
-建议流程：
-
-- 进入 raid 前冻结一份配装快照
-- Raid 中使用 `RaidSessionRuntime` 追踪增量变化
-- 死亡时由 `DeathLossService` 结算保留和丢失
-- 撤离成功时由 `RaidResultService` 将增量并入 Profile
-- 返回基地时同步刷新 `BaseHubRuntimeState`
-
-## 15. 场景与流程建议
-
-建议首期场景流：
-
-1. `Bootstrap`
-2. `MainMenu`
-3. `BaseHub`
-4. `Raid_<MapId>`
-5. `RaidResult`
-
-### Bootstrap
+- `ProjectXXPlayerFacade`
+- `ProjectXXAkilaPlayerBridge`
+- `ProjectXXWeaponBridge`
+- `ProjectXXDamageBridge`
+- `ProjectXXFirstPersonViewBridge`
+- `ProjectXXMeleeBridge`
 
 职责：
 
-- 初始化服务
-- 加载定义资产
-- 加载 Profile 与 BaseHub 状态
+- 把 Akila 玩家预制体变成 Project-XX 的正式玩家入口
+- 把武器、血量、HUD 与会话运行时接起来
+- 修正第一人称相机栈与视图层
 
-### BaseHub
+## 5.2 敌人侧链路
 
-职责：
+关键文件：
 
-- 生成基地态 `FPS Framework` 玩家与对应输入上下文
-- 仓库
-- 配装
-- 商人
-- 任务
-- 建造
-- 休息和制作
-
-### Raid Scene
+- `JutpsEnemyBridge`
+- `JutpsEnemyDamageableAdapter`
+- `JutpsHealthProxy`
+- `JutpsTargetAdapter`
 
 职责：
 
-- 生成 `FPS Framework` 玩家和装备映射
-- 生成 `JUTPS` 敌人、车辆、世界对象、容器、Boss、事件、撤离点和任务目标
-- 运行 `FPS Framework` 玩家执行层
-- 运行 `JUTPS` 敌人 / 载具 / 世界能力层
-- 运行 Project-XX 规则层
+- 把 JUTPS 敌人接入 Project-XX 的伤害、定义与会话统计
+- 把敌人的血量、死亡和命中表现收束成正式闭环
 
-## 16. 开发顺序建议
+## 5.3 阵营与敌对关系架构
 
-### M0：双框架边界与联合测试场景验证
+这是本轮新增并已落地的正式基础规则层。
 
-- 稳定 `FPS Framework` / `JUTPS` 接入
-- 确认玩家用 `FPS Framework`、敌人 / 载具用 `JUTPS`
-- 跑通 `FPSF Player + JUTPS Enemy + Project-XX HUD`
+### 核心文件
 
-### M1：玩家执行层与伤害协议
+- `Assets/Res/Scripts/ProjectXX/Domain/Combat/ProjectXXFaction.cs`
+- `Assets/Res/Scripts/ProjectXX/Domain/Combat/ProjectXXFactionMember.cs`
+- `Assets/Res/Scripts/ProjectXX/Domain/Combat/ProjectXXFactionUtility.cs`
+- `Assets/Res/Scripts/ProjectXX/Bridges/JUTPS/ProjectXXJutpsFactionBridge.cs`
+- `Assets/Res/Scripts/ProjectXX/Bridges/JUTPS/ProjectXXJutpsFactionTargetFilter.cs`
 
-- 玩家执行桥
-- 武器桥
-- 生命与伤害桥
-- 最小交互点
-- 基础玩家战斗闭环
+### 当前阵营枚举
 
-### M2：局内交互、载具与搜打撤闭环
+- `Player`
+- `FriendlyNpc`
+- `NeutralNpc`
+- `Enemy`
 
-- 交互桥
-- 载具桥
-- 格子背包
-- 容器搜刮
-- 死亡丢失结算
-- 撤离回写
+### 当前基础关系
 
-### M3：局外基地闭环
+- `Player` 与 `FriendlyNpc` 互为友方
+- `Enemy` 默认敌对 `Player` 与 `FriendlyNpc`
+- `NeutralNpc` 默认不主动敌对任何阵营
+- 同阵营单位之间不能互相伤害
 
-- BaseHub 场景
-- 仓库
-- 商人
-- 任务
-- 设施建造
+### 当前动态规则
 
-### M4：成长与持续状态
+- 中立单位在受伤后，会把伤害来源阵营登记为运行时敌对阵营
+- 友方单位默认会把 `Enemy` 作为有效敌对目标
+- 敌方单位默认把 `Player` 与 `FriendlyNpc` 作为有效敌对目标
 
-- 属性
-- 技能
-- Buff / Debuff
-- 饱食度、饮水度、疲劳值
-- 休息与制作
+### 当前落地点
 
-## 17. 当前主要技术风险
+- `Akila Damageable.Damage(...)` 已接入阵营伤害许可
+- `JUTPS JUHealth.DoDamage(...)` 已接入阵营伤害许可
+- `JUTPS FieldOfView` 已接入 faction target filter
 
-### 风险 1：`FPS Framework` 与 `JUTPS` 在玩家侧发生双控制器冲突
+这意味着：
 
-结论：
+- 阵营判断不再是单独某个 AI 或某个武器脚本的局部行为
+- 伤害入口与目标筛选入口都已经走同一套 Project-XX 规则
 
-- 必须严格保证玩家根物体只有一套正式控制器和一条正式输入链路
+## 5.4 当前伤害链说明
 
-### 风险 2：双输入、双 HUD、双交互发现器同时运行
+### Akila -> JUTPS
 
-结论：
+路径：
 
-- `FPS Framework`、`JUTPS` 与 Project-XX 必须明确谁负责输入、谁负责提示、谁负责权限判断
+- `Firearm` / `Projectile`
+- `IDamageable`
+- `JutpsEnemyDamageableAdapter`
+- `JUHealth`
+- `JutpsEnemyBridge`
 
-### 风险 3：玩家与敌人分属两个包，伤害与死亡协议容易不一致
+说明：
 
-结论：
+- 命中敌人时，最终会进入 `JUHealth`
+- 在真正扣血前，会经过 `ProjectXXFactionUtility.CanApplyDamage(...)`
 
-- 必须尽早收敛到统一的 `DamageProtocolBridge`
+### JUTPS -> Akila
 
-### 风险 4：`JUTPS` 原库存系统和原 UI 方案过于原型化
+路径：
 
-结论：
+- `Damager`
+- `JUHealth`
+- `JutpsHealthProxy`
+- `Damageable`
+- `ProjectXXDamageBridge`
 
-- 只能参考，不能承担最终格子仓库、正式 HUD 和正式结算
+说明：
 
-### 风险 5：基地与 Raid 共用角色状态，容易出现状态同步错误
+- 接触伤害最终会同步到 Akila 的 `Damageable`
+- 玩家血量与 HUD 更新由 Project-XX 运行时继续接管
 
-结论：
+## 5.5 当前 AI 目标链说明
 
-- 必须明确 `PlayerProfileRuntime`、`BaseHubRuntimeState` 和 `RaidPlayerRuntime` 的数据边界
+JUTPS 原生 FOV 只认：
 
-### 风险 6：生存值和 Buff 叠加后容易出现数值膨胀
+- layer
+- tag
 
-结论：
+这不足以支撑：
 
-- 必须通过 `ModifierResolver` 和统一阈值定义做集中结算
+- 敌人不互伤
+- 友方 NPC 主动打敌人
+- 中立 NPC 受击后才反击
 
-## 18. 最终建议
+因此当前的正式方案是：
 
-对这个项目来说，最合理的技术路线不是“完全重写”，也不是“完全继承某一个包”，而是：
+1. 保留 JUTPS 的原始 `FieldOfView`
+2. 用 `ProjectXXJutpsFactionBridge` 配置可扫描范围
+3. 用 `ProjectXXJutpsFactionTargetFilter` 在真正选目标前做阵营过滤
 
-- 让 `FPS Framework` 负责玩家第一人称执行层
-- 让 `JUTPS` 负责敌人、AI、车辆和世界对象原型层
-- 让 `Project-XX` 负责局内外规则、容器、成长、基地、商人、生存值和正式界面
+最终结果是：
 
-一句话概括：
+- 视觉感知仍复用 JUTPS
+- 最终有效目标由 Project-XX 的阵营规则决定
 
-- `FPS Framework = 玩家执行层`
-- `JUTPS = 世界与敌人原型层`
-- `Project-XX = 正式规则与产品层`
+## 6. 当前目录约定
 
-## 19. 推荐代码目录落位
-
-建议以 `Assets/Res/Scripts/ProjectXX/` 为项目主代码根目录。
-
-建议目录如下：
+### 6.1 代码目录
 
 - `Assets/Res/Scripts/ProjectXX/Bootstrap`
 - `Assets/Res/Scripts/ProjectXX/Foundation`
+- `Assets/Res/Scripts/ProjectXX/Domain/Combat`
 - `Assets/Res/Scripts/ProjectXX/Domain/Raid`
-- `Assets/Res/Scripts/ProjectXX/Domain/Base`
 - `Assets/Res/Scripts/ProjectXX/Domain/Meta`
-- `Assets/Res/Scripts/ProjectXX/Domain/Common`
-- `Assets/Res/Scripts/ProjectXX/Services`
-- `Assets/Res/Scripts/ProjectXX/Infrastructure/Save`
-- `Assets/Res/Scripts/ProjectXX/Infrastructure/Definitions`
 - `Assets/Res/Scripts/ProjectXX/Bridges/FPSFramework`
 - `Assets/Res/Scripts/ProjectXX/Bridges/JUTPS`
-- `Assets/Res/Scripts/ProjectXX/Bridges/Common`
-- `Assets/Res/Scripts/ProjectXX/Presentation/Hud`
-- `Assets/Res/Scripts/ProjectXX/Presentation/Inventory`
-- `Assets/Res/Scripts/ProjectXX/Presentation/Character`
-- `Assets/Res/Scripts/ProjectXX/Presentation/Merchant`
-- `Assets/Res/Scripts/ProjectXX/Presentation/Quest`
-- `Assets/Res/Scripts/ProjectXX/Presentation/BaseHub`
-- `Assets/Res/Scripts/ProjectXX/Presentation/RaidResult`
-
-推荐资源目录如下：
-
-- `Assets/Resources/UI/Hud/`
-- `Assets/Resources/UI/Inventory/`
-- `Assets/Resources/UI/Character/`
-- `Assets/Resources/UI/Merchant/`
-- `Assets/Resources/UI/Quest/`
-- `Assets/Resources/UI/BaseHub/`
-- `Assets/Resources/UI/Raid/`
-
-推荐定义资产目录如下：
-
-- `Assets/Res/Data/Definitions/Items/`
-- `Assets/Res/Data/Definitions/Equipment/`
-- `Assets/Res/Data/Definitions/Buffs/`
-- `Assets/Res/Data/Definitions/Skills/`
-- `Assets/Res/Data/Definitions/Survival/`
-- `Assets/Res/Data/Definitions/Facilities/`
-- `Assets/Res/Data/Definitions/Recipes/`
-- `Assets/Res/Data/Definitions/Enemies/`
-- `Assets/Res/Data/Definitions/Bosses/`
-- `Assets/Res/Data/Definitions/Maps/`
-- `Assets/Res/Data/Definitions/Loot/`
-- `Assets/Res/Data/Definitions/Merchants/`
-- `Assets/Res/Data/Definitions/Quests/`
-
-## 20. 关键运行流程
-
-这一节把最重要的游戏流程从“概念设计”落成“程序实现主线”。
-
-## 20.1 返回基地流程
-
-建议标准流程如下：
-
-1. raid 结算完成后回写 `PlayerProfileRuntime`。
-2. `BaseHubService` 根据最新 Profile 重建 `BaseHubRuntimeState`。
-3. 载入 `BaseHub` 场景。
-4. 生成基地态第一人称玩家。
-5. 刷新已建造设施、商人驻留点和交互提示。
-6. UI 根据基地上下文加载可用窗口入口。
-
-## 20.2 设施建造流程
-
-建议标准流程如下：
-
-1. 玩家在基地中靠近建造位并发起交互。
-2. UI 展示该建造位可建造设施及需求。
-3. `FacilityConstructionService` 校验材料、任务、前置设施与等级。
-4. 校验通过后扣除资源并更新 `FacilityRuntimeState`。
-5. 场景中激活设施表现体。
-6. 若该设施能解锁商人或配方，则同步刷新相关系统状态。
-
-## 20.3 休息流程
-
-建议标准流程如下：
-
-1. 玩家在休息间交互。
-2. `RestService` 校验休息条件和可能的消耗。
-3. 清理连续 raid 累积的疲劳型 Debuff。
-4. 恢复疲劳值，并按规则恢复其他状态。
-5. 写入下一局临时 Buff。
-6. BaseHub UI 刷新当前生存值和待生效 Buff。
-
-## 20.4 饮食恢复流程
-
-建议标准流程如下：
-
-1. 玩家直接使用食物/饮品，或在厨房制作完成后选择消耗。
-2. `ConsumptionService` 解析该物品的恢复效果。
-3. 修改 `SurvivalRuntimeState` 中的饱食度或饮水度。
-4. 刷新阈值状态并移除对应 Debuff。
-5. 若食物/饮品带 Buff，则交由 `BuffService` 注册。
-
-## 20.5 进图流程
-
-建议标准流程如下：
-
-1. `BaseHub` 中完成配装确认。
-2. `LoadoutRuntime` 冻结一份进图快照。
-3. `ProfileService` 扣除进图前消耗品和弹药装填变化。
-4. `RaidSessionService` 创建新的 `RaidSessionRuntime`。
-5. 切换到目标 `Raid_<MapId>` 场景。
-6. `Bootstrap` 注入当前 Profile、Loadout、MapDefinition。
-7. 场景生成 `FPS Framework` 玩家角色，并挂接 `RaidPlayerControllerFacade`、`ProjectXXFirearmBridge`、`RaidHealthBridge` 等桥接组件。
-8. 把当前生存值快照复制到 `RaidPlayerRuntime`。
-9. 场景生成 `JUTPS` 敌人、车辆、世界对象、精英修正、Boss、容器、撤离点和任务目标，并通过 `JutpsEnemyFacade` / `JutpsVehicleBridge` 接入规则层。
-10. HUD 初始化并开始监听 raid 运行时状态。
-
-## 20.6 容器转移流程
-
-建议标准流程如下：
-
-1. 玩家打开某个容器窗口。
-2. UI 从 `ContainerRuntime` 和 `InventoryGridRuntime` 拉取当前格子状态。
-3. 玩家拖拽物品时，先在前端做局部合法性预判。
-4. 实际放置时调用 `ContainerTransferService`。
-5. `ContainerTransferService` 负责：
-   - 尺寸校验
-   - 旋转校验
-   - 目标容器标签校验
-   - 栈叠或交换校验
-6. 校验通过后写回源容器和目标容器。
-7. UI 收到容器变更事件后刷新。
-
-## 20.7 玩家死亡结算流程
-
-建议标准流程如下：
-
-1. `RaidPlayerRuntime` 进入死亡状态。
-2. `DeathLossService` 读取 `EquipmentRuntime` 的槽位规则。
-3. 按 `DropOnDeath` 将装备分成：
-   - 保留清单
-   - 丢失清单
-4. 背包、胸挂中的局内战利品生成战利品容器或尸体容器。
-5. 角色身上保留物品回写到 `ProfileRuntime`。
-6. 当前生存值、伤病和任务进度按失败规则写回。
-7. raid 标记为失败。
-8. 进入结算界面。
-
-## 20.8 撤离成功结算流程
-
-建议标准流程如下：
-
-1. 玩家触发撤离点交互。
-2. `ExtractionService` 校验撤离条件：
-   - 是否满足任务或钥匙条件
-   - 是否未处于禁止撤离状态
-   - 是否已完成必要交互
-3. 条件通过后进入撤离倒计时。
-4. 成功撤离后由 `RaidResultService` 汇总：
-   - 获得物品
-   - 任务进度
-   - 经验
-   - 商人关系变化
-   - Boss 首杀或区域发现
-   - 生存值变化
-5. 把结果并入 `PlayerProfileRuntime`。
-6. 写档并返回 `RaidResult` 或 `BaseHub`。
-
-## 20.9 精英生成流程
-
-建议标准流程如下：
-
-1. 地图刷怪点生成普通敌人原型。
-2. `EnemySpawnService` 根据地图阶段、区域权重和事件权重决定是否转化为精英。
-3. 若为精英，则由 `EliteModifierService` 选择词缀池。
-4. 将词缀写入 `RaidEnemyRuntime`。
-5. 通过桥接层把生命、速度、技能、Buff 修正同步到实际敌人。
-
-## 20.10 Boss 阶段流程
-
-建议标准流程如下：
-
-1. `BossDirectorService` 创建 `RaidBossRuntime`。
-2. 进入初始阶段并激活第一组技能/行为。
-3. 当生命、时间或场景条件达到阈值后切换阶段。
-4. `BossMechanicController` 更新：
-   - 护盾状态
-   - 场景危险
-   - 召唤波次
-   - Buff / Debuff
-5. Boss 死亡后发放专属掉落和阶段完成事件。
-
-## 21. 数据所有权与同步规则
-
-这一节用于避免后续出现“到底谁才是权威数据”的混乱。
-
-### 权威来源
-
-- 定义数据权威来源：`ScriptableObject Definitions`
-- 局外角色档案权威来源：`PlayerProfileRuntime`
-- 基地设施状态权威来源：`BaseHubRuntimeState / FacilityRuntimeState`
-- 局内角色状态权威来源：`RaidPlayerRuntime`
-- 生存值持久状态权威来源：`SurvivalRuntimeState`
-- 容器格子状态权威来源：`InventoryGridRuntime / ContainerRuntime`
-- 玩家动作执行权威来源：`FPS Framework Player / FirstPersonController`
-- 敌人 / 载具动作执行权威来源：`JUTPS` AI / `DriveVehicles`
-- 玩家武器开火表现权威来源：`FPS Framework Firearm`
-- 敌人武器开火表现权威来源：当前敌人所用的 `JUTPS Weapon` 或其等价执行组件
-- UI 只读展示权威来源：对应 Runtime State，不拥有最终状态
-
-### 必须遵守的同步规则
-
-- `FPS Framework` 与 `JUTPS` 不同时驱动同一个玩家根物体。
-- 玩家输入上下文切换统一经过 `RaidInputContext` 或其等价桥接层。
-- `FPS Framework` 的 `InteractionsManager` 只负责发现与触发，权限判断必须回到 Project-XX。
-- JUTPS 不直接保存局外仓库状态。
-- UI 不直接修改 MonoBehaviour 上的“临时变量”作为最终状态。
-- 存档只从 Runtime State 汇总，不直接从 UI 读。
-- 场景内对象的可视表现，必须可由 Runtime State 重新恢复。
-- BaseHub 与 Raid 对生存值的修改，都必须统一经过 `SurvivalService`。
-
-## 22. 模块接口建议
-
-建议优先抽出：
-
-- `IProfileReadService`
-- `IProfileWriteService`
-- `IBaseHubService`
-- `IFacilityService`
-- `ISurvivalService`
-- `IRestService`
-- `ICraftingService`
-- `IRaidSessionService`
-- `IInventoryService`
-- `IContainerTransferService`
-- `IEquipmentService`
-- `ILootGenerationService`
-- `IBuffService`
-- `IMerchantService`
-- `IQuestService`
-- `IExtractionService`
-
-建议优先抽出的数据接口：
-
-- `IItemInstanceView`
-- `IContainerView`
-- `IEquipmentView`
-- `IFacilityView`
-- `ISurvivalStateView`
-- `IRaidResultView`
-- `IEnemyModifierView`
-
-这些接口的目标不是过度抽象，而是：
-
-- 让 UI 不直接依赖具体 Runtime 实现
-- 让 Service 层可替换
-- 让测试更容易写
-
-## 23. 测试与质量门槛
-
-这个项目后续最容易出问题的不是战斗动作，而是“规则系统”和“状态同步”。所以测试重点应放在规则层。
-
-## 23.1 EditMode Tests
-
-建议优先写：
-
-- 格子放置合法性测试
-- 物品旋转与边界测试
-- 死亡丢失规则测试
-- 胸甲/胸挂装备合法性测试
-- 护甲值结算测试
-- 基地设施前置条件测试
-- 商人入住条件测试
-- 饱食度、饮水度、疲劳值阈值测试
-- 生存值归零持续掉血测试
-- 休息 Buff 写入测试
-- 厨房配方消耗与产出测试
-- 精英词缀应用测试
-- Buff 叠加与移除测试
-- 撤离结算合并测试
-
-## 23.2 PlayMode Tests
-
-建议优先写：
-
-- BaseHub 进入与设施刷新流程
-- 进图到撤离完整流程
-- 死亡到结算流程
-- 容器拖拽与回写流程
-- 休息到下一局 Buff 生效流程
-- 厨房制作到消耗恢复流程
-- Boss 阶段切换流程
-- 精英怪生成流程
-- UI 与 Runtime State 同步流程
-
-## 23.3 人工回归清单
-
-每个重要里程碑至少回归：
-
-- 进入基地
-- 基地第一人称交互
-- 进图
-- 开火
-- 近战
-- 拾取
-- 容器拖拽
-- 食物/饮水消耗
-- 休息恢复
-- 死亡
-- 撤离
-- 结算
-- 商人交易
-- 任务推进
-
-## 24. 首个垂直切片定义
-
-为了避免系统铺太大，建议先把“第一套真正可玩的垂直切片”定义清楚。
-
-### 垂直切片内容
-
-- 1 个可自由移动的 `BaseHub`
-- 1 间可交互的休息间
-- 1 套基础厨房配方
-- 1 张地图
-- 1 名局外商人
-- 1 套基础任务
-- 1 套格子背包
-- 1 种普通近战怪
-- 1 种精英怪
-- 1 个 Boss
-- 1 套基础结算
-
-### 垂直切片通过标准
-
-- 可以在基地中第一人称移动并使用设施
-- 可以通过休息或饮食调整生存值
-- 可以从局外配装进入 raid
-- 可以搜刮容器并把物品放入格子背包
-- 可以遭遇普通怪、精英怪和 Boss
-- 可以死亡并触发丢失逻辑
-- 可以成功撤离并把结果写回局外
-- 可以重新进入下一局，且局外数据、生存值和基地状态保持一致
+- `Assets/Res/Scripts/ProjectXX/Infrastructure/Definitions`
+- `Assets/Res/Scripts/ProjectXX/Presentation`
+
+### 6.2 共享程序集
+
+新增：
+
+- `ProjectXX.Domain.Combat.asmdef`
+
+作用：
+
+- 让阵营规则不再绑定到 `Assembly-CSharp`
+- 允许 Akila 与未来其他程序集直接复用这套域模型
+
+## 7. 下一阶段技术重点
+
+## 7.1 R2 主线
+
+优先实现：
+
+- `ItemDefinition`
+- `ContainerDefinition`
+- `InventoryGridRuntime`
+- `ContainerRuntime`
+- `EquipmentRuntime`
+- `DeathLossService`
+- `ExtractionService`
+- `RaidResultService`
+
+## 7.2 阵营系统的下一步
+
+当前阵营系统已经能支撑基础规则，但后续还需要内容化与产品化：
+
+- 在测试图中加入友方 NPC 样例
+- 在测试图中加入中立 NPC 样例
+- 增加“受击后记仇时长、共享仇恨、阵营广播”等可选扩展
+- 在 R4 中把精英/Boss/NPC 营地都接到同一套 faction 框架上
+
+## 8. 当前结论
+
+目前技术架构已经形成稳定边界：
+
+- `Akila` 负责玩家执行
+- `JUTPS` 负责敌人与世界执行
+- `Project-XX` 负责规则、桥接、运行时与正式 UI
+
+其中“阵营与敌对关系”已经从临时逻辑升级为正式基础模块。后续任何 NPC、敌人、派系化遭遇，都不应该再直接写死在单个武器脚本或 AI 脚本里，而应继续沿用 `ProjectXXFactionMember + ProjectXXFactionUtility + JUTPS Faction Bridge` 这一套结构。

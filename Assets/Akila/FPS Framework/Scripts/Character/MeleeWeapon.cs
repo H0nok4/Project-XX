@@ -57,7 +57,7 @@ namespace Akila.FPSFramework
 
                         if (damageable != null)
                         {
-                            damageable.Damage(damage, null);
+                            damageable.Damage(damage, playerObj != null ? playerObj : gameObject);
                         }
 
                         if (hit.transform.TryGetComponent<CustomDecal>(out CustomDecal customDecal))

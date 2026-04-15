@@ -5,6 +5,11 @@ TagManager:
   serializedVersion: 2
   tags:
   - Laser Line
+  - Bullet
+  - Enemy
+  - Vehicle
+  - Distractable
+  - Interactable
   layers:
   - Default
   - TransparentFX

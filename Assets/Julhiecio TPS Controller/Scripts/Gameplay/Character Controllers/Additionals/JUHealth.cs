@@ -1,6 +1,7 @@
 ﻿using JU;
 using JUTPS.FX;
 using JUTPSEditor.JUHeader;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -77,9 +78,15 @@ namespace JUTPS
 
         public void DoDamage(DamageInfo damageInfo)
         {
+            if (!ProjectXXFactionUtility.CanApplyDamage(damageInfo.HitOwner, gameObject))
+            {
+                return;
+            }
+
             Health -= damageInfo.Damage;
             LimitHealth();
             Invoke(nameof(CheckHealthState), 0.016f);
+            ProjectXXFactionUtility.RegisterIncomingDamage(gameObject, damageInfo.HitOwner);
 
             if (BloodScreenEffect) BloodScreen.PlayerTakingDamaged();
             if (damageInfo.HitPosition != Vector3.zero && BloodHitParticle != null)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using JUTPS;
+using ProjectXX.Bridges.JUTPS;
 using UnityEngine;
 using UnityEngine.InputSystem.Utilities;
 
@@ -16,6 +17,7 @@ namespace JU.CharacterSystem.AI
         private float _scanTimer;
         private Transform _pivot;
         private Collider[] _detections;
+        private ProjectXXJutpsFactionTargetFilter _targetFilter;
 
         /// <summary>
         /// If true, the field of view can find colliders.
@@ -212,6 +214,7 @@ namespace JU.CharacterSystem.AI
         {
             _ai = ai;
             _detections = new Collider[MaxDetections + 1];
+            _targetFilter = ai ? ai.GetComponent<ProjectXXJutpsFactionTargetFilter>() : null;
         }
 
         /// <summary>
@@ -287,6 +290,12 @@ namespace JU.CharacterSystem.AI
                     }
                 }
 
+                if (_targetFilter != null && !_targetFilter.IsValidTarget(collider))
+                {
+                    _detections[i] = null;
+                    continue;
+                }
+
                 // Remove colliders that have obstacles in front.
                 if (Physics.Linecast(center, colliderCenter, out RaycastHit hit, ObstaclesLayer, QueryTriggerInteraction.Ignore))
                 {
@@ -335,6 +344,9 @@ namespace JU.CharacterSystem.AI
             if (!otherTransform)
                 return false;
 
+            if (_targetFilter != null && !_targetFilter.IsValidTarget(otherTransform.gameObject))
+                return false;
+
             if (TargetTags.Length > 0)
             {
                 bool hasTag = false;
@@ -374,6 +386,9 @@ namespace JU.CharacterSystem.AI
         public bool IsOnView(Collider otherCollider)
         {
             if (!otherCollider)
+                return false;
+
+            if (_targetFilter != null && !_targetFilter.IsValidTarget(otherCollider))
                 return false;
 
             if (TargetTags.Length > 0)

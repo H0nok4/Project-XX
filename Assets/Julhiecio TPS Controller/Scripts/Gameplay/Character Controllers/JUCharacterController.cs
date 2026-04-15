@@ -990,8 +990,19 @@ namespace JUTPS
 
             for (int i = 0; i < PhysicalDamageIgnoreTags.Length; i++)
             {
-                if (other.collider.CompareTag(PhysicalDamageIgnoreTags[i]))
-                    return;
+                string ignoreTag = PhysicalDamageIgnoreTags[i];
+                if (string.IsNullOrWhiteSpace(ignoreTag))
+                    continue;
+
+                try
+                {
+                    if (other.collider.CompareTag(ignoreTag))
+                        return;
+                }
+                catch (UnityException)
+                {
+                    continue;
+                }
             }
 
             if (other.gameObject.TryGetComponent(out Rigidbody rbOtherPhysicObject))

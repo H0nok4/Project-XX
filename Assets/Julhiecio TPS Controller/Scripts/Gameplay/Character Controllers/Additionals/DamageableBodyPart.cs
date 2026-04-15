@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 
 namespace JUTPS.ArmorSystem
@@ -22,6 +23,11 @@ namespace JUTPS.ArmorSystem
             if (Health == null)
             {
                 Debug.LogWarning("Could not do damage as the Health variable is null");
+                return 0;
+            }
+
+            if (!ProjectXXFactionUtility.CanApplyDamage(damageInfo.HitOwner, gameObject))
+            {
                 return 0;
             }
 
