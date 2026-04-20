@@ -1736,7 +1736,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ae4b3a0a901e2248a78e0448a47e658, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.JUTPS.JutpsTargetAdapter
+  deriveFromFactionMember: 1
   targetTag: Player
+  playerLayerName: Player
 --- !u!114 &2291963128188811887
 MonoBehaviour:
   m_ObjectHideFlags: 0
