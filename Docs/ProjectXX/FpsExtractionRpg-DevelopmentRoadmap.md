@@ -1,6 +1,14 @@
 # Project-XX 开发路线图
 
-更新时间：`2026-04-14`
+更新时间：`2026-04-22`
+
+预制作框架整改建议请同时参考：
+
+- [AGENT.md](/d:/UnityProject/Project-XX/Project-XX/AGENT.md)
+- [ProjectXX-FrameworkHealthPlan.md](/d:/UnityProject/Project-XX/Project-XX/Docs/ProjectXX/ProjectXX-FrameworkHealthPlan.md)
+- [ProjectXX-SystemOwnershipMatrix.md](/d:/UnityProject/Project-XX/Project-XX/Docs/ProjectXX/ProjectXX-SystemOwnershipMatrix.md)
+- [ProjectXX-ThirdPartyPatchLog.md](/d:/UnityProject/Project-XX/Project-XX/Docs/ProjectXX/ProjectXX-ThirdPartyPatchLog.md)
+- [ProjectXX-VendorOwnershipMatrix.md](/d:/UnityProject/Project-XX/Project-XX/Docs/ProjectXX/ProjectXX-VendorOwnershipMatrix.md)
 
 ## 1. 文档目的
 
@@ -68,9 +76,12 @@
 #### 规则与运行时
 
 - `RaidSessionRuntime`
+- `ProjectXXRaidRuntimeRegistry`
 - `RaidPlayerRuntime`
 - `PlayerProfileRuntime`
 - `ProjectXXEnemyDefinition`
+- `ProjectXXCompatibilitySettings`
+- `ProjectXXCompatibilityValidator`
 - `ProjectXXFactionMember`
 - `ProjectXXFactionUtility`
 
@@ -88,6 +99,8 @@
 - `Akila -> JUTPS` 伤害与击杀同步
 - `JUTPS -> Akila` 伤害与死亡同步
 - `RaidSessionRuntime` 与 `ProjectXXRaidHudController` 的基础状态同步
+- `ProjectXXRaidRuntimeRegistry` 已开始承接 `Session / Player / HUD / Extraction / Enemy` 的显式运行时注册
+- `ProjectXXCompatibilitySettings` 已开始承接 Tag / Layer 兼容名定义与集中校验
 - 测试图中的最小撤离点占位交互
 - 敌人不会再互相造成伤害
 - 中立单位默认不会主动攻击敌对阵营，但在受伤后会记住伤害来源阵营并开始反击
@@ -213,6 +226,7 @@
 #### 场景与运行时
 
 - `RaidSessionRuntime`
+- `ProjectXXRaidRuntimeRegistry`
 - `RaidPlayerRuntime`
 - `PlayerProfileRuntime`
 - `ProjectXX_RaidTestMap.unity`
@@ -362,6 +376,7 @@
 
 当前最合理的推进顺序是：
 
-1. 继续以 `R2` 为主线，优先完成容器、搜刮、死亡丢失、撤离回写
-2. 在 `R2` 末段补 1 个友方 NPC 与 1 个中立 NPC 样例，把阵营系统变成场景可见能力
-3. 把 `R4` 的敌人/NPC 遭遇设计建立在现有 faction 框架上，避免再次回头重做伤害判定和 AI 选敌逻辑
+1. 继续完成预制作框架健康化整改。当前 ProjectXX 正式 runtime 已基本完成 asmdef 拆分，`JUTPS.Runtime` 与 `JUTPS.Editor` 都已落地；下一步优先继续清理 `JUTPS.Runtime` 内残余 editor helper 混装点，并规划 ProjectXX editor/test 程序集
+2. 在已有 `ProjectXXRaidRuntimeRegistry` 与 `ProjectXXCompatibilitySettings` 基础上，继续把剩余场景级查找和兼容字符串压缩到正式入口
+3. 再继续以 `R2` 为主线，优先完成容器、搜刮、死亡丢失、撤离回写
+4. 在 `R2` 末段补 1 个友方 NPC 与 1 个中立 NPC 样例，把阵营系统变成场景可见能力

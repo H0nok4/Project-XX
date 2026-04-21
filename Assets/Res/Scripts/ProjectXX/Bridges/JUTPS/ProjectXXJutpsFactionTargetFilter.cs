@@ -5,7 +5,7 @@ namespace ProjectXX.Bridges.JUTPS
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(ProjectXXFactionMember))]
-    public sealed class ProjectXXJutpsFactionTargetFilter : MonoBehaviour
+    public sealed class ProjectXXJutpsFactionTargetFilter : MonoBehaviour, IProjectXXTargetFilter
     {
         [SerializeField] private bool requireFactionMember = true;
 

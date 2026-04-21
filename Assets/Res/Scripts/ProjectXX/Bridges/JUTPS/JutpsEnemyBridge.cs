@@ -1,6 +1,7 @@
 using Akila.FPSFramework;
 using JU.CharacterSystem.AI;
 using JUTPS;
+using ProjectXX.Bridges.Combat;
 using ProjectXX.Domain.Combat;
 using ProjectXX.Domain.Raid;
 using ProjectXX.Foundation;
@@ -11,12 +12,18 @@ namespace ProjectXX.Bridges.JUTPS
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(JUHealth))]
+    [RequireComponent(typeof(ProjectXXCombatant))]
+    [RequireComponent(typeof(ProjectXXCombatantSync))]
+    [RequireComponent(typeof(ProjectXXFactionMember))]
+    [RequireComponent(typeof(JutpsTargetAdapter))]
+    [RequireComponent(typeof(ProjectXXJutpsFactionBridge))]
     public sealed class JutpsEnemyBridge : MonoBehaviour
     {
         [SerializeField] private RaidSessionRuntime sessionRuntime;
         [SerializeField] private ProjectXXEnemyDefinition enemyDefinition;
         [SerializeField] private bool forceSimpleNavigation = true;
-        [SerializeField] private string[] additionalGroundLayers = { "Enviroment" };
+        [SerializeField] private bool useCompatibilityGroundLayers = true;
+        [SerializeField] private string[] additionalGroundLayers = System.Array.Empty<string>();
         [SerializeField] private float groundSnapProbeHeight = 1.5f;
         [SerializeField] private float groundSnapDistance = 4f;
 
@@ -24,6 +31,7 @@ namespace ProjectXX.Bridges.JUTPS
         private JUCharacterController characterController;
         private JU_AI_Zombie zombieAi;
         private Damager[] damagers;
+        private ProjectXXCombatant combatant;
         private bool registered;
         private bool deathReported;
 
@@ -33,13 +41,18 @@ namespace ProjectXX.Bridges.JUTPS
             characterController = GetComponent<JUCharacterController>();
             zombieAi = GetComponent<JU_AI_Zombie>();
             damagers = GetComponentsInChildren<Damager>(true);
+            combatant = GetComponent<ProjectXXCombatant>();
 
             ApplyDefinition();
         }
 
         private void OnEnable()
         {
-            if (juHealth != null)
+            if (combatant != null)
+            {
+                combatant.Died += HandleCombatantDeath;
+            }
+            else if (juHealth != null)
             {
                 juHealth.OnDeath.AddListener(HandleDeath);
             }
@@ -47,17 +60,16 @@ namespace ProjectXX.Bridges.JUTPS
 
         private void Start()
         {
-            if (sessionRuntime == null)
-            {
-                sessionRuntime = FindFirstObjectByType<RaidSessionRuntime>();
-            }
-
             RegisterWithSession();
         }
 
         private void OnDisable()
         {
-            if (juHealth != null)
+            if (combatant != null)
+            {
+                combatant.Died -= HandleCombatantDeath;
+            }
+            else if (juHealth != null)
             {
                 juHealth.OnDeath.RemoveListener(HandleDeath);
             }
@@ -77,6 +89,7 @@ namespace ProjectXX.Bridges.JUTPS
 
             if (juHealth == null || enemyDefinition == null)
             {
+                EnsureCombatant();
                 ApplyNavigationMode();
                 ConfigureDamageableHitDecals();
                 ConfigureGroundingMasks();
@@ -85,9 +98,8 @@ namespace ProjectXX.Bridges.JUTPS
                 return;
             }
 
-            juHealth.MaxHealth = enemyDefinition.MaxHealth;
-            juHealth.Health = enemyDefinition.MaxHealth;
-            juHealth.CheckHealthState();
+            EnsureCombatant();
+            combatant.Configure(enemyDefinition.MaxHealth, enemyDefinition.MaxHealth, true);
 
             ApplyNavigationMode();
             ConfigureDamageableHitDecals();
@@ -134,7 +146,8 @@ namespace ProjectXX.Bridges.JUTPS
             ProjectXXFactionMember factionMember = GetComponent<ProjectXXFactionMember>();
             if (factionMember == null)
             {
-                factionMember = gameObject.AddComponent<ProjectXXFactionMember>();
+                ProjectXXLog.Error("JutpsEnemyBridge requires ProjectXXFactionMember on the enemy prefab.", this);
+                return;
             }
 
             factionMember.SetFaction(ProjectXXFaction.Enemy);
@@ -142,7 +155,8 @@ namespace ProjectXX.Bridges.JUTPS
             JutpsTargetAdapter targetAdapter = GetComponent<JutpsTargetAdapter>();
             if (targetAdapter == null)
             {
-                targetAdapter = gameObject.AddComponent<JutpsTargetAdapter>();
+                ProjectXXLog.Error("JutpsEnemyBridge requires JutpsTargetAdapter on the enemy prefab.", this);
+                return;
             }
 
             targetAdapter.RefreshTargetSettings();
@@ -150,10 +164,25 @@ namespace ProjectXX.Bridges.JUTPS
             ProjectXXJutpsFactionBridge factionBridge = GetComponent<ProjectXXJutpsFactionBridge>();
             if (factionBridge == null)
             {
-                factionBridge = gameObject.AddComponent<ProjectXXJutpsFactionBridge>();
+                ProjectXXLog.Error("JutpsEnemyBridge requires ProjectXXJutpsFactionBridge on the enemy prefab.", this);
+                return;
             }
 
             factionBridge.Refresh();
+        }
+
+        private void EnsureCombatant()
+        {
+            combatant ??= GetComponent<ProjectXXCombatant>();
+            if (combatant == null)
+            {
+                ProjectXXLog.Error("JutpsEnemyBridge requires ProjectXXCombatant on the enemy prefab.", this);
+            }
+
+            if (GetComponent<ProjectXXCombatantSync>() == null)
+            {
+                ProjectXXLog.Error("JutpsEnemyBridge requires ProjectXXCombatantSync on the enemy prefab.", this);
+            }
         }
 
         private void ApplyNavigationMode()
@@ -175,14 +204,15 @@ namespace ProjectXX.Bridges.JUTPS
                 return;
             }
 
+            string[] resolvedGroundLayers = ResolveGroundLayers();
             int groundMask = characterController.WhatIsGround.value;
             int wallMask = characterController.WhatIsWall.value;
             int stepMask = characterController.StepCorrectionMask.value;
             bool updated = false;
 
-            for (int i = 0; i < additionalGroundLayers.Length; i++)
+            for (int i = 0; i < resolvedGroundLayers.Length; i++)
             {
-                string layerName = additionalGroundLayers[i];
+                string layerName = resolvedGroundLayers[i];
                 if (string.IsNullOrWhiteSpace(layerName))
                 {
                     continue;
@@ -226,15 +256,16 @@ namespace ProjectXX.Bridges.JUTPS
 
         private void SnapToGround()
         {
-            if (characterController == null || additionalGroundLayers == null || additionalGroundLayers.Length == 0)
+            string[] resolvedGroundLayers = ResolveGroundLayers();
+            if (characterController == null || resolvedGroundLayers.Length == 0)
             {
                 return;
             }
 
             int snapMask = 0;
-            for (int i = 0; i < additionalGroundLayers.Length; i++)
+            for (int i = 0; i < resolvedGroundLayers.Length; i++)
             {
-                int layer = LayerMask.NameToLayer(additionalGroundLayers[i]);
+                int layer = LayerMask.NameToLayer(resolvedGroundLayers[i]);
                 if (layer >= 0)
                 {
                     snapMask |= 1 << layer;
@@ -280,6 +311,25 @@ namespace ProjectXX.Bridges.JUTPS
             }
 
             ProjectXXLog.Info($"Enemy defeated: {gameObject.name}", this);
+        }
+
+        private void HandleCombatantDeath(ProjectXXCombatant _, GameObject __)
+        {
+            HandleDeath();
+        }
+
+        private string[] ResolveGroundLayers()
+        {
+            if (useCompatibilityGroundLayers)
+            {
+                ProjectXXCompatibilitySettings compatibilitySettings = ProjectXXCompatibilitySettingsProvider.GetOrDefault();
+                if (compatibilitySettings != null)
+                {
+                    return compatibilitySettings.CreateGroundLayers();
+                }
+            }
+
+            return additionalGroundLayers ?? System.Array.Empty<string>();
         }
     }
 }

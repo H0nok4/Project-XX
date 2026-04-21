@@ -368,6 +368,21 @@ namespace Akila.FPSFramework
         /// <param name="damageSource">The source of damage.</param>
         public void Damage(float amount, GameObject damageSource)
         {
+            ProjectXXCombatant combatant = GetComponent<ProjectXXCombatant>();
+            if (combatant != null)
+            {
+                if (!combatant.TryApplyDamage(amount, damageSource))
+                {
+                    return;
+                }
+
+                health = combatant.CurrentHealth;
+                maxHealth = combatant.MaxHealth;
+                DamageSource = combatant.LastDamageSource;
+                autoHealDelayTime = autoHealDelay;
+                return;
+            }
+
             if (!ProjectXXFactionUtility.CanApplyDamage(damageSource, gameObject))
             {
                 return;

@@ -1,0 +1,25 @@
+{
+    "name": "ProjectXX.Bridges.FPSFramework",
+    "rootNamespace": "ProjectXX.Bridges.FPSFramework",
+    "references": [
+        "Akila.FPSFramework",
+        "JUTPS.Runtime",
+        "ProjectXX.Bridges.Combat",
+        "ProjectXX.Bridges.JUTPS",
+        "ProjectXX.Domain.Combat",
+        "ProjectXX.Domain.Meta",
+        "ProjectXX.Domain.Raid",
+        "ProjectXX.Foundation",
+        "ProjectXX.Infrastructure.Definitions",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

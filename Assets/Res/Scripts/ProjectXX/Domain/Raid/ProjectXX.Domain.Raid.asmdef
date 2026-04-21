@@ -1,0 +1,16 @@
+{
+    "name": "ProjectXX.Domain.Raid",
+    "rootNamespace": "ProjectXX.Domain.Raid",
+    "references": [
+        "ProjectXX.Domain.Meta"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

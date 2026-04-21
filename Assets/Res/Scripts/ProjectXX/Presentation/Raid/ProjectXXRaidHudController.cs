@@ -1,5 +1,3 @@
-using Akila.FPSFramework;
-using ProjectXX.Bridges.FPSFramework;
 using ProjectXX.Domain.Raid;
 using TMPro;
 using UnityEngine;
@@ -10,8 +8,6 @@ namespace ProjectXX.Presentation.Raid
     public sealed class ProjectXXRaidHudController : MonoBehaviour
     {
         [SerializeField] private RaidSessionRuntime sessionRuntime;
-        [SerializeField] private ProjectXXPlayerFacade playerFacade;
-        [SerializeField] private ProjectXXWeaponBridge weaponBridge;
 
         private RectTransform root;
         private TMP_Text statusLabel;
@@ -21,41 +17,23 @@ namespace ProjectXX.Presentation.Raid
         private void Awake()
         {
             EnsureHud();
-        }
-
-        private void LateUpdate()
-        {
-            if (sessionRuntime == null)
-            {
-                sessionRuntime = FindFirstObjectByType<RaidSessionRuntime>();
-            }
-
-            if (playerFacade == null)
-            {
-                playerFacade = FindFirstObjectByType<ProjectXXPlayerFacade>();
-            }
-
-            if (weaponBridge == null && playerFacade != null)
-            {
-                weaponBridge = playerFacade.GetComponent<ProjectXXWeaponBridge>();
-            }
-
+            BindRuntime(sessionRuntime);
             UpdateHud();
         }
 
         private void OnDestroy()
         {
+            BindRuntime(null);
+
             if (root != null)
             {
                 Destroy(root.gameObject);
             }
         }
 
-        public void Configure(RaidSessionRuntime runtime, ProjectXXPlayerFacade facade, ProjectXXWeaponBridge bridge)
+        public void Configure(RaidSessionRuntime runtime)
         {
-            sessionRuntime = runtime;
-            playerFacade = facade;
-            weaponBridge = bridge;
+            BindRuntime(runtime);
             UpdateHud();
         }
 
@@ -123,7 +101,7 @@ namespace ProjectXX.Presentation.Raid
 
         private void UpdateHud()
         {
-            if (statusLabel == null)
+            if (statusLabel == null || promptLabel == null || crosshairLabel == null)
             {
                 return;
             }
@@ -161,6 +139,31 @@ namespace ProjectXX.Presentation.Raid
             promptLabel.text = sessionRuntime.PlayerInsideExtractionZone
                 ? "Press [E] to use the placeholder extraction point."
                 : "Move, aim, fire, survive, then reach the extraction cylinder.";
+        }
+
+        private void HandleRuntimeStateChanged()
+        {
+            UpdateHud();
+        }
+
+        private void BindRuntime(RaidSessionRuntime runtime)
+        {
+            if (sessionRuntime == runtime)
+            {
+                return;
+            }
+
+            if (sessionRuntime != null)
+            {
+                sessionRuntime.StateChanged -= HandleRuntimeStateChanged;
+            }
+
+            sessionRuntime = runtime;
+
+            if (sessionRuntime != null)
+            {
+                sessionRuntime.StateChanged += HandleRuntimeStateChanged;
+            }
         }
     }
 }

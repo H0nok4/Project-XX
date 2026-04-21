@@ -1,0 +1,22 @@
+{
+    "name": "ProjectXX.Bridges.JUTPS",
+    "rootNamespace": "ProjectXX.Bridges.JUTPS",
+    "references": [
+        "Akila.FPSFramework",
+        "JUTPS.Runtime",
+        "ProjectXX.Bridges.Combat",
+        "ProjectXX.Domain.Combat",
+        "ProjectXX.Domain.Raid",
+        "ProjectXX.Foundation",
+        "ProjectXX.Infrastructure.Definitions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

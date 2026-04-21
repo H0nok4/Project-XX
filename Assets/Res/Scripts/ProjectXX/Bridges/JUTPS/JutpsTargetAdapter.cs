@@ -1,5 +1,11 @@
+using ProjectXX.Foundation;
+using ProjectXX.Infrastructure.Definitions;
 using ProjectXX.Domain.Combat;
 using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace ProjectXX.Bridges.JUTPS
 {
@@ -22,7 +28,7 @@ namespace ProjectXX.Bridges.JUTPS
                 return;
             }
 
-            ApplyTargetSettings();
+            ScheduleTargetSettingsRefresh();
         }
 
         public void RefreshTargetSettings()
@@ -32,9 +38,17 @@ namespace ProjectXX.Bridges.JUTPS
 
         private void ApplyTargetSettings()
         {
+            ProjectXXCompatibilitySettings compatibilitySettings = ProjectXXCompatibilitySettingsProvider.GetOrDefault();
+            if (compatibilitySettings != null)
+            {
+                playerLayerName = compatibilitySettings.PlayerLayerName;
+            }
+
             if (deriveFromFactionMember && TryGetComponent(out ProjectXXFactionMember factionMember))
             {
-                targetTag = factionMember.Faction == ProjectXXFaction.Player ? "Player" : "Enemy";
+                targetTag = compatibilitySettings != null
+                    ? compatibilitySettings.ResolveTargetTag(factionMember.Faction)
+                    : factionMember.Faction == ProjectXXFaction.Player ? "Player" : "Enemy";
             }
 
             if (!string.IsNullOrWhiteSpace(targetTag))
@@ -53,5 +67,23 @@ namespace ProjectXX.Bridges.JUTPS
                 gameObject.layer = playerLayer;
             }
         }
+
+#if UNITY_EDITOR
+        private void ScheduleTargetSettingsRefresh()
+        {
+            EditorApplication.delayCall -= DelayedRefreshTargetSettings;
+            EditorApplication.delayCall += DelayedRefreshTargetSettings;
+        }
+
+        private void DelayedRefreshTargetSettings()
+        {
+            if (this == null || gameObject == null)
+            {
+                return;
+            }
+
+            ApplyTargetSettings();
+        }
+#endif
     }
 }

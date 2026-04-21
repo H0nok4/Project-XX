@@ -1,6 +1,5 @@
 using Akila.FPSFramework;
-using JUTPS;
-using JUTPS.GameSettings;
+using ProjectXX.Foundation;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -9,7 +8,6 @@ namespace ProjectXX.Bridges.FPSFramework
     [DisallowMultipleComponent]
     public sealed class ProjectXXFirstPersonViewBridge : MonoBehaviour
     {
-        [SerializeField] private bool disableConflictingSceneObjects = true;
         [SerializeField] private bool disableFrameworkPlayerCard = true;
         [SerializeField] private bool enforceFirstPersonCameraStack = true;
         [SerializeField] private string mainCameraName = "Main Camera";
@@ -33,27 +31,6 @@ namespace ProjectXX.Bridges.FPSFramework
             if (enforceFirstPersonCameraStack)
             {
                 EnsureFirstPersonCameraStack();
-            }
-
-            if (disableConflictingSceneObjects)
-            {
-                DisableObjectByName("JUTPS Default User Interface");
-                DisableObjectByName("ThirdPerson Camera Controller");
-
-                foreach (JUPauseGame pauseGame in FindObjectsByType<JUPauseGame>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                {
-                    pauseGame.enabled = false;
-                }
-
-                foreach (JUGameSettings gameSettings in FindObjectsByType<JUGameSettings>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                {
-                    gameSettings.enabled = false;
-                }
-
-                foreach (JUGameManager gameManager in FindObjectsByType<JUGameManager>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                {
-                    gameManager.enabled = false;
-                }
             }
 
             if (disableFrameworkPlayerCard && UIManager.Instance != null && UIManager.Instance.PlayerCard != null)
@@ -89,7 +66,13 @@ namespace ProjectXX.Bridges.FPSFramework
             overlayCamera.clearFlags = CameraClearFlags.Depth;
             overlayCameraData.renderType = CameraRenderType.Overlay;
 
-            int fpsObjectLayer = LayerMask.NameToLayer("FPS Object");
+            int fpsObjectLayer = -1;
+            var compatibilitySettings = ProjectXXCompatibilitySettingsProvider.GetOrDefault();
+            if (compatibilitySettings != null)
+            {
+                compatibilitySettings.TryGetFpsObjectLayer(out fpsObjectLayer);
+            }
+
             if (fpsObjectLayer >= 0)
             {
                 int overlayMask = 1 << fpsObjectLayer;
@@ -116,15 +99,6 @@ namespace ProjectXX.Bridges.FPSFramework
             }
 
             return null;
-        }
-
-        private static void DisableObjectByName(string objectName)
-        {
-            GameObject target = GameObject.Find(objectName);
-            if (target != null)
-            {
-                target.SetActive(false);
-            }
         }
     }
 }

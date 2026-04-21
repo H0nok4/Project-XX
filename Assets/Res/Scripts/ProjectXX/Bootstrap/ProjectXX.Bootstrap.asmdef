@@ -1,0 +1,25 @@
+{
+    "name": "ProjectXX.Bootstrap",
+    "rootNamespace": "ProjectXX.Bootstrap",
+    "references": [
+        "Akila.FPSFramework",
+        "JUTPS.Runtime",
+        "ProjectXX.Bridges.Combat",
+        "ProjectXX.Bridges.FPSFramework",
+        "ProjectXX.Bridges.JUTPS",
+        "ProjectXX.Domain.Combat",
+        "ProjectXX.Domain.Raid",
+        "ProjectXX.Foundation",
+        "ProjectXX.Infrastructure.Definitions",
+        "ProjectXX.Presentation.Raid"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

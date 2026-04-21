@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
-using UnityEditor;
 using JUTPSEditor.JUHeader;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace JUTPS
 {

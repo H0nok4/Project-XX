@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using JUTPS;
-using ProjectXX.Bridges.JUTPS;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 using UnityEngine.InputSystem.Utilities;
 
@@ -17,7 +17,7 @@ namespace JU.CharacterSystem.AI
         private float _scanTimer;
         private Transform _pivot;
         private Collider[] _detections;
-        private ProjectXXJutpsFactionTargetFilter _targetFilter;
+        private IProjectXXTargetFilter _targetFilter;
 
         /// <summary>
         /// If true, the field of view can find colliders.
@@ -214,7 +214,7 @@ namespace JU.CharacterSystem.AI
         {
             _ai = ai;
             _detections = new Collider[MaxDetections + 1];
-            _targetFilter = ai ? ai.GetComponent<ProjectXXJutpsFactionTargetFilter>() : null;
+            _targetFilter = ResolveTargetFilter(ai);
         }
 
         /// <summary>
@@ -332,6 +332,25 @@ namespace JU.CharacterSystem.AI
                     LastColliderViewedPosition = colliderCenter;
                 }
             }
+        }
+
+        private static IProjectXXTargetFilter ResolveTargetFilter(Component owner)
+        {
+            if (owner == null)
+            {
+                return null;
+            }
+
+            MonoBehaviour[] behaviours = owner.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] is IProjectXXTargetFilter filter)
+                {
+                    return filter;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

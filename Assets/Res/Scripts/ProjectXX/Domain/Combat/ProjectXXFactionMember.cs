@@ -104,4 +104,5 @@ namespace ProjectXX.Domain.Combat
             }
         }
     }
+
 }

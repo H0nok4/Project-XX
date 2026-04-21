@@ -1,5 +1,6 @@
 using Akila.FPSFramework;
 using JUTPS;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -7,17 +8,19 @@ namespace ProjectXX.Bridges.JUTPS
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(JUHealth))]
+    [RequireComponent(typeof(ProjectXXCombatant))]
     public sealed class JutpsEnemyDamageableAdapter : MonoBehaviour, IDamageable
     {
         private readonly UnityEvent onDeath = new UnityEvent();
 
         private JUHealth juHealth;
+        private ProjectXXCombatant combatant;
 
         public bool isDamagableDisabled { get; set; }
         public bool allowDamageableEffects { get; set; } = true;
         public bool DeadConfirmed
         {
-            get => juHealth != null && juHealth.IsDead;
+            get => combatant != null ? combatant.IsDead : juHealth != null && juHealth.IsDead;
             set
             {
             }
@@ -28,9 +31,16 @@ namespace ProjectXX.Bridges.JUTPS
 
         public float Health
         {
-            get => juHealth != null ? juHealth.Health : 0f;
+            get => combatant != null ? combatant.CurrentHealth : juHealth != null ? juHealth.Health : 0f;
             set
             {
+                if (combatant != null)
+                {
+                    float resolvedMaxHealth = Mathf.Max(1f, Mathf.Max(combatant.MaxHealth, value));
+                    combatant.Configure(resolvedMaxHealth, value);
+                    return;
+                }
+
                 if (juHealth == null)
                 {
                     return;
@@ -45,11 +55,16 @@ namespace ProjectXX.Bridges.JUTPS
         private void Awake()
         {
             juHealth = GetComponent<JUHealth>();
+            combatant = GetComponent<ProjectXXCombatant>();
         }
 
         private void OnEnable()
         {
-            if (juHealth != null)
+            if (combatant != null)
+            {
+                combatant.Died += HandleCombatantDeath;
+            }
+            else if (juHealth != null)
             {
                 juHealth.OnDeath.AddListener(HandleDeath);
             }
@@ -57,7 +72,11 @@ namespace ProjectXX.Bridges.JUTPS
 
         private void OnDisable()
         {
-            if (juHealth != null)
+            if (combatant != null)
+            {
+                combatant.Died -= HandleCombatantDeath;
+            }
+            else if (juHealth != null)
             {
                 juHealth.OnDeath.RemoveListener(HandleDeath);
             }
@@ -65,12 +84,24 @@ namespace ProjectXX.Bridges.JUTPS
 
         public void Damage(float amount, GameObject damageSource)
         {
-            if (isDamagableDisabled || juHealth == null || juHealth.IsDead)
+            if (isDamagableDisabled)
             {
                 return;
             }
 
             DamageSource = damageSource;
+
+            if (combatant != null)
+            {
+                combatant.TryApplyDamage(amount, damageSource);
+                return;
+            }
+
+            if (juHealth == null || juHealth.IsDead)
+            {
+                return;
+            }
+
             juHealth.DoDamage(new JUHealth.DamageInfo
             {
                 Damage = amount,
@@ -84,6 +115,11 @@ namespace ProjectXX.Bridges.JUTPS
         private void HandleDeath()
         {
             onDeath.Invoke();
+        }
+
+        private void HandleCombatantDeath(ProjectXXCombatant _, GameObject __)
+        {
+            HandleDeath();
         }
     }
 }

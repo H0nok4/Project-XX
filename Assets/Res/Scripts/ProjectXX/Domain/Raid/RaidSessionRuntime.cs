@@ -38,14 +38,32 @@ namespace ProjectXX.Domain.Raid
             int ammoInMagazine,
             int reserveAmmo)
         {
+            string resolvedDisplayName = string.IsNullOrWhiteSpace(displayName) ? "Operator" : displayName.Trim();
+            float resolvedMaxHealth = Mathf.Max(1f, maxHealth);
+            float resolvedCurrentHealth = Mathf.Clamp(currentHealth, 0f, resolvedMaxHealth);
+            string resolvedWeaponName = string.IsNullOrWhiteSpace(weaponName) ? "Unarmed" : weaponName.Trim();
+            int resolvedAmmoInMagazine = Mathf.Max(0, ammoInMagazine);
+            int resolvedReserveAmmo = Mathf.Max(0, reserveAmmo);
+
+            if (playerRuntime.DisplayName == resolvedDisplayName &&
+                Mathf.Approximately(playerRuntime.MaxHealth, resolvedMaxHealth) &&
+                Mathf.Approximately(playerRuntime.CurrentHealth, resolvedCurrentHealth) &&
+                playerRuntime.Dead == dead &&
+                playerRuntime.WeaponName == resolvedWeaponName &&
+                playerRuntime.AmmoInMagazine == resolvedAmmoInMagazine &&
+                playerRuntime.ReserveAmmo == resolvedReserveAmmo)
+            {
+                return;
+            }
+
             playerRuntime.UpdateState(
-                displayName,
-                maxHealth,
-                currentHealth,
+                resolvedDisplayName,
+                resolvedMaxHealth,
+                resolvedCurrentHealth,
                 dead,
-                weaponName,
-                ammoInMagazine,
-                reserveAmmo);
+                resolvedWeaponName,
+                resolvedAmmoInMagazine,
+                resolvedReserveAmmo);
 
             NotifyStateChanged();
         }

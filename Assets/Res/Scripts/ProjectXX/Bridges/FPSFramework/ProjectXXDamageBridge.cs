@@ -1,4 +1,5 @@
 using ProjectXX.Domain.Raid;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 
 namespace ProjectXX.Bridges.FPSFramework
@@ -12,11 +13,13 @@ namespace ProjectXX.Bridges.FPSFramework
 
         private ProjectXXPlayerFacade playerFacade;
         private ProjectXXWeaponBridge weaponBridge;
+        private ProjectXXCombatant combatant;
 
         private void Awake()
         {
             playerFacade = GetComponent<ProjectXXPlayerFacade>();
             weaponBridge = GetComponent<ProjectXXWeaponBridge>();
+            combatant = GetComponent<ProjectXXCombatant>();
         }
 
         private void LateUpdate()
@@ -26,29 +29,29 @@ namespace ProjectXX.Bridges.FPSFramework
 
         public void ForceSync()
         {
-            if (playerFacade == null || playerFacade.Damageable == null)
+            if (playerFacade == null)
+            {
+                return;
+            }
+
+            combatant ??= playerFacade.Combatant != null
+                ? playerFacade.Combatant
+                : GetComponent<ProjectXXCombatant>();
+            if (combatant == null)
             {
                 return;
             }
 
             if (sessionRuntime == null)
             {
-                sessionRuntime = FindFirstObjectByType<RaidSessionRuntime>();
-                if (sessionRuntime == null)
-                {
-                    return;
-                }
+                return;
             }
-
-            float maxHealth = playerFacade.Damageable.maxHealth > 0f
-                ? playerFacade.Damageable.maxHealth
-                : playerFacade.Damageable.health;
 
             sessionRuntime.UpdatePlayerState(
                 playerFacade.DisplayName,
-                maxHealth,
-                playerFacade.Damageable.health,
-                playerFacade.Damageable.health <= 0f || playerFacade.Damageable.DeadConfirmed,
+                combatant.MaxHealth,
+                combatant.CurrentHealth,
+                combatant.IsDead,
                 weaponBridge != null ? weaponBridge.WeaponName : "Unarmed",
                 weaponBridge != null ? weaponBridge.CurrentAmmoInMagazine : 0,
                 weaponBridge != null ? weaponBridge.CurrentReserveAmmo : 0);
@@ -57,6 +60,7 @@ namespace ProjectXX.Bridges.FPSFramework
         public void SetSessionRuntime(RaidSessionRuntime runtime)
         {
             sessionRuntime = runtime;
+            ForceSync();
         }
     }
 }

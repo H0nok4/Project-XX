@@ -1,5 +1,6 @@
 using Akila.FPSFramework;
 using JUTPS;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 
 namespace ProjectXX.Bridges.FPSFramework
@@ -8,6 +9,7 @@ namespace ProjectXX.Bridges.FPSFramework
     [RequireComponent(typeof(CharacterInput))]
     [RequireComponent(typeof(CharacterManager))]
     [RequireComponent(typeof(Damageable))]
+    [RequireComponent(typeof(ProjectXXCombatant))]
     public sealed class ProjectXXPlayerFacade : MonoBehaviour
     {
         [SerializeField] private string displayName = "Operator";
@@ -18,6 +20,7 @@ namespace ProjectXX.Bridges.FPSFramework
         [SerializeField] private Inventory inventory;
         [SerializeField] private CameraManager cameraManager;
         [SerializeField] private JUHealth jutpsHealth;
+        [SerializeField] private ProjectXXCombatant combatant;
 
         public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? "Operator" : displayName.Trim();
         public Damageable Damageable => damageable;
@@ -27,6 +30,7 @@ namespace ProjectXX.Bridges.FPSFramework
         public Inventory Inventory => inventory;
         public CameraManager CameraManager => cameraManager;
         public JUHealth JutpsHealth => jutpsHealth;
+        public ProjectXXCombatant Combatant => combatant;
 
         private void Awake()
         {
@@ -42,6 +46,7 @@ namespace ProjectXX.Bridges.FPSFramework
             inventory = this.SearchFor<Inventory>(true);
             cameraManager = this.SearchFor<CameraManager>(true);
             jutpsHealth = GetComponent<JUHealth>();
+            combatant = GetComponent<ProjectXXCombatant>();
         }
 
         public bool TryGetCurrentFirearm(out Firearm firearm)

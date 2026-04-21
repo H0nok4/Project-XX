@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Akila.FPSFramework;
 using JUTPS;
 using ProjectXX.Bridges.FPSFramework;
+using ProjectXX.Bridges.Combat;
 using ProjectXX.Bridges.JUTPS;
 using ProjectXX.Domain.Combat;
 using ProjectXX.Domain.Raid;
@@ -17,7 +18,9 @@ namespace ProjectXX.Bootstrap
     public sealed class ProjectXXRaidSceneInstaller : MonoBehaviour
     {
         [Header("Runtime")]
+        [SerializeField] private ProjectXXRaidRuntimeRegistry runtimeRegistry;
         [SerializeField] private RaidSessionRuntime sessionRuntime;
+        [SerializeField] private ProjectXXCompatibilitySettings compatibilitySettings;
 
         [Header("Framework Prefabs")]
         [SerializeField] private GameObject gameManagerPrefab;
@@ -36,6 +39,7 @@ namespace ProjectXX.Bootstrap
         [SerializeField] private bool spawnOnStart = true;
 
         private readonly List<GameObject> spawnedEnemies = new List<GameObject>();
+        private bool compatibilityValidated;
 
         private void Start()
         {
@@ -50,6 +54,8 @@ namespace ProjectXX.Bootstrap
         [ContextMenu("Build R1 Slice")]
         public void BuildSlice()
         {
+            EnsureRuntimeRegistry();
+            EnsureCompatibilitySettings();
             EnsureRuntime();
             EnsureGameManager();
 
@@ -61,21 +67,65 @@ namespace ProjectXX.Bootstrap
             ProjectXXLog.Info("Raid test slice installed.", this);
         }
 
+        private void Awake()
+        {
+            EnsureRuntimeRegistry();
+            EnsureCompatibilitySettings();
+        }
+
+        private void EnsureRuntimeRegistry()
+        {
+            if (runtimeRegistry == null)
+            {
+                runtimeRegistry = GetComponent<ProjectXXRaidRuntimeRegistry>();
+            }
+
+            if (runtimeRegistry != null)
+            {
+                return;
+            }
+
+            GameObject registryRoot = new GameObject("ProjectXXRaidRuntimeRegistry");
+            registryRoot.transform.SetParent(transform, false);
+            runtimeRegistry = registryRoot.AddComponent<ProjectXXRaidRuntimeRegistry>();
+        }
+
+        private void EnsureCompatibilitySettings()
+        {
+            compatibilitySettings ??= ProjectXXCompatibilitySettingsProvider.GetOrDefault();
+            if (compatibilityValidated)
+            {
+                return;
+            }
+
+            compatibilityValidated = true;
+            ProjectXXCompatibilityValidator.Validate(compatibilitySettings, this);
+        }
+
         private void EnsureRuntime()
         {
             if (sessionRuntime != null)
             {
+                runtimeRegistry?.SetSessionRuntime(sessionRuntime);
+                return;
+            }
+
+            if (runtimeRegistry != null && runtimeRegistry.SessionRuntime != null)
+            {
+                sessionRuntime = runtimeRegistry.SessionRuntime;
                 return;
             }
 
             sessionRuntime = FindFirstObjectByType<RaidSessionRuntime>();
             if (sessionRuntime != null)
             {
+                runtimeRegistry?.SetSessionRuntime(sessionRuntime);
                 return;
             }
 
             GameObject runtimeRoot = new GameObject("RaidSessionRuntime");
             sessionRuntime = runtimeRoot.AddComponent<RaidSessionRuntime>();
+            runtimeRegistry?.SetSessionRuntime(sessionRuntime);
         }
 
         private void EnsureGameManager()
@@ -126,7 +176,12 @@ namespace ProjectXX.Bootstrap
 
         private ProjectXXPlayerFacade EnsurePlayer()
         {
-            ProjectXXPlayerFacade playerFacade = FindFirstObjectByType<ProjectXXPlayerFacade>();
+            ProjectXXPlayerFacade playerFacade = runtimeRegistry != null ? runtimeRegistry.PlayerFacade : null;
+            if (playerFacade == null)
+            {
+                playerFacade = FindFirstObjectByType<ProjectXXPlayerFacade>();
+            }
+
             GameObject playerObject = playerFacade != null ? playerFacade.gameObject : null;
 
             if (playerObject == null)
@@ -148,36 +203,53 @@ namespace ProjectXX.Bootstrap
 
             ResetPlayerView(playerObject.transform);
 
-            playerFacade = GetOrAdd<ProjectXXPlayerFacade>(playerObject);
-            ProjectXXCharacterStatBridge statBridge = GetOrAdd<ProjectXXCharacterStatBridge>(playerObject);
-            GetOrAdd<ProjectXXCharacterBuffBridge>(playerObject);
+            playerFacade = RequireExisting<ProjectXXPlayerFacade>(playerObject, "raid player prefab");
+            ProjectXXCharacterStatBridge statBridge = RequireExisting<ProjectXXCharacterStatBridge>(playerObject, "raid player prefab");
+            RequireExisting<ProjectXXCharacterBuffBridge>(playerObject, "raid player prefab");
+            ProjectXXEquipmentBridge equipmentBridge = RequireExisting<ProjectXXEquipmentBridge>(playerObject, "raid player prefab");
+            ProjectXXWeaponBridge weaponBridge = RequireExisting<ProjectXXWeaponBridge>(playerObject, "raid player prefab");
+            ProjectXXDamageBridge damageBridge = RequireExisting<ProjectXXDamageBridge>(playerObject, "raid player prefab");
+            RequireExisting<ProjectXXFirstPersonViewBridge>(playerObject, "raid player prefab");
+            RequireExisting<ProjectXXMeleeBridge>(playerObject, "raid player prefab");
+            RequireExisting<ProjectXXCombatant>(playerObject, "raid player prefab");
+            RequireExisting<ProjectXXCombatantSync>(playerObject, "raid player prefab");
+            RequireExisting<JUHealth>(playerObject, "raid player prefab");
+            ProjectXXFactionMember playerFaction = RequireExisting<ProjectXXFactionMember>(playerObject, "raid player prefab");
+            JutpsTargetAdapter targetAdapter = RequireExisting<JutpsTargetAdapter>(playerObject, "raid player prefab");
+            ProjectXXAkilaPlayerBridge playerBridge = RequireExisting<ProjectXXAkilaPlayerBridge>(playerObject, "raid player prefab");
+            if (playerFacade == null ||
+                statBridge == null ||
+                equipmentBridge == null ||
+                weaponBridge == null ||
+                damageBridge == null ||
+                playerFaction == null ||
+                targetAdapter == null ||
+                playerBridge == null)
+            {
+                return null;
+            }
 
-            ProjectXXEquipmentBridge equipmentBridge = GetOrAdd<ProjectXXEquipmentBridge>(playerObject);
             equipmentBridge.SetStartingWeapon(startingWeaponPrefab);
-
-            ProjectXXWeaponBridge weaponBridge = GetOrAdd<ProjectXXWeaponBridge>(playerObject);
             weaponBridge.SetStartingWeapon(startingWeaponPrefab);
-
-            ProjectXXDamageBridge damageBridge = GetOrAdd<ProjectXXDamageBridge>(playerObject);
             damageBridge.SetSessionRuntime(sessionRuntime);
-
-            GetOrAdd<ProjectXXFirstPersonViewBridge>(playerObject);
-            GetOrAdd<ProjectXXMeleeBridge>(playerObject);
-
-            GetOrAdd<JUHealth>(playerObject);
             playerFacade.RefreshReferences();
-            GetOrAdd<JutpsHealthProxy>(playerObject);
-            ProjectXXFactionMember playerFaction = GetOrAdd<ProjectXXFactionMember>(playerObject);
             playerFaction.SetFaction(ProjectXXFaction.Player, true);
-
-            JutpsTargetAdapter targetAdapter = GetOrAdd<JutpsTargetAdapter>(playerObject);
             targetAdapter.RefreshTargetSettings();
-
-            ProjectXXAkilaPlayerBridge playerBridge = GetOrAdd<ProjectXXAkilaPlayerBridge>(playerObject);
             playerBridge.SetSessionRuntime(sessionRuntime);
+            runtimeRegistry?.SetPlayer(playerFacade, weaponBridge);
 
-            float resolvedMaxHealth = statBridge.ResolveMaxHealth(sessionRuntime.PlayerProfile.BaseMaxHealth);
-            sessionRuntime.UpdatePlayerState(playerFacade.DisplayName, resolvedMaxHealth, resolvedMaxHealth, false, "Unarmed", 0, 0);
+            ProjectXXCombatant playerCombatant = playerFacade.Combatant;
+            if (playerCombatant != null)
+            {
+                sessionRuntime.UpdatePlayerState(
+                    playerFacade.DisplayName,
+                    playerCombatant.MaxHealth,
+                    playerCombatant.CurrentHealth,
+                    playerCombatant.IsDead,
+                    "Unarmed",
+                    0,
+                    0);
+            }
 
             return playerFacade;
         }
@@ -189,37 +261,55 @@ namespace ProjectXX.Bootstrap
                 return;
             }
 
-            ProjectXXRaidHudController hudController = FindFirstObjectByType<ProjectXXRaidHudController>();
+            ProjectXXRaidHudController hudController = runtimeRegistry != null ? runtimeRegistry.HudController : null;
+            if (hudController == null)
+            {
+                hudController = FindFirstObjectByType<ProjectXXRaidHudController>();
+            }
+
             if (hudController == null)
             {
                 hudController = new GameObject("ProjectXXRaidHudController").AddComponent<ProjectXXRaidHudController>();
             }
 
-            hudController.Configure(sessionRuntime, playerFacade, playerFacade.GetComponent<ProjectXXWeaponBridge>());
+            hudController.Configure(sessionRuntime);
+            runtimeRegistry?.SetHudController(hudController);
         }
 
         private void EnsureExtraction()
         {
             if (extractionPoint == null)
             {
-                extractionPoint = FindFirstObjectByType<ProjectXXExtractionPoint>();
+                extractionPoint = runtimeRegistry != null ? runtimeRegistry.ExtractionPoint : null;
+                if (extractionPoint == null)
+                {
+                    extractionPoint = FindFirstObjectByType<ProjectXXExtractionPoint>();
+                }
             }
 
             if (extractionPoint != null)
             {
                 extractionPoint.Configure(sessionRuntime);
+                runtimeRegistry?.SetExtractionPoint(extractionPoint);
             }
         }
 
         private void EnsureEnemies()
         {
+            runtimeRegistry?.ClearEnemies();
             JutpsEnemyBridge[] existingEnemies = FindObjectsByType<JutpsEnemyBridge>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             if (existingEnemies.Length > 0)
             {
                 for (int i = 0; i < existingEnemies.Length; i++)
                 {
-                    existingEnemies[i].Configure(sessionRuntime, enemyDefinition);
-                    GetOrAdd<JutpsEnemyDamageableAdapter>(existingEnemies[i].gameObject);
+                    JutpsEnemyBridge enemyBridge = existingEnemies[i];
+                    if (!ValidateEnemyPrefab(enemyBridge.gameObject))
+                    {
+                        continue;
+                    }
+
+                    enemyBridge.Configure(sessionRuntime, enemyDefinition);
+                    runtimeRegistry?.RegisterEnemy(enemyBridge);
                 }
 
                 return;
@@ -239,22 +329,40 @@ namespace ProjectXX.Bootstrap
                 }
 
                 GameObject enemyObject = Instantiate(enemyPrefab, spawnPoint.position, spawnPoint.rotation);
-                GetOrAdd<JutpsEnemyDamageableAdapter>(enemyObject);
-                JutpsEnemyBridge enemyBridge = GetOrAdd<JutpsEnemyBridge>(enemyObject);
+                if (!ValidateEnemyPrefab(enemyObject))
+                {
+                    continue;
+                }
+
+                JutpsEnemyBridge enemyBridge = enemyObject.GetComponent<JutpsEnemyBridge>();
                 enemyBridge.Configure(sessionRuntime, enemyDefinition);
+                runtimeRegistry?.RegisterEnemy(enemyBridge);
                 spawnedEnemies.Add(enemyObject);
             }
         }
 
-        private static T GetOrAdd<T>(GameObject target)
+        private bool ValidateEnemyPrefab(GameObject enemyObject)
+        {
+            return RequireExisting<ProjectXXCombatant>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<ProjectXXCombatantSync>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<JutpsEnemyDamageableAdapter>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<ProjectXXFactionMember>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<JutpsTargetAdapter>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<ProjectXXJutpsFactionBridge>(enemyObject, "enemy prefab") != null &&
+                   RequireExisting<JutpsEnemyBridge>(enemyObject, "enemy prefab") != null;
+        }
+
+        private static T RequireExisting<T>(GameObject target, string targetLabel)
             where T : Component
         {
-            if (target.TryGetComponent(out T component))
+            if (target != null && target.TryGetComponent(out T component))
             {
                 return component;
             }
 
-            return target.AddComponent<T>();
+            string targetName = target != null ? target.name : "null";
+            ProjectXXLog.Error($"{targetLabel} is missing required component {typeof(T).Name} on {targetName}.", target);
+            return null;
         }
 
         private static void ResetPlayerView(Transform playerRoot)

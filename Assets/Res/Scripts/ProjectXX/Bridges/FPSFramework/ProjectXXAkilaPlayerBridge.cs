@@ -1,6 +1,8 @@
 using Akila.FPSFramework;
 using JUTPS;
+using ProjectXX.Bridges.Combat;
 using ProjectXX.Domain.Raid;
+using ProjectXX.Domain.Combat;
 using ProjectXX.Foundation;
 using ProjectXX.Bridges.JUTPS;
 using UnityEngine;
@@ -14,6 +16,11 @@ namespace ProjectXX.Bridges.FPSFramework
     [RequireComponent(typeof(ProjectXXEquipmentBridge))]
     [RequireComponent(typeof(ProjectXXWeaponBridge))]
     [RequireComponent(typeof(ProjectXXDamageBridge))]
+    [RequireComponent(typeof(ProjectXXCombatant))]
+    [RequireComponent(typeof(ProjectXXCombatantSync))]
+    [RequireComponent(typeof(ProjectXXFactionMember))]
+    [RequireComponent(typeof(JUHealth))]
+    [RequireComponent(typeof(JutpsTargetAdapter))]
     public sealed class ProjectXXAkilaPlayerBridge : MonoBehaviour
     {
         [SerializeField] private RaidSessionRuntime sessionRuntime;
@@ -23,6 +30,7 @@ namespace ProjectXX.Bridges.FPSFramework
         private ProjectXXEquipmentBridge equipmentBridge;
         private ProjectXXWeaponBridge weaponBridge;
         private ProjectXXDamageBridge damageBridge;
+        private ProjectXXCombatant combatant;
 
         private void Awake()
         {
@@ -31,6 +39,7 @@ namespace ProjectXX.Bridges.FPSFramework
             equipmentBridge = GetComponent<ProjectXXEquipmentBridge>();
             weaponBridge = GetComponent<ProjectXXWeaponBridge>();
             damageBridge = GetComponent<ProjectXXDamageBridge>();
+            combatant = GetComponent<ProjectXXCombatant>();
 
             ConfigureHealth();
             ConfigureWeapon();
@@ -44,6 +53,10 @@ namespace ProjectXX.Bridges.FPSFramework
             {
                 damageBridge.SetSessionRuntime(runtime);
             }
+
+            ConfigureHealth();
+            EnsureJutpsCompatibility();
+            damageBridge?.ForceSync();
         }
 
         private void ConfigureHealth()
@@ -61,8 +74,7 @@ namespace ProjectXX.Bridges.FPSFramework
                 ? statBridge.ResolveMaxHealth(baseMaxHealth)
                 : baseMaxHealth;
 
-            playerFacade.Damageable.maxHealth = resolvedMaxHealth;
-            playerFacade.Damageable.health = resolvedMaxHealth;
+            combatant?.Configure(resolvedMaxHealth, resolvedMaxHealth, true);
             playerFacade.Damageable.autoHeal = false;
             playerFacade.Damageable.allowDamageableEffects = false;
             playerFacade.Damageable.allowRespawn = false;
@@ -72,6 +84,11 @@ namespace ProjectXX.Bridges.FPSFramework
                 actor.respawnable = false;
                 actor.playerUIEnabled = false;
                 actor.playerCardActive = false;
+            }
+
+            if (TryGetComponent(out ProjectXXFactionMember factionMember))
+            {
+                factionMember.SetFaction(ProjectXXFaction.Player, true);
             }
         }
 
@@ -93,25 +110,22 @@ namespace ProjectXX.Bridges.FPSFramework
             JUHealth juHealth = playerFacade.JutpsHealth;
             if (juHealth == null)
             {
-                juHealth = gameObject.AddComponent<JUHealth>();
-                playerFacade.RefreshReferences();
+                ProjectXXLog.Error("ProjectXXAkilaPlayerBridge requires JUHealth on the formal player prefab.", this);
+                return;
             }
 
             juHealth.BloodScreenEffect = false;
-            juHealth.MaxHealth = playerFacade.Damageable.maxHealth;
-            juHealth.Health = playerFacade.Damageable.health;
+            juHealth.MaxHealth = combatant != null ? combatant.MaxHealth : playerFacade.Damageable.maxHealth;
+            juHealth.Health = combatant != null ? combatant.CurrentHealth : playerFacade.Damageable.health;
             juHealth.CheckHealthState();
 
-            if (GetComponent<JutpsHealthProxy>() == null)
+            if (!TryGetComponent(out JutpsTargetAdapter targetAdapter))
             {
-                gameObject.AddComponent<JutpsHealthProxy>();
+                ProjectXXLog.Error("ProjectXXAkilaPlayerBridge requires JutpsTargetAdapter on the formal player prefab.", this);
+                return;
             }
 
-            if (GetComponent<JutpsTargetAdapter>() == null)
-            {
-                gameObject.AddComponent<JutpsTargetAdapter>();
-            }
-
+            targetAdapter.RefreshTargetSettings();
             ProjectXXLog.Info("Akila player configured for JUTPS compatibility.", this);
         }
     }

@@ -1,0 +1,16 @@
+{
+    "name": "ProjectXX.Foundation",
+    "rootNamespace": "ProjectXX.Foundation",
+    "references": [
+        "ProjectXX.Infrastructure.Definitions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

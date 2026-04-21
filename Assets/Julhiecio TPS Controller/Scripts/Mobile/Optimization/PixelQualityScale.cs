@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEditor;
 namespace JUTPS.Utilities
 {
     [AddComponentMenu("JU TPS/Mobile/Optimization/Pixel Quality Scale")]

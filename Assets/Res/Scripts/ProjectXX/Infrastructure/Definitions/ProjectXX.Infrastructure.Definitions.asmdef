@@ -1,0 +1,16 @@
+{
+    "name": "ProjectXX.Infrastructure.Definitions",
+    "rootNamespace": "ProjectXX.Infrastructure.Definitions",
+    "references": [
+        "ProjectXX.Domain.Combat"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

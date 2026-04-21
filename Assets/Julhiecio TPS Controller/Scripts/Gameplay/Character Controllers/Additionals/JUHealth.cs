@@ -61,6 +61,12 @@ namespace JUTPS
         /// <inheritdoc/>
         public bool IsDead { get; private set; }
 
+        private void Awake()
+        {
+            OnDeath ??= new UnityEvent();
+            OnDamaged ??= new DamageEvent();
+        }
+
         void Start()
         {
             LimitHealth();
@@ -78,6 +84,33 @@ namespace JUTPS
 
         public void DoDamage(DamageInfo damageInfo)
         {
+            OnDeath ??= new UnityEvent();
+            OnDamaged ??= new DamageEvent();
+
+            ProjectXXCombatant combatant = GetComponent<ProjectXXCombatant>();
+            if (combatant != null)
+            {
+                if (!combatant.TryApplyDamage(damageInfo.Damage, damageInfo.HitOwner))
+                {
+                    return;
+                }
+
+                MaxHealth = combatant.MaxHealth;
+                Health = combatant.CurrentHealth;
+                CheckHealthState();
+
+                if (BloodScreenEffect) BloodScreen.PlayerTakingDamaged();
+                if (damageInfo.HitPosition != Vector3.zero && BloodHitParticle != null)
+                {
+                    GameObject fxParticle = Instantiate(BloodHitParticle, damageInfo.HitPosition, Quaternion.identity);
+                    fxParticle.hideFlags = HideFlags.HideInHierarchy;
+                    Destroy(fxParticle, 3);
+                }
+
+                OnDamaged.Invoke(damageInfo);
+                return;
+            }
+
             if (!ProjectXXFactionUtility.CanApplyDamage(damageInfo.HitOwner, gameObject))
             {
                 return;
@@ -99,8 +132,9 @@ namespace JUTPS
             OnDamaged.Invoke(damageInfo);
         }
 
-        internal void CheckHealthState()
+        public void CheckHealthState()
         {
+            OnDeath ??= new UnityEvent();
             LimitHealth();
 
             if (Health <= 0 && IsDead == false)

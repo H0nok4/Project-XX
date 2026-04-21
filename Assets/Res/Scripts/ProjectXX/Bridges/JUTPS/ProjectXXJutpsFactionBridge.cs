@@ -1,11 +1,14 @@
 using JU.CharacterSystem.AI;
 using ProjectXX.Domain.Combat;
+using ProjectXX.Foundation;
 using UnityEngine;
 
 namespace ProjectXX.Bridges.JUTPS
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(ProjectXXFactionMember))]
+    [RequireComponent(typeof(JutpsTargetAdapter))]
+    [RequireComponent(typeof(ProjectXXJutpsFactionTargetFilter))]
     public sealed class ProjectXXJutpsFactionBridge : MonoBehaviour
     {
         [SerializeField] private string[] broadTargetTags = { "Player", "Enemy" };
@@ -33,10 +36,23 @@ namespace ProjectXX.Bridges.JUTPS
 
         public void Refresh()
         {
-            targetFilter = GetOrAdd<ProjectXXJutpsFactionTargetFilter>();
+            targetFilter = GetComponent<ProjectXXJutpsFactionTargetFilter>();
             zombieAi = GetComponent<JU_AI_Zombie>();
             patrolAi = GetComponent<JU_AI_PatrolCharacter>();
             targetAdapter = GetComponent<JutpsTargetAdapter>();
+
+            var compatibilitySettings = ProjectXXCompatibilitySettingsProvider.GetOrDefault();
+            if (compatibilitySettings != null)
+            {
+                broadTargetTags = compatibilitySettings.CreateBroadTargetTags();
+                extraTargetLayers = compatibilitySettings.CreateExtraTargetLayers();
+            }
+
+            if (targetFilter == null)
+            {
+                Debug.LogError("ProjectXXJutpsFactionBridge requires ProjectXXJutpsFactionTargetFilter on the same GameObject.", this);
+                return;
+            }
 
             targetAdapter?.RefreshTargetSettings();
 
@@ -77,17 +93,6 @@ namespace ProjectXX.Bridges.JUTPS
             }
 
             fieldOfView.TargetsLayer = targetMask;
-        }
-
-        private T GetOrAdd<T>()
-            where T : Component
-        {
-            if (TryGetComponent(out T component))
-            {
-                return component;
-            }
-
-            return gameObject.AddComponent<T>();
         }
     }
 }

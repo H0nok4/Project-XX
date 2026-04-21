@@ -34,18 +34,34 @@ namespace ProjectXX.Presentation.Raid
 
         private void OnTriggerEnter(Collider other)
         {
-            if (TryGetPlayer(other, out _))
+            if (!TryGetPlayer(other, out _))
             {
-                GetRuntime().SetPlayerInsideExtractionZone(true);
+                return;
             }
+
+            RaidSessionRuntime runtime = GetRuntime();
+            if (runtime == null)
+            {
+                return;
+            }
+
+            runtime.SetPlayerInsideExtractionZone(true);
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (TryGetPlayer(other, out _))
+            if (!TryGetPlayer(other, out _))
             {
-                GetRuntime().SetPlayerInsideExtractionZone(false);
+                return;
             }
+
+            RaidSessionRuntime runtime = GetRuntime();
+            if (runtime == null)
+            {
+                return;
+            }
+
+            runtime.SetPlayerInsideExtractionZone(false);
         }
 
         private void OnTriggerStay(Collider other)
@@ -55,19 +71,20 @@ namespace ProjectXX.Presentation.Raid
                 return;
             }
 
+            RaidSessionRuntime runtime = GetRuntime();
+            if (runtime == null)
+            {
+                return;
+            }
+
             if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
-                GetRuntime().TryExtract();
+                runtime.TryExtract();
             }
         }
 
         private RaidSessionRuntime GetRuntime()
         {
-            if (sessionRuntime == null)
-            {
-                sessionRuntime = FindFirstObjectByType<RaidSessionRuntime>();
-            }
-
             return sessionRuntime;
         }
 
