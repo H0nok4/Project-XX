@@ -728,18 +728,20 @@ namespace JUTPS.JUInputSystem
             OpenInventoryAction.AddBinding("<Keyboard>/tab");
         }
 
-        private void OnEnable()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.playModeStateChanged += OnExitPlayMode;
-#endif
-        }
-
         private void OnDisable()
         {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.playModeStateChanged -= OnExitPlayMode;
-#endif
+            SetActiveInputs(false);
+        }
+
+        private static void SetActionState(InputAction action, bool active)
+        {
+            if (action == null)
+                return;
+
+            if (active)
+                action.Enable();
+            else
+                action.Disable();
         }
 
         /// <summary>
@@ -748,85 +750,37 @@ namespace JUTPS.JUInputSystem
         /// <param name="active"></param>
         public void SetActiveInputs(bool active)
         {
-            switch (active)
-            {
-                case true:
-                    Movement.MobileMoveAction.Enable();
-                    Movement.MobileLookAction.Enable();
-                    Movement.MobileAttackAction.Enable();
-                    Movement.MoveAction.Enable();
-                    Movement.LookAction.Enable();
-                    Movement.JumpAction.Enable();
-                    Movement.RunAction.Enable();
-                    Movement.ShotAction.Enable();
-                    Movement.MeleeWeaponAttackAction.Enable();
-                    Movement.PunchAction.Enable();
-                    Movement.AimAction.Enable();
-                    Movement.ReloadAction.Enable();
-                    Movement.CrouchAction.Enable();
-                    Movement.ProneAction.Enable();
-                    Movement.RollAction.Enable();
-                    InteractAction.Enable();
-                    OpenInventoryAction.Enable();
+            SetActionState(Movement?.MobileMoveAction, active);
+            SetActionState(Movement?.MobileLookAction, active);
+            SetActionState(Movement?.MobileAttackAction, active);
+            SetActionState(Movement?.MoveAction, active);
+            SetActionState(Movement?.LookAction, active);
+            SetActionState(Movement?.JumpAction, active);
+            SetActionState(Movement?.RunAction, active);
+            SetActionState(Movement?.ShotAction, active);
+            SetActionState(Movement?.MeleeWeaponAttackAction, active);
+            SetActionState(Movement?.PunchAction, active);
+            SetActionState(Movement?.AimAction, active);
+            SetActionState(Movement?.ReloadAction, active);
+            SetActionState(Movement?.CrouchAction, active);
+            SetActionState(Movement?.ProneAction, active);
+            SetActionState(Movement?.RollAction, active);
+            SetActionState(InteractAction, active);
+            SetActionState(OpenInventoryAction, active);
 
-                    ItemSwitching.EquipeNextItemAction.Enable();
-                    ItemSwitching.EquipePreviousItemAction.Enable();
-                    ItemSwitching.EquipItemScrollAction.Enable();
-                    ItemSwitching.EquipSlot1Action.Enable();
-                    ItemSwitching.EquipSlot2Action.Enable();
-                    ItemSwitching.EquipSlot3Action.Enable();
-                    ItemSwitching.EquipSlot4Action.Enable();
-                    ItemSwitching.EquipSlot5Action.Enable();
-                    ItemSwitching.EquipSlot6Action.Enable();
-                    ItemSwitching.EquipSlot7Action.Enable();
-                    ItemSwitching.EquipSlot8Action.Enable();
-                    ItemSwitching.EquipSlot9Action.Enable();
-                    ItemSwitching.EquipSlot10Action.Enable();
-                    break;
-                case false:
-                    Movement.MobileMoveAction.Disable();
-                    Movement.MobileLookAction.Disable();
-                    Movement.MobileAttackAction.Disable();
-                    Movement.MoveAction.Disable();
-                    Movement.LookAction.Disable();
-                    Movement.JumpAction.Disable();
-                    Movement.RunAction.Disable();
-                    Movement.ShotAction.Disable();
-                    Movement.MeleeWeaponAttackAction.Disable();
-                    Movement.PunchAction.Disable();
-                    Movement.AimAction.Disable();
-                    Movement.ReloadAction.Disable();
-                    InteractAction.Disable();
-                    Movement.CrouchAction.Disable();
-                    Movement.ProneAction.Disable();
-                    Movement.RollAction.Disable();
-                    OpenInventoryAction.Disable();
-
-                    ItemSwitching.EquipeNextItemAction.Disable();
-                    ItemSwitching.EquipePreviousItemAction.Disable();
-                    ItemSwitching.EquipItemScrollAction.Disable();
-                    ItemSwitching.EquipSlot1Action.Disable();
-                    ItemSwitching.EquipSlot2Action.Disable();
-                    ItemSwitching.EquipSlot3Action.Disable();
-                    ItemSwitching.EquipSlot4Action.Disable();
-                    ItemSwitching.EquipSlot5Action.Disable();
-                    ItemSwitching.EquipSlot6Action.Disable();
-                    ItemSwitching.EquipSlot7Action.Disable();
-                    ItemSwitching.EquipSlot8Action.Disable();
-                    ItemSwitching.EquipSlot9Action.Disable();
-                    ItemSwitching.EquipSlot10Action.Disable();
-                    break;
-            }
+            SetActionState(ItemSwitching?.EquipeNextItemAction, active);
+            SetActionState(ItemSwitching?.EquipePreviousItemAction, active);
+            SetActionState(ItemSwitching?.EquipItemScrollAction, active);
+            SetActionState(ItemSwitching?.EquipSlot1Action, active);
+            SetActionState(ItemSwitching?.EquipSlot2Action, active);
+            SetActionState(ItemSwitching?.EquipSlot3Action, active);
+            SetActionState(ItemSwitching?.EquipSlot4Action, active);
+            SetActionState(ItemSwitching?.EquipSlot5Action, active);
+            SetActionState(ItemSwitching?.EquipSlot6Action, active);
+            SetActionState(ItemSwitching?.EquipSlot7Action, active);
+            SetActionState(ItemSwitching?.EquipSlot8Action, active);
+            SetActionState(ItemSwitching?.EquipSlot9Action, active);
+            SetActionState(ItemSwitching?.EquipSlot10Action, active);
         }
-
-#if UNITY_EDITOR
-        private void OnExitPlayMode(UnityEditor.PlayModeStateChange mode)
-        {
-            if (mode != UnityEditor.PlayModeStateChange.ExitingPlayMode)
-                return;
-
-            SetActiveInputs(false);
-        }
-#endif
     }
 }

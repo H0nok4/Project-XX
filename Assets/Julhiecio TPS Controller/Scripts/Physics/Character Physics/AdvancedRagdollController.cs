@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.PhysicsScripts
 {
 
@@ -362,29 +358,18 @@ namespace JUTPS.PhysicsScripts
         }
 
 
-#if UNITY_EDITOR
-        [HideInInspector] private Camera MainCamera;
         private void OnDrawGizmos()
         {
-            if (MainCamera == null)
-            {
-                MainCamera = Camera.current;
-            }
-
             //BODY DIRECTION
-            if (State == RagdollState.Ragdolled && ViewBodyDirection)
+            if (State == RagdollState.Ragdolled && ViewBodyDirection && Hips != null && Head != null)
             {
-                Handles.Label(Hips.position + MainCamera.transform.right * 1f, "Ragdoll Body Direction");
-                if (GetUpFromBelly)
-                {
-                    Handles.color = Color.cyan;
-                    Handles.ArrowHandleCap(0, Hips.position + MainCamera.transform.right * 1f, Quaternion.LookRotation(BodyDirection()), 0.5f, EventType.Repaint);
-                }
-                else
-                {
-                    Handles.color = Color.white;
-                    Handles.ArrowHandleCap(0, Hips.position + MainCamera.transform.right * 1f, Quaternion.LookRotation(BodyDirection()), 0.5f, EventType.Repaint);
-                }
+                Transform referenceCamera = Camera.current != null ? Camera.current.transform : transform;
+                Vector3 origin = Hips.position + referenceCamera.right * 1f;
+                Vector3 direction = BodyDirection();
+
+                Gizmos.color = GetUpFromBelly ? Color.cyan : Color.white;
+                Gizmos.DrawLine(origin, origin + direction * 0.5f);
+                Gizmos.DrawWireSphere(origin + direction * 0.5f, 0.06f);
             }
 
             if (AllBones != null)
@@ -398,19 +383,18 @@ namespace JUTPS.PhysicsScripts
                             continue;
                         if (CurrentBone.transform.parent == transform)
                             continue;
-                        float distparent = Vector3.Distance(CurrentBone.position, CurrentBone.transform.parent.position);
-                        Vector3 direction = CurrentBone.transform.parent.position - CurrentBone.position;
                         if (State == RagdollState.Animated)
                         {
-                            Handles.color = Color.yellow;
-                            Handles.DrawDottedLine(CurrentBone.position, CurrentBone.transform.parent.position, 0.3f);
+                            Gizmos.color = Color.yellow;
+                            Gizmos.DrawLine(CurrentBone.position, CurrentBone.transform.parent.position);
                             Gizmos.color = Color.red;
                             Gizmos.DrawSphere(CurrentBone.position, 0.02f);
                         }
                         else
                         {
-                            Handles.color = Color.grey;
-                            Handles.DrawDottedLine(CurrentBone.position, CurrentBone.transform.parent.position, 0.3f);
+                            Gizmos.color = Color.grey;
+                            Gizmos.DrawLine(CurrentBone.position, CurrentBone.transform.parent.position);
+                            Gizmos.DrawWireSphere(CurrentBone.position, 0.015f);
                         }
                     }
                 }
@@ -450,7 +434,6 @@ namespace JUTPS.PhysicsScripts
 
             }
         }
-#endif
 
 
     }

@@ -1,6 +1,6 @@
 # Project-XX 预制作框架健康整改单
 
-更新时间：`2026-04-22`
+更新时间：`2026-04-25`
 
 配套文档：
 
@@ -168,7 +168,7 @@
 - `Project-XX` 定义正式健康/伤害/死亡模型
 - Akila 与 JUTPS 只消费这个模型，或者只作为执行入口把事件汇入这个模型
 - `ProjectXXCombatantSync` 只能作为从正式 combat state 指向 vendor 的单向兼容镜像器
-- `JutpsHealthProxy` 这类旧双向同步组件应视为迁移期残留，而不是长期保留组件
+- `JutpsHealthProxy` 这类旧双向同步组件应视为迁移期残留，而不是长期保留组件；当前桥接入口中已删除 `JutpsHealthProxy`
 
 ### 建议整改
 
@@ -296,7 +296,7 @@
 
 当前剩下的主要 blocker 已经从“runtime 边界没拆”变成：
 
-- `JUTPS` 正式 editor 脚本已落入 `JUTPS.Editor.asmdef`，但 runtime 内仍残留 editor helper / gizmo / handles 混装文件
+- `JUTPS` 正式 editor 脚本已落入 `JUTPS.Editor.asmdef`，且 `DamageableBody / MobileRig / FractureTool / JUFootPlacement` 的内嵌 `CustomEditor`、`JUBoxArea / JUVehicleInputAsset` 的菜单创建逻辑、`JUIconGenerator` 的整文件 editor-only 工具、`FractureTool` 的资产保存逻辑、`JUInteractionSystem / JUApplyAudioVolumeSettings` 的默认资源绑定逻辑，以及 `JU Save Load` 基类对 `EditorApplication.playModeStateChanged` 的依赖都已被抽离或替换；上一轮继续把 `JUFootstep` 默认脚步音频装配迁到 editor context menu，并把 `JUEditor` 中仅供 `JUBoxArea` 创建菜单使用的 `SceneView` helper 移回 editor 侧；随后又把 `JUFootPlacement / JUSlipCapsule` 的 `Handles/Gizmos` scene 可视化迁到 `JUTPS.Editor`，并把 `JUFieldOfViewSensor / Escape` 的残余 editor API 收敛为 runtime-safe 默认配置与通用 gizmo 绘制，同时移除 `JU_AI_PatrolCharacter / JU_AI_Zombie` 的 editor 调试浮字与 `JUCoverTrigger / GravityBox` 的 editor 箭头句柄；本轮继续把 `BodyLeanInert / VehicleAI / JUVehicleEngine / JUGizmoDrawer / AdvancedRagdollController / Weapon` 的 scene/authoring debug 收敛为通用 `Gizmos`，把 `ProjectXXCompatibilityValidator / JutpsTargetAdapter` 中的 `UnityEditor` 直接引用移除，并给 `JUSaveLoad` 增加可覆盖的保存根目录；当前 JUTPS runtime 内直接 editor API 残留已主要收缩到 runtime 路径下的 `JUEditor / UnityEditorUtilities`
 - ProjectXX 自己的 editor/test 层还没有进入明确 asmdef 规划
 
 这会导致：
@@ -327,7 +327,15 @@ ProjectXX 至少应该拆成几个明确程序集：
 - 已落地：把 `ProjectXX.Bridges.FPSFramework / ProjectXX.Bridges.Combat / ProjectXX.Bridges.JUTPS` 从 `Assembly-CSharp` 中拆出
 - 已落地：把 `ProjectXX.Presentation.Raid / ProjectXX.Bootstrap / ProjectXX.Services` 从 `Assembly-CSharp` 中拆出
 - 已落地：把 JUTPS `JUFieldOfViewSensor` 对 `ProjectXX` 的依赖从 bridge 组件类型收敛为正式 combat target filter 契约
-- 下一步：继续清理 `JUTPS.Runtime` 内残余 editor helper 混装点，再规划 ProjectXX editor/test 程序集
+- 已落地：把 `DamageableBody / MobileRig / FractureTool / JUFootPlacement` 内嵌的 `CustomEditor` 从 runtime vendor 文件抽离到 `JUTPS.Editor`
+- 已落地：把 `JUBoxArea / JUVehicleInputAsset` 内嵌的 `MenuItem / AssetDatabase` 资产创建逻辑从 runtime vendor 文件抽离到 `JUTPS.Editor`
+- 已落地：把整文件 editor-only 的 `JUIconGenerator` 从 runtime tools 目录迁入 `JUTPS.Editor`
+- 已落地：把 `FractureTool` 内嵌的 `AssetDatabase / MeshUtility / FileUtil` 资产保存逻辑从 runtime vendor 文件抽离到 `JUTPS.Editor`
+- 已落地：把 `JUInteractionSystem / JUApplyAudioVolumeSettings` 的默认资源绑定从 runtime `Reset()` 迁到 `JUTPSRuntimeComponentDefaults`
+- 已落地：把 `JUPlayerCharacterInputAsset / JUPauseGame / JUVehicleEngine` 对 `UnityEditor.EditorApplication.playModeStateChanged` 的依赖收敛为生命周期清理
+- 已落地：把 `JUSaveLoadComponent` 对 `UnityEditor.EditorApplication.playModeStateChanged` 的依赖收敛为 `OnApplicationQuit / OnDestroy` 退出清理
+- 已落地：给 `JUSaveLoad` 增加 `SaveRootDirectory` 与 `ResetSaveRootDirectory()`，默认仍使用 `Application.persistentDataPath`，但允许 ProjectXX 后续接管测试/平台保存根目录
+- 下一步：继续清理 `JUEditor / UnityEditorUtilities` 这类仍位于 runtime 路径的 editor helper，再规划 ProjectXX editor/test 程序集
 - 严格限制依赖方向
 - Domain 不依赖 Presentation
 - Bridges 不反向定义 Domain 规则
@@ -416,6 +424,7 @@ ProjectXX 至少应该拆成几个明确程序集：
 
 - 已落地：建立 `ProjectXXRaidRuntimeRegistry`
 - 已落地：`RaidSessionRuntime`、玩家 facade、HUD、撤离点开始通过显式注册连接
+- 已落地：`ProjectXXRaidSceneInstaller` 支持显式 authoring 玩家、HUD、敌人与 Akila manager 引用，缺省时才回退到场景扫描或最小自愈创建
 - 禁止继续在 ProjectXX 代码中新增新的全局查找依赖
 - 继续把剩余的 `FindFirstObjectByType / FindObjectsByType` 约束在 composition root 内
 
@@ -493,6 +502,16 @@ ProjectXX 至少应该拆成几个明确程序集：
 - Akila 现成的 item/inventory 体系不能继续自然外扩成正式背包系统
 - 现在的 `ProjectXXWeaponBridge / EquipmentBridge` 只能视为过渡期整合，不应默认成为长期底层
 
+截至 `2026-04-25`，这一项已经完成第一步收敛：
+
+- `ProjectXXItemDefinition`、`ProjectXXEquippableItemDefinition`、`ProjectXXEquipmentRuntime` 已落地为 Project-XX 侧第一版物品/装备语义
+- `ProjectXXContainerDefinition / ProjectXXGridSize / ProjectXXGridCoord / ProjectXXItemInstanceRuntime / ProjectXXInventoryGridRuntime / ProjectXXContainerRuntime / ProjectXXLoadoutRuntime` 已落地为 R2 容器/背包的第一版定义与运行时骨架
+- `ProjectXXEquipmentBridge / ProjectXXWeaponBridge` 已支持 `ProjectXXEquippableItemDefinition -> Akila InventoryItem` 的表现绑定
+- `ProjectXXRaidSceneInstaller` 已允许用 Project-XX 装备定义配置起始武器，Akila `InventoryItem` 降级为第一人称武器表现 prefab
+- `IProjectXXInteractable / ProjectXXContainerInteractable / ProjectXXPlayerInteractionBridge` 已落地第一版容器发现、HUD 提示与 `E` 键交互链
+- `ProjectXXLootWindowController / ProjectXXInventoryTransferUtility` 已落地第一版搜刮窗口、关闭流程与容器/背包 first-fit 转移
+- 当前仍未完成的是正式格子 UI、拖拽交换、堆叠拆分与死亡/撤离结算服务；这些仍不能反向依赖 Akila Inventory
+
 ### 健康目标
 
 正式路线应该是：
@@ -502,9 +521,12 @@ ProjectXX 至少应该拆成几个明确程序集：
 
 ### 建议整改
 
-- 在进入 R2 前，先明确“Akila Inventory 在正式架构中的降级方式”
+- 已落地第一版“Project-XX Item -> Weapon Presentation”绑定方式：Project-XX 定义拥有规则语义，Akila `InventoryItem` 只作为表现 prefab
+- 已落地第一版 `ContainerRuntime / InventoryGridRuntime / LoadoutRuntime`
+- 已落地第一版容器交互桥与 Session/HUD prompt 通道
+- 已落地第一版最小搜刮窗口与键盘驱动的容器/背包物品转移
+- 下一步把文字清单升级成正式格子模板、拖拽放置、交换与堆叠规则
 - 避免让 R2 容器系统建立在 Akila Inventory 抽象之上
-- 提前规划“Project-XX Item -> Weapon Presentation” 的正式绑定方式
 
 ## 4.3 UI 仍然是原型化实现
 
@@ -524,7 +546,7 @@ ProjectXX 至少应该拆成几个明确程序集：
 
 ### 当前问题
 
-现在真正落地的定义只有一个最小敌人定义，后续制作所需的：
+现在真正落地的定义已经从最小敌人定义扩展到第一版物品/装备定义与容器/背包运行时骨架，但后续制作所需的：
 
 - Item
 - Container
@@ -534,7 +556,7 @@ ProjectXX 至少应该拆成几个明确程序集：
 - Merchant
 - Facility
 
-都还没有正式定义。
+仍未全部正式化。`Item / Equipment Slot / ContainerDefinition / ContainerRuntime / InventoryGridRuntime / LoadoutRuntime` 已有第一版 Project-XX 语义，`BackpackDefinition / ArmorDefinition / Merchant / Facility` 还需要继续补齐。
 
 ### 健康目标
 
@@ -592,7 +614,7 @@ ProjectXX 至少应该拆成几个明确程序集：
 8. 把玩家 prefab 与敌人 prefab 的桥接尽量前移到 authoring，逐步拆除运行时自愈安装
 9. 把 HUD / Session / Extraction 的连接从全局查找改成显式引用或注册
 10. 设计 faction v2 的目标形态
-11. 明确 Inventory / Equipment 的正式所有权落点
+11. 继续沿着已落地的 Project-XX Item / Equipment 语义，补齐正式 Container / InventoryGrid / Loadout
 12. 然后再进入 `R2` 的容器与搜刮开发
 
 ## 7. 进入正式制作前的完成标准

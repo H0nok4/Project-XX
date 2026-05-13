@@ -62,9 +62,7 @@ namespace ProjectXX.Bridges.Combat
 
             if (juHealth != null)
             {
-                juHealth.MaxHealth = combatant.MaxHealth;
-                juHealth.Health = combatant.CurrentHealth;
-                juHealth.CheckHealthState();
+                juHealth.SetHealthState(combatant.CurrentHealth, combatant.MaxHealth);
             }
         }
 

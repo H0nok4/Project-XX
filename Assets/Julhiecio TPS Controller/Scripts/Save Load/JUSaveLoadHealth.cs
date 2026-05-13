@@ -1,4 +1,5 @@
 using JUTPS;
+using ProjectXX.Domain.Combat;
 using UnityEngine;
 
 namespace JU.SaveLoad
@@ -11,6 +12,7 @@ namespace JU.SaveLoad
     public class JUSaveLoadHealth : JUSaveLoadComponent
     {
         private JUHealth _health;
+        private ProjectXXCombatant _combatant;
 
         private const string VALUE_KEY = "Health";
         private const string MAX_VALUE_KEY = "Max Health";
@@ -24,6 +26,7 @@ namespace JU.SaveLoad
         protected override void Awake()
         {
             _health = GetComponent<JUHealth>();
+            _combatant = GetComponent<ProjectXXCombatant>();
 
             base.Awake();
         }
@@ -33,8 +36,10 @@ namespace JU.SaveLoad
         {
             base.Save();
 
-            SetValue(VALUE_KEY, _health.Health);
-            SetValue(MAX_VALUE_KEY, _health.MaxHealth);
+            float currentHealth = _combatant != null ? _combatant.CurrentHealth : _health.Health;
+            float maxHealth = _combatant != null ? _combatant.MaxHealth : _health.MaxHealth;
+            SetValue(VALUE_KEY, currentHealth);
+            SetValue(MAX_VALUE_KEY, maxHealth);
         }
 
         /// <inheritdoc/>
@@ -42,9 +47,10 @@ namespace JU.SaveLoad
         {
             base.Load();
 
-            _health.Health = GetValue(VALUE_KEY, _health.MaxHealth);
-            _health.MaxHealth = GetValue(MAX_VALUE_KEY, _health.MaxHealth);
-            _health.CheckHealthState();
+            float fallbackMaxHealth = _combatant != null ? _combatant.MaxHealth : _health.MaxHealth;
+            float loadedMaxHealth = GetValue(MAX_VALUE_KEY, fallbackMaxHealth);
+            float loadedHealth = GetValue(VALUE_KEY, loadedMaxHealth);
+            _health.SetHealthState(loadedHealth, loadedMaxHealth, true);
         }
 
         /// <inheritdoc/>
@@ -53,6 +59,7 @@ namespace JU.SaveLoad
             base.OnExitPlayMode();
 
             _health = null;
+            _combatant = null;
         }
     }
 }

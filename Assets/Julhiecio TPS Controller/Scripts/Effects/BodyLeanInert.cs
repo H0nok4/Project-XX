@@ -1,10 +1,6 @@
 ﻿using JUTPSActions;
 using UnityEngine;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.FX
 {
     [AddComponentMenu("JU TPS/FX/Body Lean")]
@@ -97,26 +93,27 @@ namespace JUTPS.FX
 
             RootBone.localRotation = Quaternion.Euler(euler);
         }
-#if UNITY_EDITOR
         private void OnDrawGizmos()
         {
-            if (RootBone == null) return;
+            if (RootBone == null)
+                return;
+
             float angle = Vector3.SignedAngle(NotAffectedUpward, RootBone.up, RootBone.right);
-            if (angle == 0) return;
+            if (Mathf.Approximately(angle, 0f))
+                return;
 
             Color color = Color.Lerp(Color.green, Color.red, angle / 10);
-            Handles.color = color;
-            Handles.DrawWireArc(RootBone.position, -RootBone.right, RootBone.up, angle, 0.5f);
+            Vector3 origin = RootBone.position;
+            Vector3 currentUp = RootBone.up * 0.5f;
+            Vector3 referenceUp = NotAffectedUpward * 0.5f;
 
-            Color colortransparent = color; colortransparent.a = 0.1f;
-            Handles.color = colortransparent;
-            Handles.DrawSolidArc(RootBone.position, -RootBone.right, RootBone.up, angle, 0.5f);
+            Gizmos.color = color;
+            Gizmos.DrawLine(origin, origin + currentUp);
+            Gizmos.DrawWireSphere(origin + currentUp, 0.025f);
 
-            Handles.DrawLine(RootBone.position, RootBone.position + RootBone.up * 0.5f);
-            Handles.color = Color.white;
-            Handles.DrawDottedLine(RootBone.position, RootBone.position + NotAffectedUpward * 0.5f, 2);
-            Handles.Label(RootBone.position + NotAffectedUpward * 0.6f, ((int)angle).ToString());
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(origin, origin + referenceUp);
+            Gizmos.DrawWireSphere(origin + referenceUp, 0.02f);
         }
-#endif
     }
 }

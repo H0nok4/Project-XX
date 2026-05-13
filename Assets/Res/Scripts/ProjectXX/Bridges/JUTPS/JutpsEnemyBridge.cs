@@ -29,6 +29,7 @@ namespace ProjectXX.Bridges.JUTPS
 
         private JUHealth juHealth;
         private JUCharacterController characterController;
+        private JUFootPlacement footPlacement;
         private JU_AI_Zombie zombieAi;
         private Damager[] damagers;
         private ProjectXXCombatant combatant;
@@ -39,6 +40,7 @@ namespace ProjectXX.Bridges.JUTPS
         {
             juHealth = GetComponent<JUHealth>();
             characterController = GetComponent<JUCharacterController>();
+            footPlacement = GetComponent<JUFootPlacement>();
             zombieAi = GetComponent<JU_AI_Zombie>();
             damagers = GetComponentsInChildren<Damager>(true);
             combatant = GetComponent<ProjectXXCombatant>();
@@ -52,10 +54,6 @@ namespace ProjectXX.Bridges.JUTPS
             {
                 combatant.Died += HandleCombatantDeath;
             }
-            else if (juHealth != null)
-            {
-                juHealth.OnDeath.AddListener(HandleDeath);
-            }
         }
 
         private void Start()
@@ -68,10 +66,6 @@ namespace ProjectXX.Bridges.JUTPS
             if (combatant != null)
             {
                 combatant.Died -= HandleCombatantDeath;
-            }
-            else if (juHealth != null)
-            {
-                juHealth.OnDeath.RemoveListener(HandleDeath);
             }
         }
 
@@ -199,79 +193,29 @@ namespace ProjectXX.Bridges.JUTPS
 
         private void ConfigureGroundingMasks()
         {
-            if (characterController == null)
+            int compatibilityMask = BuildLayerMask(ResolveGroundLayers());
+            if (compatibilityMask == 0)
             {
                 return;
             }
 
-            string[] resolvedGroundLayers = ResolveGroundLayers();
-            int groundMask = characterController.WhatIsGround.value;
-            int wallMask = characterController.WhatIsWall.value;
-            int stepMask = characterController.StepCorrectionMask.value;
-            bool updated = false;
-
-            for (int i = 0; i < resolvedGroundLayers.Length; i++)
+            if (characterController != null)
             {
-                string layerName = resolvedGroundLayers[i];
-                if (string.IsNullOrWhiteSpace(layerName))
-                {
-                    continue;
-                }
-
-                int layer = LayerMask.NameToLayer(layerName);
-                if (layer < 0)
-                {
-                    continue;
-                }
-
-                int layerMask = 1 << layer;
-                if ((groundMask & layerMask) == 0)
-                {
-                    groundMask |= layerMask;
-                    updated = true;
-                }
-
-                if ((wallMask & layerMask) == 0)
-                {
-                    wallMask |= layerMask;
-                    updated = true;
-                }
-
-                if ((stepMask & layerMask) == 0)
-                {
-                    stepMask |= layerMask;
-                    updated = true;
-                }
+                characterController.WhatIsGround = characterController.WhatIsGround.value | compatibilityMask;
+                characterController.WhatIsWall = characterController.WhatIsWall.value | compatibilityMask;
+                characterController.StepCorrectionMask = characterController.StepCorrectionMask.value | compatibilityMask;
             }
 
-            if (!updated)
+            footPlacement ??= GetComponent<JUFootPlacement>();
+            if (footPlacement != null)
             {
-                return;
+                footPlacement.GroundLayers = footPlacement.GroundLayers.value | compatibilityMask;
             }
-
-            characterController.WhatIsGround = groundMask;
-            characterController.WhatIsWall = wallMask;
-            characterController.StepCorrectionMask = stepMask;
         }
 
         private void SnapToGround()
         {
-            string[] resolvedGroundLayers = ResolveGroundLayers();
-            if (characterController == null || resolvedGroundLayers.Length == 0)
-            {
-                return;
-            }
-
-            int snapMask = 0;
-            for (int i = 0; i < resolvedGroundLayers.Length; i++)
-            {
-                int layer = LayerMask.NameToLayer(resolvedGroundLayers[i]);
-                if (layer >= 0)
-                {
-                    snapMask |= 1 << layer;
-                }
-            }
-
+            int snapMask = BuildLayerMask(ResolveGroundLayers());
             if (snapMask == 0)
             {
                 return;
@@ -330,6 +274,32 @@ namespace ProjectXX.Bridges.JUTPS
             }
 
             return additionalGroundLayers ?? System.Array.Empty<string>();
+        }
+
+        private static int BuildLayerMask(string[] layerNames)
+        {
+            if (layerNames == null)
+            {
+                return 0;
+            }
+
+            int layerMask = 0;
+            for (int i = 0; i < layerNames.Length; i++)
+            {
+                string layerName = layerNames[i];
+                if (string.IsNullOrWhiteSpace(layerName))
+                {
+                    continue;
+                }
+
+                int layer = LayerMask.NameToLayer(layerName.Trim());
+                if (layer >= 0)
+                {
+                    layerMask |= 1 << layer;
+                }
+            }
+
+            return layerMask;
         }
     }
 }

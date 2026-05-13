@@ -143,9 +143,6 @@ namespace JUTPS.InteractionSystem
                     FindInteractables.Layer |= 1 << defaultFindInteractablesLayer[i];
             }
 
-#if UNITY_EDITOR
-            Inputs = UnityEditor.AssetDatabase.LoadAssetAtPath<JUPlayerCharacterInputAsset>("Assets/Julhiecio TPS Controller/Input Controls/Player Character Inputs.asset");
-#endif
         }
 
         private void OnEnable()

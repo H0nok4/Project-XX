@@ -70,14 +70,7 @@ namespace JUTPS.UI
             get => JUPauseGame.Instance;
         }
 
-        private bool IsGameFocused
-        {
-#if UNITY_EDITOR
-            get => JUEditor.IsGameFocused;
-#else
-            get => true;
-#endif
-        }
+        private bool IsGameFocused => JUGameFocusUtility.IsGameFocused;
 
         private void Awake()
         {

@@ -10,6 +10,8 @@ namespace JU.SaveLoad
     {
         private JUSaveLoadModeComponent _mode;
 
+        private bool _isQuitting;
+        private bool _runtimeStateCleared;
         private bool _loaded;
         private string _saveLoadSceneName;
 
@@ -70,10 +72,8 @@ namespace JU.SaveLoad
         /// </summary>
         protected virtual void Awake()
         {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.playModeStateChanged += OnExitPlayMode;
-#endif
-
+            _isQuitting = false;
+            _runtimeStateCleared = false;
             JUSaveLoadManager.AddObjectToSave(this);
             Load();
         }
@@ -97,14 +97,30 @@ namespace JU.SaveLoad
         /// </summary>
         protected virtual void OnDestroy()
         {
+            if (_isQuitting)
+            {
+                OnExitPlayMode();
+                return;
+            }
+
             // Can't save if is unloading the scene.
             // The OnDestroy is called on scene unloading.
             if (!gameObject.scene.isLoaded)
+            {
+                OnExitPlayMode();
                 return;
+            }
 
             JUSaveLoadManager.RemoveObjectToSave(this);
 
             Save();
+            OnExitPlayMode();
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            _isQuitting = true;
+            OnExitPlayMode();
         }
 
         /// <summary>
@@ -213,23 +229,15 @@ namespace JU.SaveLoad
             return $"{_saveLoadKeyBase} {baseKey}";
         }
 
-#if UNITY_EDITOR
-        private void OnExitPlayMode(UnityEditor.PlayModeStateChange change)
-        {
-            if (change == UnityEditor.PlayModeStateChange.ExitingPlayMode)
-            {
-                UnityEditor.EditorApplication.playModeStateChanged -= OnExitPlayMode;
-                OnExitPlayMode();
-            }
-        }
-#endif
-
         /// <summary>
-        /// Called by editor during exit play mode.
-        /// Useful to reset properties if reload domain is disabled on editor side.
+        /// Reset save/load runtime cache when the object is being destroyed or the application is quitting.
         /// </summary>
         protected virtual void OnExitPlayMode()
         {
+            if (_runtimeStateCleared)
+                return;
+
+            _runtimeStateCleared = true;
             JUSaveLoadManager.RemoveObjectToSave(this);
 
             _loaded = false;

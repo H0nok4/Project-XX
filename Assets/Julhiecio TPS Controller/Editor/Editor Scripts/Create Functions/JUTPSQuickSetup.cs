@@ -312,7 +312,7 @@ namespace JUTPSEditor
             if (addFootstep)
             {
                 JUFootstep footstep = (JUFootstep)Undo.AddComponent(CharacterGameObject, typeof(JUFootstep));
-                footstep.LoadDefaultFootstepInInspector();
+                JUTPS.DestructibleSystem.JUFootstepDefaultsMenu.ApplyDefaultFootstepAudios(footstep);
             }
             //Body Lean Effect
             if (addBodyLean) Undo.AddComponent(CharacterGameObject, typeof(BodyLeanInert));

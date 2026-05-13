@@ -1,10 +1,7 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using JUTPS.ArmorSystem;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 using JUTPSEditor.JUHeader;
 
 namespace JUTPS.ArmorSystem
@@ -19,6 +16,7 @@ namespace JUTPS.ArmorSystem
         [Range(0, 10)] public float ArmsDamageIntensity = 0.5f;
 
         public DamageableBodyPart[] AllParts;
+
         void Awake()
         {
             Animator anim = GetComponent<Animator>();
@@ -37,13 +35,10 @@ namespace JUTPS.ArmorSystem
         public static DamageableBodyPart[] DistributeDamageableComponentsInTheBody(Animator animator, float HeadValue = 5, float TorsoValue = 1, float LegValue = 0.8f, float ArmValue = 0.5f)
         {
             List<DamageableBodyPart> parts = new List<DamageableBodyPart>();
-            //Get All Hips Colliders
             Collider[] bonesWithColliders = animator.GetBoneTransform(HumanBodyBones.Hips).GetComponentsInChildren<Collider>();
 
-            //Filter Hips by Layer
             foreach (Collider bone in bonesWithColliders)
             {
-                // >>> IF HAVE DMB COMPONENT
                 if (bone.gameObject.layer == 15 && bone.GetComponent<DamageableBodyPart>() == null)
                 {
                     parts.Add(bone.gameObject.AddComponent<DamageableBodyPart>());
@@ -59,7 +54,7 @@ namespace JUTPS.ArmorSystem
                         rbb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
                     }
                 }
-                // >>> IF DONT HAVE DMB COMPONENT
+
                 if (bone.gameObject.layer == 15 && bone.GetComponent<DamageableBodyPart>() != null)
                 {
                     parts.Add(bone.gameObject.GetComponent<DamageableBodyPart>());
@@ -77,23 +72,19 @@ namespace JUTPS.ArmorSystem
                 }
             }
 
-            //Apply Values
             foreach (DamageableBodyPart damageablePart in parts.ToArray())
             {
-                //Apply Torso Damage Multiplier Value
                 if (damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.Hips) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.Spine)
                  || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.Chest) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.UpperChest))
                 {
                     damageablePart.DamageMultiplier = TorsoValue;
                 }
 
-                //Apply Head Damage Multiplier Value
                 if (damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.Head))
                 {
                     damageablePart.DamageMultiplier = HeadValue;
                 }
 
-                //Apply Legs Damage Multiplier Value
                 if (damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg)
                  || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftFoot) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightLowerLeg)
                  || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightFoot))
@@ -101,10 +92,9 @@ namespace JUTPS.ArmorSystem
                     damageablePart.DamageMultiplier = LegValue;
                 }
 
-                //Apply Arms Damage Multiplier
                 if (damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftLowerArm) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftUpperArm)
-               || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftHand) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightLowerArm)
-               || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightUpperArm) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightHand))
+                 || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.LeftHand) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightLowerArm)
+                 || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightUpperArm) || damageablePart.transform == animator.GetBoneTransform(HumanBodyBones.RightHand))
                 {
                     damageablePart.DamageMultiplier = ArmValue;
                 }
@@ -113,39 +103,4 @@ namespace JUTPS.ArmorSystem
             return parts.ToArray();
         }
     }
-
 }
-#if UNITY_EDITOR
-namespace JUTPS.CustomEditors
-{
-    [CustomEditor(typeof(DamageableBody))]
-    public class DamageableBodyEditor : Editor
-    {
-        public override void OnInspectorGUI()
-        {
-            base.OnInspectorGUI();
-            DamageableBody dmBody = ((DamageableBody)target);
-            if (GUILayout.Button("Distribute Values"))
-            {
-                Animator anim = dmBody.GetComponent<Animator>();
-                if (anim == null)
-                {
-                    Debug.LogError("Unable to find Animator component");
-                    return;
-                }
-                if (anim.isHuman == false)
-                {
-                    Debug.LogError("Your character needs to be humanoid");
-                    return;
-                }
-                DamageableBody.DistributeDamageableComponentsInTheBody(anim, dmBody.HeadDamageIntensity,
-                    dmBody.TorsoDamageIntensity, dmBody.LegsDamageIntensity, dmBody.ArmsDamageIntensity);
-
-                Debug.Log("Damageable Body Parts values have been successfully updated");
-            }
-        }
-    }
-
-}
-#endif
-

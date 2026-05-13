@@ -28,7 +28,7 @@ public class JUCameraSwitch : MonoBehaviour
     {
         get
         {
-            if (JUPauseGame.IsPaused || !JUEditor.IsGameFocused)
+            if (JUPauseGame.IsPaused || !JUGameFocusUtility.IsGameFocused)
                 return false;
 
             if (!Character.UseDefaultControllerInput)

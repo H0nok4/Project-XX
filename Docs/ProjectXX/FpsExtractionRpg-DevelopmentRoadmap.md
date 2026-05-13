@@ -1,6 +1,6 @@
 # Project-XX 开发路线图
 
-更新时间：`2026-04-22`
+更新时间：`2026-04-25`
 
 预制作框架整改建议请同时参考：
 
@@ -66,7 +66,6 @@
 
 #### JUTPS 兼容与敌人桥接
 
-- `JutpsHealthProxy`
 - `JutpsTargetAdapter`
 - `JutpsEnemyDamageableAdapter`
 - `JutpsEnemyBridge`
@@ -79,6 +78,14 @@
 - `ProjectXXRaidRuntimeRegistry`
 - `RaidPlayerRuntime`
 - `PlayerProfileRuntime`
+- `ProjectXXItemDefinition`
+- `ProjectXXEquippableItemDefinition`
+- `ProjectXXItemInstanceRuntime`
+- `ProjectXXInventoryGridRuntime`
+- `ProjectXXContainerDefinition`
+- `ProjectXXContainerRuntime`
+- `ProjectXXEquipmentRuntime`
+- `ProjectXXLoadoutRuntime`
 - `ProjectXXEnemyDefinition`
 - `ProjectXXCompatibilitySettings`
 - `ProjectXXCompatibilityValidator`
@@ -277,39 +284,44 @@
 
 #### `R2-A` 定义与数据底座
 
-- `ItemDefinition`
+- `ProjectXXItemDefinition`（第一版已落地）
+- `ProjectXXEquippableItemDefinition`（第一版已落地）
 - `WeaponDefinition`
 - `MeleeWeaponDefinition`
 - `ArmorDefinition`
 - `ChestRigDefinition`
 - `BackpackDefinition`
 - `EquipmentSlotDefinition`
-- `ContainerDefinition`
+- `ProjectXXContainerDefinition`（第一版已落地）
 
 #### `R2-B` 运行时容器系统
 
-- `ItemInstanceRuntime`
-- `GridSize`
-- `GridCoord`
-- `InventoryGridRuntime`
-- `ContainerRuntime`
-- `EquipmentRuntime`
-- `LoadoutRuntime`
+- `ProjectXXItemInstanceRuntime`（第一版已落地）
+- `ProjectXXGridSize`（第一版已落地）
+- `ProjectXXGridCoord`（第一版已落地）
+- `ProjectXXInventoryGridRuntime`（第一版已落地）
+- `ProjectXXContainerRuntime`（第一版已落地）
+- `ProjectXXEquipmentRuntime`（第一版槽位运行时已落地）
+- `ProjectXXLoadoutRuntime`（第一版已落地）
 
 #### `R2-C` 交互桥与最小搜刮
 
-- `ProjectXXInteractableBridge`
-- `InteractionPromptPresenter`
-- `InteractionRequirementEvaluator`
-- 在 `ProjectXX_RaidTestMap` 中放入第一个正式容器对象
-- 跑通“发现 -> 打开 -> 转移 -> 关闭”的最小搜刮流程
+- `IProjectXXInteractable / ProjectXXInteractionResult`（第一版已落地）
+- `ProjectXXContainerInteractable`（第一版已落地）
+- `ProjectXXPlayerInteractionBridge`（第一版已落地：玩家相机射线发现目标，`E` 键触发交互）
+- `InteractionPromptPresenter`（第一版由 `RaidSessionRuntime -> ProjectXXRaidHudController` 承接）
+- `InteractionRequirementEvaluator`（待补；当前只有 `CanInteract(GameObject)` 的最小判断）
+- `ProjectXXRaidSceneInstaller` 已能在缺省场景生成第一个最小测试容器，并在 `ProjectXX_RaidTestMap` 中显式绑定 `SmallLootCrate / FieldRations`
+- 已跑通“发现 -> 打开提示 -> 打开搜刮窗口”；正式需求判断仍待补
 
 #### `R2-D` UI 第一版
 
-- 背包窗口
-- 容器窗口
-- 物品格模板
-- 拖拽、放置、交换的最小可用交互
+- `ProjectXXLootWindowController`（第一版已落地：显示容器/背包内容，`T` 拿取第一个可放物品，`G` 放回第一个背包物品，`Esc` 关闭）
+- `ProjectXXInventoryTransferUtility`（第一版已落地：跨网格移动第一个可放置物品）
+- 背包窗口（仍待正式化；当前只作为 LootWindow 的右侧清单）
+- 容器窗口（第一版已落地为 prototype runtime window）
+- 物品格模板（待补；当前仍是文字清单）
+- 拖拽、放置、交换的最小可用交互（待补；当前只有键盘驱动的 first-fit 转移）
 
 #### `R2-E` 死亡与撤离结算
 
@@ -376,7 +388,7 @@
 
 当前最合理的推进顺序是：
 
-1. 继续完成预制作框架健康化整改。当前 ProjectXX 正式 runtime 已基本完成 asmdef 拆分，`JUTPS.Runtime` 与 `JUTPS.Editor` 都已落地；下一步优先继续清理 `JUTPS.Runtime` 内残余 editor helper 混装点，并规划 ProjectXX editor/test 程序集
-2. 在已有 `ProjectXXRaidRuntimeRegistry` 与 `ProjectXXCompatibilitySettings` 基础上，继续把剩余场景级查找和兼容字符串压缩到正式入口
-3. 再继续以 `R2` 为主线，优先完成容器、搜刮、死亡丢失、撤离回写
+1. 继续完成预制作框架健康化整改。当前 ProjectXX 正式 runtime 已基本完成 asmdef 拆分，`JUTPS.Runtime` 与 `JUTPS.Editor` 都已落地，且一批内嵌在 runtime 文件中的 JUTPS custom inspector、menu item、editor-only tool、资产保存逻辑、默认资源绑定逻辑与 `JU Save Load` editor playmode callback 都已抽离或替换；上一轮继续把 `JUFootstep` 默认脚步音频装配迁到 editor context menu，并把 `JUEditor` 中仅供 `JUBoxArea` 创建菜单使用的 `SceneView` helper 移回 editor 侧；随后又把 `JUFootPlacement / JUSlipCapsule` 的 `Handles/Gizmos` scene 可视化迁到 editor 侧，并把 `JUFieldOfViewSensor / Escape` 的 editor API 收敛为 runtime-safe 默认配置与通用 gizmo 绘制，同时移除 `JU_AI_PatrolCharacter / JU_AI_Zombie` 的 editor 调试浮字与 `JUCoverTrigger / GravityBox` 的 editor 箭头句柄；本轮继续把 `BodyLeanInert / VehicleAI / JUVehicleEngine / JUGizmoDrawer / AdvancedRagdollController / Weapon` 的 scene/authoring debug 收敛为通用 `Gizmos`，清掉 ProjectXX runtime 脚本中的 `UnityEditor` 直接引用，给 `JUSaveLoad` 增加可覆盖保存根目录，并落地第一版 Project-XX `Item / Equipment / Container / Loadout` 语义，把 Akila Inventory 降级为起始武器表现绑定；下一步优先做容器交互桥、最小搜刮 UI 与死亡/撤离结算，同时继续清理 `JUEditor / UnityEditorUtilities` 这类仍位于 runtime 路径的 editor helper
+2. 在已有 `ProjectXXRaidRuntimeRegistry` 与 `ProjectXXCompatibilitySettings` 基础上，继续把剩余场景级查找和兼容字符串压缩到正式入口；`ProjectXXRaidSceneInstaller` 已支持显式 authoring 玩家、HUD、敌人与 Akila manager 引用
+3. 再继续以 `R2` 为主线，在 Project-XX 物品/装备/容器 ownership 之上优先完成交互、搜刮、死亡丢失、撤离回写
 4. 在 `R2` 末段补 1 个友方 NPC 与 1 个中立 NPC 样例，把阵营系统变成场景可见能力

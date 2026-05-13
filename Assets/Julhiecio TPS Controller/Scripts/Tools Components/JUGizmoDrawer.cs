@@ -1,9 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 namespace JUTPS
 {
     [AddComponentMenu("JU TPS/Tools/JU Gizmo Drawer")]
@@ -21,7 +18,6 @@ namespace JUTPS
 
         private static Mesh Hand, ClosedHand, ArmedHand, Foot, Steps, Humanoid;
 
-#if UNITY_EDITOR
         private void OnDrawGizmos()
         {
             if (Humanoid == null)
@@ -64,7 +60,6 @@ namespace JUTPS
                 }
             }
         }
-#endif
 
 
 
@@ -87,8 +82,6 @@ namespace JUTPS
         /// </summary>
         public static Mesh GetEditorResourceModel(string ModelName = "Humanoid Visualizer Model")
         {
-#if UNITY_EDITOR
-
             if (Resources.Load("Editor Resources/Models/" + ModelName) == null)
             {
                 Debug.Log("Unable to load model, check model name and directory path.");
@@ -97,10 +90,6 @@ namespace JUTPS
 
             var LoadedMesh = Resources.Load("Editor Resources/Models/" + ModelName) as GameObject;
             return LoadedMesh.GetComponent<MeshFilter>().sharedMesh;
-#else
-        Debug.Log("Unable to load editor models without being in editor");
-        return null;
-#endif
         }
 
 
@@ -132,7 +121,6 @@ namespace JUTPS
             }
         }
 
-#if UNITY_EDITOR
         /// <summary>
         /// Call this on the void OnDrawGizmo()
         /// </summary>
@@ -160,8 +148,6 @@ namespace JUTPS
                     break;
             }
         }
-
-#endif
 
         public static JUGizmoDrawer CreateNewJUGizmo(string Name = "JUGizmo", Vector3 Position = default, Quaternion Rotation = default, DrawMesh ModelToDraw = DrawMesh.Humanoid, Color Color = default, Color WireframeColor = default, bool Mirror = default, DrawType DrawMode = DrawType.Both)
         {

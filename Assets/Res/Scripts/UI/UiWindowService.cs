@@ -16,6 +16,7 @@ public sealed class UiWindowService : MonoBehaviour
 
     public static UiWindowService Instance => GetOrCreate();
     public static bool HasInstance => instance != null;
+    public bool HasVisibleManagedElement => CountVisibleManagedElements() > 0;
 
     private void Awake()
     {
@@ -123,6 +124,21 @@ public sealed class UiWindowService : MonoBehaviour
     public bool CloseTopmost()
     {
         return TryHandleCancel();
+    }
+
+    public int CountVisibleManagedElements()
+    {
+        CleanupInvalidEntries();
+        int count = 0;
+        foreach (IUiManagedElement element in registeredElements)
+        {
+            if (IsElementActive(element))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private bool TryDispatch(Func<IUiManagedElement, bool> handler)

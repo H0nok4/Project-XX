@@ -163,7 +163,7 @@ namespace JUTPS.InventorySystem.UI
         {
             if (InventoryScreen == null) return;
 
-            if (!JUEditor.IsGameFocused)
+            if (!JUGameFocusUtility.IsGameFocused)
                 return;
 
             InventoryScreen.SetActive(true);
@@ -189,7 +189,7 @@ namespace JUTPS.InventorySystem.UI
             if (InventoryScreen == null || !InventoryScreen.activeInHierarchy)
                 return;
 
-            if (!JUEditor.IsGameFocused)
+            if (!JUGameFocusUtility.IsGameFocused)
                 return;
 
             InventoryScreen.SetActive(false);
@@ -541,7 +541,7 @@ namespace JUTPS.InventorySystem.UI
                 return;
 
 #if UNITY_EDITOR
-            if (!JUEditor.IsGameFocused)
+            if (!JUGameFocusUtility.IsGameFocused)
                 return;
 #endif
 

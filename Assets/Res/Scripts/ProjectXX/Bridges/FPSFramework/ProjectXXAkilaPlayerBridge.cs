@@ -3,6 +3,7 @@ using JUTPS;
 using ProjectXX.Bridges.Combat;
 using ProjectXX.Domain.Raid;
 using ProjectXX.Domain.Combat;
+using ProjectXX.Domain.Inventory;
 using ProjectXX.Foundation;
 using ProjectXX.Bridges.JUTPS;
 using UnityEngine;
@@ -14,13 +15,14 @@ namespace ProjectXX.Bridges.FPSFramework
     [RequireComponent(typeof(ProjectXXCharacterStatBridge))]
     [RequireComponent(typeof(ProjectXXCharacterBuffBridge))]
     [RequireComponent(typeof(ProjectXXEquipmentBridge))]
-    [RequireComponent(typeof(ProjectXXWeaponBridge))]
-    [RequireComponent(typeof(ProjectXXDamageBridge))]
-    [RequireComponent(typeof(ProjectXXCombatant))]
-    [RequireComponent(typeof(ProjectXXCombatantSync))]
-    [RequireComponent(typeof(ProjectXXFactionMember))]
-    [RequireComponent(typeof(JUHealth))]
-    [RequireComponent(typeof(JutpsTargetAdapter))]
+        [RequireComponent(typeof(ProjectXXWeaponBridge))]
+        [RequireComponent(typeof(ProjectXXDamageBridge))]
+        [RequireComponent(typeof(ProjectXXCombatant))]
+        [RequireComponent(typeof(ProjectXXCombatantSync))]
+        [RequireComponent(typeof(ProjectXXEquipmentRuntime))]
+        [RequireComponent(typeof(ProjectXXFactionMember))]
+        [RequireComponent(typeof(JUHealth))]
+        [RequireComponent(typeof(JutpsTargetAdapter))]
     public sealed class ProjectXXAkilaPlayerBridge : MonoBehaviour
     {
         [SerializeField] private RaidSessionRuntime sessionRuntime;
@@ -94,7 +96,18 @@ namespace ProjectXX.Bridges.FPSFramework
 
         private void ConfigureWeapon()
         {
-            if (weaponBridge != null && equipmentBridge != null && equipmentBridge.StartingWeaponPrefab != null)
+            if (weaponBridge == null || equipmentBridge == null)
+            {
+                return;
+            }
+
+            if (equipmentBridge.StartingWeaponDefinition != null)
+            {
+                weaponBridge.SetStartingWeapon(equipmentBridge.StartingWeaponDefinition, equipmentBridge.StartingWeaponPrefab);
+                return;
+            }
+
+            if (equipmentBridge.StartingWeaponPrefab != null)
             {
                 weaponBridge.SetStartingWeapon(equipmentBridge.StartingWeaponPrefab);
             }
@@ -115,9 +128,9 @@ namespace ProjectXX.Bridges.FPSFramework
             }
 
             juHealth.BloodScreenEffect = false;
-            juHealth.MaxHealth = combatant != null ? combatant.MaxHealth : playerFacade.Damageable.maxHealth;
-            juHealth.Health = combatant != null ? combatant.CurrentHealth : playerFacade.Damageable.health;
-            juHealth.CheckHealthState();
+            float maxHealth = combatant != null ? combatant.MaxHealth : playerFacade.Damageable.maxHealth;
+            float currentHealth = combatant != null ? combatant.CurrentHealth : playerFacade.Damageable.health;
+            juHealth.SetHealthState(currentHealth, maxHealth, true);
 
             if (!TryGetComponent(out JutpsTargetAdapter targetAdapter))
             {

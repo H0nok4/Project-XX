@@ -87,16 +87,14 @@ namespace JUTPS
             OnDeath ??= new UnityEvent();
             OnDamaged ??= new DamageEvent();
 
-            ProjectXXCombatant combatant = GetComponent<ProjectXXCombatant>();
-            if (combatant != null)
+            if (TryGetCombatant(out ProjectXXCombatant combatant))
             {
                 if (!combatant.TryApplyDamage(damageInfo.Damage, damageInfo.HitOwner))
                 {
                     return;
                 }
 
-                MaxHealth = combatant.MaxHealth;
-                Health = combatant.CurrentHealth;
+                SyncFromCombatant(combatant);
                 CheckHealthState();
 
                 if (BloodScreenEffect) BloodScreen.PlayerTakingDamaged();
@@ -132,6 +130,50 @@ namespace JUTPS
             OnDamaged.Invoke(damageInfo);
         }
 
+        public void SetHealthState(float newCurrentHealth, float newMaxHealth, bool clearLastDamageSource = false)
+        {
+            if (TryGetCombatant(out ProjectXXCombatant combatant))
+            {
+                combatant.Configure(newMaxHealth, newCurrentHealth, clearLastDamageSource);
+                SyncFromCombatant(combatant);
+                CheckHealthState();
+                return;
+            }
+
+            MaxHealth = Mathf.Max(1f, newMaxHealth);
+            Health = Mathf.Clamp(newCurrentHealth, 0f, MaxHealth);
+            CheckHealthState();
+        }
+
+        public bool TryApplyHealing(float amount, bool clearLastDamageSource = false)
+        {
+            if (amount <= 0f)
+            {
+                return false;
+            }
+
+            if (TryGetCombatant(out ProjectXXCombatant combatant))
+            {
+                if (!combatant.TryApplyHealing(amount, clearLastDamageSource))
+                {
+                    return false;
+                }
+
+                SyncFromCombatant(combatant);
+                CheckHealthState();
+                return true;
+            }
+
+            if (Health >= MaxHealth)
+            {
+                return false;
+            }
+
+            Health = Mathf.Clamp(Health + amount, 0f, MaxHealth);
+            CheckHealthState();
+            return true;
+        }
+
         public void CheckHealthState()
         {
             OnDeath ??= new UnityEvent();
@@ -153,9 +195,30 @@ namespace JUTPS
 
         public void ResetHealth()
         {
-            Health = MaxHealth;
+            if (TryGetCombatant(out ProjectXXCombatant combatant))
+            {
+                combatant.RestoreFull(true);
+                SyncFromCombatant(combatant);
+            }
+            else
+            {
+                Health = MaxHealth;
+            }
+
             IsDead = false;
             CheckHealthState();
+        }
+
+        private bool TryGetCombatant(out ProjectXXCombatant combatant)
+        {
+            combatant = GetComponent<ProjectXXCombatant>();
+            return combatant != null;
+        }
+
+        private void SyncFromCombatant(ProjectXXCombatant combatant)
+        {
+            MaxHealth = combatant.MaxHealth;
+            Health = combatant.CurrentHealth;
         }
     }
 }

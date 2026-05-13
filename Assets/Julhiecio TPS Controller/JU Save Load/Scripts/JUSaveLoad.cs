@@ -52,6 +52,10 @@ namespace JU.SaveLoad
 
         private static Data _data;
         private static JsonSerializerSettings _serializationSettings;
+        private static string _saveRootDirectory;
+        private const string SaveDirectoryName = "Saves";
+        private const string SaveFileName = "Save.bin";
+        private const string SaveBackupFileName = "Save.backup";
 
         /// <summary>
         /// Called on write the save file.
@@ -69,26 +73,32 @@ namespace JU.SaveLoad
         public static bool ShowDebugLogs { get; set; }
 
         /// <summary>
-        /// The final folder that will be saved the file with the data (without the file name). 
+        /// The root folder used by JU save/load. Defaults to Unity's persistent data path.
         /// </summary>
-        public static string SaveFileFolder
+        public static string SaveRootDirectory
         {
-#if UNITY_EDITOR || UNITY_STANDALONE_WIN
-            get => Path.Combine(Application.dataPath, "..", "Saves");
-#else
-            get => Path.Combine(Application.persistentDataPath, "Saves");
-#endif
+            get => string.IsNullOrWhiteSpace(_saveRootDirectory)
+                ? Application.persistentDataPath
+                : _saveRootDirectory;
+            set => _saveRootDirectory = string.IsNullOrWhiteSpace(value)
+                ? null
+                : value;
         }
+
+        /// <summary>
+        /// The final folder that will be saved the file with the data (without the file name).
+        /// </summary>
+        public static string SaveFileFolder => Path.Combine(SaveRootDirectory, SaveDirectoryName);
 
         /// <summary>
         /// The final full path that contains the file, including the file name.
         /// </summary>
-        public static string SaveFilePath => Path.Combine(SaveFileFolder, "Save.bin");
+        public static string SaveFilePath => Path.Combine(SaveFileFolder, SaveFileName);
 
         /// <summary>
         /// The final full path that contains the backup file, including the file name.
         /// </summary>
-        public static string SavebackupFilePath => Path.Combine(SaveFileFolder, "Save.backup");
+        public static string SavebackupFilePath => Path.Combine(SaveFileFolder, SaveBackupFileName);
 
         private static void SetupSerializationSettings()
         {
@@ -109,13 +119,12 @@ namespace JU.SaveLoad
             if (data == null)
                 data = new Data();
 
-            if (!Directory.Exists(SaveFilePath))
-                Directory.CreateDirectory(SaveFileFolder);
+            EnsureSaveDirectoryExists();
 
             using FileStream file = File.Create(SaveFilePath);
 
             if (ShowDebugLogs)
-                Debug.Log($"Saving game data: {SavebackupFilePath}");
+                Debug.Log($"Saving game data: {SaveFilePath}");
 
             try
             {
@@ -248,6 +257,12 @@ namespace JU.SaveLoad
 
             Array.Copy(keyRaw, key, Math.Min(keyRaw.Length, key.Length));
             Array.Copy(ivRaw, iv, Math.Min(ivRaw.Length, iv.Length));
+        }
+
+        private static void EnsureSaveDirectoryExists()
+        {
+            if (!Directory.Exists(SaveFileFolder))
+                Directory.CreateDirectory(SaveFileFolder);
         }
 
         private static void SetSceneData(string sceneName, SceneData sceneData)
@@ -473,6 +488,14 @@ namespace JU.SaveLoad
             GlobalData globalData = GetGlobalData();
             if (globalData.Data.ContainsKey(key))
                 globalData.Data.Remove(key);
+        }
+
+        /// <summary>
+        /// Restore the default persistent data root.
+        /// </summary>
+        public static void ResetSaveRootDirectory()
+        {
+            _saveRootDirectory = null;
         }
 
         /// <summary>

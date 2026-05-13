@@ -77,10 +77,6 @@ namespace JUTPS
 
         private void Awake()
         {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.playModeStateChanged += OnExitPlayMode;
-#endif
-
             if (this != Instance)
             {
                 Destroy(this);
@@ -97,20 +93,34 @@ namespace JUTPS
 
         private void OnEnable()
         {
+            if (!_slowmotionInstance)
+                _slowmotionInstance = FindObjectOfType<FX.JUSlowmotion>();
+
             PauseInputs.Enable();
         }
 
         private void OnDisable()
         {
             PauseInputs.Disable();
+            ResetPauseRuntimeState(clearInstanceReference: true);
         }
 
         private void OnDestroy()
         {
-            // Fix problem on unload the current scene if the game is paused, 
-            // after load another scene the IsPaused continues as true.
-            Continue();
+            ResetPauseRuntimeState(clearInstanceReference: true, clearSlowmotionReference: true);
+        }
+
+        private void ResetPauseRuntimeState(bool clearInstanceReference, bool clearSlowmotionReference = false)
+        {
+            IsPaused = false;
+            Time.timeScale = 1;
             AllowSetPaused = true;
+
+            if (clearInstanceReference && _instance == this)
+                _instance = null;
+
+            if (clearSlowmotionReference)
+                _slowmotionInstance = null;
         }
 
         private void OnPressPauseInput()
@@ -158,20 +168,5 @@ namespace JUTPS
             else Instance.OnContinue.Invoke();
         }
 
-#if UNITY_EDITOR
-        private void OnExitPlayMode(UnityEditor.PlayModeStateChange mode)
-        {
-            if (mode != UnityEditor.PlayModeStateChange.ExitingPlayMode)
-                return;
-
-            UnityEditor.EditorApplication.playModeStateChanged -= OnExitPlayMode;
-
-            IsPaused = false;
-            Time.timeScale = 1;
-
-            _instance = null;
-            _slowmotionInstance = null;
-        }
-#endif
     }
 }

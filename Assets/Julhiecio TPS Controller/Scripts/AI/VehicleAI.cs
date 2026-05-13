@@ -216,8 +216,6 @@ namespace JUTPS.AI
             return RightDirectionIntensity;
         }
 
-#if UNITY_EDITOR
-
         Color randomTargetIndicatorLineColor = Color.clear;
 
         private void OnDrawGizmos()
@@ -238,13 +236,8 @@ namespace JUTPS.AI
 
                 Gizmos.color = randomTargetIndicatorLineColor;
                 Gizmos.DrawLine(transform.position, PathToDestination[CurrentWayPointToFollow]);
-
-                //Target Indicator
-                var NewGUIStyle = JUTPSEditor.CustomEditorStyles.Toolbar();
-                NewGUIStyle.normal.textColor = randomTargetIndicatorLineColor;
-                UnityEditor.Handles.Label(PathToDestination[CurrentWayPointToFollow] + Vector3.up * 1, "Target", NewGUIStyle);
+                Gizmos.DrawWireSphere(PathToDestination[CurrentWayPointToFollow], 0.35f);
             }
         }
-#endif
     }
 }

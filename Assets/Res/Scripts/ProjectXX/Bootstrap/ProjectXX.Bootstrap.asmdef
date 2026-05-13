@@ -8,10 +8,12 @@
         "ProjectXX.Bridges.FPSFramework",
         "ProjectXX.Bridges.JUTPS",
         "ProjectXX.Domain.Combat",
+        "ProjectXX.Domain.Meta",
         "ProjectXX.Domain.Raid",
         "ProjectXX.Foundation",
         "ProjectXX.Infrastructure.Definitions",
-        "ProjectXX.Presentation.Raid"
+        "ProjectXX.Presentation.Raid",
+        "ProjectXX.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

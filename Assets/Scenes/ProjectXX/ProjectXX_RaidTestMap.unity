@@ -1880,6 +1880,15 @@ MonoBehaviour:
   - {fileID: 887554660}
   - {fileID: 1493302077}
   extractionPoint: {fileID: 419942387}
+  authoredContainers: []
+  demoLootContainerDefinition: {fileID: 11400000, guid: 247b0c234fea4ca8975158878159289c,
+    type: 2}
+  demoLootItemDefinition: {fileID: 11400000, guid: 5b63ac8fac914605a6acd6d0f6950e3b,
+    type: 2}
+  spawnDemoLootContainer: 1
+  demoLootItemQuantity: 3
+  demoLootContainerPosition: {x: 3, y: 0.5, z: 3}
+  demoLootContainerScale: {x: 1.2, y: 0.8, z: 1}
   useMinimalFrameworkManagers: 1
   spawnOnStart: 1
 --- !u!4 &1472682392

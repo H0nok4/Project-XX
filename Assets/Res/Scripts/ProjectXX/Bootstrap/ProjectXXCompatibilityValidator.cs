@@ -1,11 +1,6 @@
-using System;
 using ProjectXX.Foundation;
 using ProjectXX.Infrastructure.Definitions;
 using UnityEngine;
-
-#if UNITY_EDITOR
-using UnityEditorInternal;
-#endif
 
 namespace ProjectXX.Bootstrap
 {
@@ -68,9 +63,6 @@ namespace ProjectXX.Bootstrap
 
         private static bool TagExists(string tagName)
         {
-#if UNITY_EDITOR
-            return Array.Exists(InternalEditorUtility.tags, candidate => candidate == tagName);
-#else
             try
             {
                 GameObject.FindGameObjectWithTag(tagName);
@@ -80,7 +72,6 @@ namespace ProjectXX.Bootstrap
             {
                 return false;
             }
-#endif
         }
     }
 }

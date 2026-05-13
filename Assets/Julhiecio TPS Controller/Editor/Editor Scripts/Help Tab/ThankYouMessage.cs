@@ -1,5 +1,9 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using JU;
+using JUTPS.GameSettings;
+using JUTPS.InteractionSystem;
+using JUTPS.JUInputSystem;
 
 namespace JUTPS.CustomEditors
 {
@@ -159,6 +163,64 @@ namespace JUTPS.CustomEditors
             }
             GUILayout.EndHorizontal();
 
+        }
+    }
+
+    [InitializeOnLoad]
+    internal static class JUTPSRuntimeComponentDefaults
+    {
+        private const string DefaultPlayerInputsPath = "Assets/Julhiecio TPS Controller/Input Controls/Player Character Inputs.asset";
+        private const string DefaultSfxAudioTagPath = "Assets/Julhiecio TPS Controller/Audio/SFX Audio Tag.asset";
+
+        static JUTPSRuntimeComponentDefaults()
+        {
+            ObjectFactory.componentWasAdded -= OnComponentAdded;
+            ObjectFactory.componentWasAdded += OnComponentAdded;
+        }
+
+        private static void OnComponentAdded(Component component)
+        {
+            switch (component)
+            {
+                case JUInteractionSystem interactionSystem:
+                    AssignDefaultInputs(interactionSystem);
+                    break;
+                case JUApplyAudioVolumeSettings audioVolumeSettings:
+                    AssignDefaultAudioSettings(audioVolumeSettings);
+                    break;
+            }
+        }
+
+        private static void AssignDefaultInputs(JUInteractionSystem interactionSystem)
+        {
+            if (interactionSystem == null || interactionSystem.Inputs != null)
+                return;
+
+            interactionSystem.Inputs = AssetDatabase.LoadAssetAtPath<JUPlayerCharacterInputAsset>(DefaultPlayerInputsPath);
+            if (interactionSystem.Inputs != null)
+                EditorUtility.SetDirty(interactionSystem);
+        }
+
+        private static void AssignDefaultAudioSettings(JUApplyAudioVolumeSettings audioVolumeSettings)
+        {
+            if (audioVolumeSettings == null)
+                return;
+
+            bool changed = false;
+            if (audioVolumeSettings.AudioSource == null)
+            {
+                audioVolumeSettings.AudioSource = audioVolumeSettings.GetComponent<AudioSource>();
+                changed = audioVolumeSettings.AudioSource != null;
+            }
+
+            if (audioVolumeSettings.AudioTag == null)
+            {
+                audioVolumeSettings.AudioTag = AssetDatabase.LoadAssetAtPath<JUTag>(DefaultSfxAudioTagPath);
+                changed |= audioVolumeSettings.AudioTag != null;
+            }
+
+            if (changed)
+                EditorUtility.SetDirty(audioVolumeSettings);
         }
     }
 }

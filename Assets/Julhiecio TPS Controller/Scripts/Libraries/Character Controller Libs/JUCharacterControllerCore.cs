@@ -2162,7 +2162,7 @@ namespace JUTPS.CharacterBrain
                 Ragdoller.TimeToGetUp = 900;
             }
 
-            CharacterHealth.Health = 0;
+            CharacterHealth.SetHealthState(0, CharacterHealth.MaxHealth, true);
             IsDead = true;
         }
         public virtual void RessurectCharacter()

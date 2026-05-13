@@ -298,12 +298,6 @@ namespace JUTPS.VehicleSystem
 				}
 
 				Vector3 wordlPosition = Vehicle.position + Vehicle.right * position.x + Vehicle.up * position.y + Vehicle.forward * position.z;
-				if (Label != "")
-				{
-#if UNITY_EDITOR
-					UnityEditor.Handles.Label(wordlPosition + Vector3.up * 0.1f, Label);
-#endif
-				}
 				Gizmos.DrawSphere(wordlPosition, 0.03f);
 			}
 			public static void DrawVehicleInclination(Transform RotationParent, Transform RotationChild)
@@ -326,21 +320,11 @@ namespace JUTPS.VehicleSystem
 				//Real rotation
 				Gizmos.color = Color.green;
 				Gizmos.DrawRay(RotationChild.position, RotationChild.up);
-#if UNITY_EDITOR
-
-				//Infos
-				UnityEditor.Handles.Label(RotationParent.position + RotationChild.up * 1.2f, Vector3.Angle(RotationChild.up, RotationParent.up).ToString("00.0"));
-#endif
 
 				//Base Lines
 				Gizmos.color = Color.green;
 				Gizmos.DrawLine(RotationParent.position - RotationParent.right, RotationParent.position + RotationParent.right);
-#if UNITY_EDITOR
-
-				//Disc
-				UnityEditor.Handles.color = Color.green;
-				UnityEditor.Handles.DrawWireArc(RotationParent.position, RotationParent.forward, RotationParent.right, 180, 1);
-#endif
+				Gizmos.DrawWireSphere(RotationParent.position + RotationChild.up, 0.03f);
 			}
 			public static void DrawRaycastHit(JUVehicle.VehicleRaycastCheck rayCheck, Transform vehicle, Vector3 direction)
 			{
@@ -759,14 +743,15 @@ namespace JUTPS.VehicleSystem
 			CanTurnToUpInAir = true;
 			UpdateWheelsData();
 
-#if UNITY_EDITOR
-			UnityEditor.EditorApplication.playModeStateChanged += OnExitPlayMode;
-#endif
-
 			if (PlayerInputs)
 			{
 				PlayerInputs.SetInputEnabled(true);
 			}
+		}
+
+		protected virtual void OnDisable()
+		{
+			OnExitPlayMode();
 		}
 
 		/// <inheritdoc/>
@@ -1014,20 +999,8 @@ namespace JUTPS.VehicleSystem
 			if (rightWheelIsGrounded) RigidBody.AddForceAtPosition(rightTransform.up * finalForce, rightTransform.position);
 		}
 
-#if UNITY_EDITOR
-		private void OnExitPlayMode(UnityEditor.PlayModeStateChange change)
-		{
-			if (change == UnityEditor.PlayModeStateChange.ExitingPlayMode)
-			{
-				UnityEditor.EditorApplication.playModeStateChanged -= OnExitPlayMode;
-				OnExitPlayMode();
-			}
-		}
-#endif
-
 		/// <summary>
-		/// Called by editor during exit play mode.
-		/// Useful to reset properties if reload domain is disabled on editor side.
+		/// Reset transient vehicle runtime state when the component is disabled.
 		/// </summary>
 		protected virtual void OnExitPlayMode()
 		{

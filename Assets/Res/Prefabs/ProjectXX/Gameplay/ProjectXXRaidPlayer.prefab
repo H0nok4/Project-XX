@@ -1155,7 +1155,11 @@ GameObject:
   - component: {fileID: 1921296553966493423}
   - component: {fileID: 4139794583501513826}
   - component: {fileID: 3017662949299148816}
+  - component: {fileID: 5293725511504157499}
+  - component: {fileID: 5671031186217531088}
   - component: {fileID: 445151872743437978}
+  - component: {fileID: 3372943535051650048}
+  - component: {fileID: 4394134244741719040}
   - component: {fileID: 2564061149695490493}
   - component: {fileID: 3765047292479299236}
   - component: {fileID: 8528581995547128836}
@@ -1165,12 +1169,14 @@ GameObject:
   - component: {fileID: 4049823853379904635}
   - component: {fileID: 1610412741543632234}
   - component: {fileID: 1118911954780991177}
-  - component: {fileID: 4864951283506581949}
   - component: {fileID: 1742819114745567210}
   - component: {fileID: 2291963128188811887}
+  - component: {fileID: 8299206328092463730}
+  - component: {fileID: 2869293795135020707}
+  - component: {fileID: 9083965620870505125}
   m_Layer: 8
   m_Name: ProjectXXRaidPlayer
-  m_TagString: Player
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1559,8 +1565,49 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee6082305e5d118449ef3f928d73cf3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.FPSFramework.ProjectXXEquipmentBridge
+  equipmentRuntime: {fileID: 5293725511504157499}
+  startingWeaponDefinition: {fileID: 11400000, guid: 64117745634945c59ba4f0b5ff1493d5,
+    type: 2}
   startingWeaponPrefab: {fileID: -7770503669698727024, guid: bbabec215dfafb844b5dfd983988a7d0,
     type: 3}
+--- !u!114 &5293725511504157499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0568292b585458c99348d0b05004f74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  primaryWeapon: {fileID: 11400000, guid: 64117745634945c59ba4f0b5ff1493d5, type: 2}
+  secondaryWeapon: {fileID: 0}
+  meleeWeapon: {fileID: 0}
+  armor: {fileID: 0}
+  utility: {fileID: 0}
+--- !u!114 &5671031186217531088
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 575a8eaf597c4782b230ae34e9836701, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  equipmentRuntime: {fileID: 5293725511504157499}
+  backpackGrid:
+    width: 6
+    height: 5
+    placements: []
+  quickAccessGrid:
+    width: 4
+    height: 1
+    placements: []
 --- !u!114 &445151872743437978
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1581,6 +1628,53 @@ MonoBehaviour:
   inventory: {fileID: 0}
   cameraManager: {fileID: 0}
   jutpsHealth: {fileID: 0}
+  combatant: {fileID: 0}
+--- !u!114 &3372943535051650048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 672d2de084ab4dd4ba316812255ff7da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sessionRuntime: {fileID: 0}
+  interactionRange: 3
+  interactionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  triggerInteraction: 2
+  resultMessageHoldSeconds: 1.25
+  lootWindowController: {fileID: 4394134244741719040}
+--- !u!114 &4394134244741719040
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc55ac1c2477458ca5f4a7f23e7c50c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  windowLayer: 3
+  buildOnAwake: 1
+  visibleOnAwake: 0
+  applyRuntimeFontToChildren: 0
+  windowNameOverride: 
+  windowTitleOverride: 
+  windowSubtitleOverride: 
+  defaultWindowSize: {x: 960, y: 640}
+  sessionRuntime: {fileID: 0}
+  loadoutRuntime: {fileID: 5671031186217531088}
+  gridCellSize: 54
+  gridCellSpacing: 4
+  containerItemColor: {r: 0.34, g: 0.42, b: 0.34, a: 0.96}
+  backpackItemColor: {r: 0.28, g: 0.36, b: 0.48, a: 0.96}
 --- !u!114 &2564061149695490493
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1593,6 +1687,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8cfce34ab0fed5448831a8d3bcf99bbd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.FPSFramework.ProjectXXWeaponBridge
+  startingWeaponDefinition: {fileID: 11400000, guid: 64117745634945c59ba4f0b5ff1493d5,
+    type: 2}
   startingWeaponPrefab: {fileID: -7770503669698727024, guid: bbabec215dfafb844b5dfd983988a7d0,
     type: 3}
   suppressFrameworkHud: 1
@@ -1648,7 +1744,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2755c671cc6834489d626520ae7a3c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.FPSFramework.ProjectXXFirstPersonViewBridge
-  disableConflictingSceneObjects: 1
   disableFrameworkPlayerCard: 1
   enforceFirstPersonCameraStack: 1
   mainCameraName: Main Camera
@@ -1712,18 +1807,6 @@ MonoBehaviour:
   OnDamaged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &4864951283506581949
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3917014405222904205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 34eec10e5b39a8648a800321a9d6a567, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.JUTPS.JutpsHealthProxy
 --- !u!114 &1742819114745567210
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1737,7 +1820,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.JUTPS.JutpsTargetAdapter
   deriveFromFactionMember: 1
-  targetTag: Player
+  targetTag: Enemy
   playerLayerName: Player
 --- !u!114 &2291963128188811887
 MonoBehaviour:
@@ -1752,6 +1835,52 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectXX.Bridges.FPSFramework.ProjectXXAkilaPlayerBridge
   sessionRuntime: {fileID: 0}
+--- !u!114 &8299206328092463730
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 701b79a2fcdefc9439925e608d61b7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectXX.Domain.Combat::ProjectXX.Domain.Combat.ProjectXXCombatant
+  maxHealth: 100
+  currentHealth: 100
+  dead: 0
+  lastDamageSource: {fileID: 0}
+--- !u!114 &2869293795135020707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f892f5682f9101d4dbb4e1721292acdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectXX.Bridges.Combat::ProjectXX.Bridges.Combat.ProjectXXCombatantSync
+  combatant: {fileID: 0}
+  damageable: {fileID: 0}
+  juHealth: {fileID: 0}
+--- !u!114 &9083965620870505125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917014405222904205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ceb99031e9dd53e49a72c0bd40527e24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectXX.Domain.Combat::ProjectXX.Domain.Combat.ProjectXXFactionMember
+  faction: 3
+  retaliationMode: 1
+  extraHostileFactions: 
 --- !u!1 &4018072532852650051
 GameObject:
   m_ObjectHideFlags: 0

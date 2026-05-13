@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using JUTPS;
 using ProjectXX.Domain.Combat;
 using UnityEngine;
@@ -107,13 +106,11 @@ namespace JU.CharacterSystem.AI
                 if (_pivot)
                     return Vector3.ProjectOnPlane(_pivot.forward, Vector3.up);
 
-#if UNITY_EDITOR
-                Debug.Assert(_ai, $"{nameof(JUCharacterAIBase)} component not added to gameObject.");
-                Debug.Assert(_ai.Character, $"{nameof(JUCharacterController)} component not added to gameObject {_ai.name}.");
+                if (_ai == null)
+                    return Vector3.forward;
 
-                if (!Application.isPlaying)
+                if (!Application.isPlaying || _ai.Character == null)
                     return _ai.transform.forward;
-#endif
 
                 Vector3 lookAtDirection = _ai.Character.LookAtPosition - _ai.transform.position;
                 if (lookAtDirection.magnitude > 0.1f)
@@ -144,8 +141,6 @@ namespace JU.CharacterSystem.AI
         /// </summary>
         public void Reset()
         {
-#if UNITY_EDITOR
-
             LayerMask[] defaultObstacleLayers = {
                 LayerMask.NameToLayer("Default"),
                 LayerMask.NameToLayer("Wall"),
@@ -191,19 +186,7 @@ namespace JU.CharacterSystem.AI
                     TargetsLayer |= 1 << defaultTargetLayers[i];
             }
 
-            // Setup default target tags.
-            List<string> existentDefaultTags = new List<string>();
-            foreach (var tag in UnityEditorInternal.InternalEditorUtility.tags)
-            {
-                for (int i = 0; i < defaultTargetTags.Length; i++)
-                {
-                    if (tag.Equals(defaultTargetTags[i]))
-                        existentDefaultTags.Add(tag);
-                }
-            }
-
-            TargetTags = existentDefaultTags.ToArray();
-#endif
+            TargetTags = (string[])defaultTargetTags.Clone();
         }
 
         /// <summary>
@@ -271,23 +254,10 @@ namespace JU.CharacterSystem.AI
                 }
 
                 // Remove colliders that not have the correct tag.
-                if (TargetTags.Length > 0)
+                if (!HasTargetTag(collider.gameObject))
                 {
-                    bool hasTag = false;
-                    for (int x = 0; x < TargetTags.Length; x++)
-                    {
-                        if (collider.CompareTag(TargetTags[x]))
-                        {
-                            hasTag = true;
-                            break;
-                        }
-                    }
-
-                    if (!hasTag)
-                    {
-                        _detections[i] = null;
-                        continue;
-                    }
+                    _detections[i] = null;
+                    continue;
                 }
 
                 if (_targetFilter != null && !_targetFilter.IsValidTarget(collider))
@@ -366,21 +336,8 @@ namespace JU.CharacterSystem.AI
             if (_targetFilter != null && !_targetFilter.IsValidTarget(otherTransform.gameObject))
                 return false;
 
-            if (TargetTags.Length > 0)
-            {
-                bool hasTag = false;
-                for (int x = 0; x < TargetTags.Length; x++)
-                {
-                    if (otherTransform.CompareTag(TargetTags[x]))
-                    {
-                        hasTag = true;
-                        break;
-                    }
-                }
-
-                if (!hasTag)
-                    return false;
-            }
+            if (!HasTargetTag(otherTransform.gameObject))
+                return false;
 
             Vector3 center = Center;
             Vector3 otherTransformPosition = otherTransform.position;
@@ -410,21 +367,8 @@ namespace JU.CharacterSystem.AI
             if (_targetFilter != null && !_targetFilter.IsValidTarget(otherCollider))
                 return false;
 
-            if (TargetTags.Length > 0)
-            {
-                bool hasTag = false;
-                for (int x = 0; x < TargetTags.Length; x++)
-                {
-                    if (otherCollider.CompareTag(TargetTags[x]))
-                    {
-                        hasTag = true;
-                        break;
-                    }
-                }
-
-                if (!hasTag)
-                    return false;
-            }
+            if (!HasTargetTag(otherCollider.gameObject))
+                return false;
 
             Vector3 center = Center;
             Vector3 otherColliderPosition = otherCollider.bounds.center;
@@ -485,25 +429,80 @@ namespace JU.CharacterSystem.AI
         /// </summary>
         public void DrawGizmos()
         {
-#if UNITY_EDITOR
-            if (!_ai)
+            if (_ai == null)
                 return;
 
             Vector3 position = Center;
-            Vector3 forward = Forward;
-            Vector3 up = Quaternion.LookRotation(forward) * Vector3.up;
+            Vector3 forward = Vector3.ProjectOnPlane(Forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.0001f)
+                return;
 
-            UnityEditor.Handles.color = Color.green;
-            UnityEditor.Handles.DrawWireDisc(position, up, Distance);
+            forward.Normalize();
 
-            UnityEditor.Handles.color = Color.red;
-            UnityEditor.Handles.DrawWireArc(position, up, forward, Angle, Distance - 0.1f);
-            UnityEditor.Handles.DrawWireArc(position, up, forward, -Angle, Distance - 0.1f);
+            Gizmos.color = Color.green;
+            DrawWireCircle(position, Distance, 32);
 
-            UnityEditor.Handles.color = new Color(1, 0, 0, 0.1f);
-            UnityEditor.Handles.DrawSolidArc(position, up, forward, Angle, Distance - 0.2f);
-            UnityEditor.Handles.DrawSolidArc(position, up, forward, -Angle, Distance - 0.2f);
-#endif
+            Gizmos.color = Color.red;
+            DrawWireArc(position, forward, Angle, Mathf.Max(0.1f, Distance - 0.1f), 24);
+
+            Gizmos.color = new Color(1f, 0f, 0f, 0.25f);
+            DrawArcSpokes(position, forward, Angle, Mathf.Max(0.1f, Distance - 0.2f), 12);
+        }
+
+        private bool HasTargetTag(GameObject gameObject)
+        {
+            if (gameObject == null || TargetTags == null || TargetTags.Length == 0)
+                return true;
+
+            string currentTag = gameObject.tag;
+            for (int i = 0; i < TargetTags.Length; i++)
+            {
+                if (currentTag == TargetTags[i])
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void DrawWireCircle(Vector3 center, float radius, int segments)
+        {
+            Vector3 previousPoint = center + Vector3.forward * radius;
+            float step = 360f / segments;
+            for (int i = 1; i <= segments; i++)
+            {
+                Vector3 nextPoint = center + Quaternion.AngleAxis(step * i, Vector3.up) * Vector3.forward * radius;
+                Gizmos.DrawLine(previousPoint, nextPoint);
+                previousPoint = nextPoint;
+            }
+        }
+
+        private static void DrawWireArc(Vector3 center, Vector3 forward, float angle, float radius, int segments)
+        {
+            Vector3 previousPoint = center + Quaternion.AngleAxis(-angle, Vector3.up) * forward * radius;
+            Gizmos.DrawLine(center, previousPoint);
+
+            float step = (angle * 2f) / segments;
+            for (int i = 1; i <= segments; i++)
+            {
+                Vector3 nextPoint = center + Quaternion.AngleAxis(-angle + (step * i), Vector3.up) * forward * radius;
+                Gizmos.DrawLine(previousPoint, nextPoint);
+                previousPoint = nextPoint;
+            }
+
+            Gizmos.DrawLine(center, previousPoint);
+        }
+
+        private static void DrawArcSpokes(Vector3 center, Vector3 forward, float angle, float radius, int spokes)
+        {
+            if (spokes < 2)
+                return;
+
+            float step = (angle * 2f) / (spokes - 1);
+            for (int i = 0; i < spokes; i++)
+            {
+                Vector3 point = center + Quaternion.AngleAxis(-angle + (step * i), Vector3.up) * forward * radius;
+                Gizmos.DrawLine(center, point);
+            }
         }
     }
 }

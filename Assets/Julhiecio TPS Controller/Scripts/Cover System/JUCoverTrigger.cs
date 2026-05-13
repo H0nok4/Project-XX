@@ -58,13 +58,10 @@ namespace JUTPS.CoverSystem
             Gizmos.color = new Color(1, 0.2f, 0.2f, 0.3f);
             Gizmos.DrawWireCube(boxColliderTrigger.center, boxColliderTrigger.size);
 
-#if UNITY_EDITOR
-            UnityEditor.Handles.color = Color.yellow;
-            UnityEditor.Handles.ArrowHandleCap(0, transform.position, transform.rotation, -0.3f, EventType.Repaint);
-            UnityEditor.Handles.ArrowHandleCap(0, LeftEndPoint(), transform.rotation, -0.6f, EventType.Repaint);
-            UnityEditor.Handles.ArrowHandleCap(0, RightEndPoint(), transform.rotation, -0.6f, EventType.Repaint);
-
-#endif
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawRay(transform.position, -transform.forward * 0.3f);
+            Gizmos.DrawRay(LeftEndPoint(), -transform.forward * 0.6f);
+            Gizmos.DrawRay(RightEndPoint(), -transform.forward * 0.6f);
         }
     }
 }

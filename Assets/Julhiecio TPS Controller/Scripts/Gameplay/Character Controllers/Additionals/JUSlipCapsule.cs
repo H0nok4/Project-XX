@@ -1,9 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 namespace JUTPS.PhysicsScripts
 {
 
@@ -41,23 +38,6 @@ namespace JUTPS.PhysicsScripts
             outCapsuleCollider = cap;
         }
 
-#if UNITY_EDITOR
-        private void OnDrawGizmos()
-        {
-            Handles.color = Color.yellow;
-            Vector3 centerPosition = transform.position + transform.right * Center.x + transform.up * Center.y + transform.forward * Center.z;
-            Handles.DrawWireDisc(centerPosition + transform.up * Height / 4f, transform.up, Radius);
-            Handles.DrawWireDisc(centerPosition - transform.up * Height / 4f, transform.up, Radius);
-            Handles.DrawWireDisc(centerPosition + transform.up * Height / 4f, transform.up, Radius - 0.1f);
-            Handles.DrawWireDisc(centerPosition - transform.up * Height / 4f, transform.up, Radius - 0.1f);
-
-            //Lines
-            Handles.DrawLine((centerPosition + transform.right * Radius) + transform.up * Height / 4f, (centerPosition + transform.right * Radius) - transform.up * Height / 4f);
-            Handles.DrawLine((centerPosition - transform.right * Radius) + transform.up * Height / 4f, (centerPosition - transform.right * Radius) - transform.up * Height / 4f);
-            Handles.DrawLine((centerPosition + transform.forward * Radius) + transform.up * Height / 4f, (centerPosition + transform.forward * Radius) - transform.up * Height / 4f);
-            Handles.DrawLine((centerPosition - transform.forward * Radius) + transform.up * Height / 4f, (centerPosition - transform.forward * Radius) - transform.up * Height / 4f);
-        }
-#endif
     }
 
 }

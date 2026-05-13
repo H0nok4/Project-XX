@@ -1,10 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.FX
 {
     /// <summary>
@@ -319,70 +315,5 @@ namespace JUTPS.FX
             Gizmos.DrawWireSphere(RightFootCheckerPosition, CheckDistance / 2);
         }
 
-#if UNITY_EDITOR
-        [ContextMenu("Load Default Footstep Audios", false, 100)]
-        public void LoadDefaultFootstepInInspector()
-        {
-            LoadDefaultFootstepAudios(this);
-        }
-
-        private static void LoadDefaultFootstepAudios(JUFootstep footsteper, string path = "Assets/Julhiecio TPS Controller/Audio/Footstep/")
-        {
-            if (!System.IO.Directory.Exists(path))
-            {
-                Debug.LogError("Unable to load default footstep audios as the indicated path does not exist.");
-                return;
-            }
-
-            // Create empty audio slots.
-            footsteper.FootstepAudioClips = new SurfaceAudiosWithFX[4];
-            for (int i = 0; i < 4; i++)
-            {
-                footsteper.FootstepAudioClips[i] = new SurfaceAudiosWithFX();
-                for (int x = 0; x < 4; x++)
-                    footsteper.FootstepAudioClips[i].AudioClips.Add(null);
-            }
-
-            //Load Footstep Audios.
-            footsteper.FootstepAudioClips[0].SurfaceTag = "Untagged";
-            for (int i = 0; i < 4; i++)
-            {
-                string audioClipPath = $"{path}Concrete/Footstep on Concrete 0{i + 1}.ogg";
-                footsteper.FootstepAudioClips[0].AudioClips[i] = LoadAsset<AudioClip>(audioClipPath);
-            }
-
-            footsteper.FootstepAudioClips[1].SurfaceTag = "Stone";
-            for (int i = 0; i < 4; i++)
-            {
-                string audioClipPath = $"{path}Stones/Footsteps-on-stone0{i + 1}.ogg";
-                footsteper.FootstepAudioClips[1].AudioClips[i] = LoadAsset<AudioClip>(audioClipPath);
-            }
-
-            footsteper.FootstepAudioClips[2].SurfaceTag = "Grass";
-            for (int i = 0; i < 4; i++)
-            {
-                string audioClipPath = $"{path}Grass/Footsteps-on-grass0{i + 1}.ogg";
-                footsteper.FootstepAudioClips[2].AudioClips[i] = LoadAsset<AudioClip>(audioClipPath);
-            }
-
-            footsteper.FootstepAudioClips[3].SurfaceTag = "Tiles";
-            for (int i = 0; i < 4; i++)
-            {
-                string audioClipPath = $"{path}Tiles/Footstep-on-tiles0{i + 1}.ogg";
-                footsteper.FootstepAudioClips[3].AudioClips[i] = LoadAsset<AudioClip>(audioClipPath);
-            }
-        }
-
-        private static T LoadAsset<T>(string path) where T : Object
-        {
-            if (!System.IO.File.Exists(path))
-            {
-                Debug.LogWarning($"Unable to load asset {typeof(T).Name}: {path}");
-                return null;
-            }
-
-            return AssetDatabase.LoadAssetAtPath<T>(path);
-        }
-#endif
     }
 }

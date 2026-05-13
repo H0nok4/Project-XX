@@ -2,11 +2,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Events;
 
-
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.VehicleSystem.Inputs
 {
     /// <summary>
@@ -103,92 +98,5 @@ namespace JUTPS.VehicleSystem.Inputs
             }
         }
 
-#if UNITY_EDITOR
-
-        private static void CreateAsset<T>(string assetName, UnityAction<T> onCreated) where T : ScriptableObject
-        {
-            try
-            {
-                AssetDatabase.StartAssetEditing();
-                var instance = CreateInstance<T>();
-                var path = AssetDatabase.GetAssetPath(Selection.activeInstanceID);
-
-                if (string.IsNullOrEmpty(path))
-                    path = "Assets";
-
-                if (path.Contains("."))
-                    path = path.Remove(path.LastIndexOf('/'));
-
-                var pathAndName = AssetDatabase.GenerateUniqueAssetPath($"{path}/{assetName}.asset");
-                AssetDatabase.CreateAsset(instance, pathAndName);
-
-                onCreated?.Invoke(instance);
-
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-
-                Selection.activeObject = instance;
-                EditorUtility.FocusProjectWindow();
-
-                AssetDatabase.StopAssetEditing();
-                EditorUtility.SetDirty(instance);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError("Can't create a new asset on this folder.");
-                Debug.LogError(e.Message);
-            }
-        }
-
-        [MenuItem("Assets/Create/JU TPS/Vehicles/Classic Vehicle Input", false, 1)]
-        private static void CreateClassicInputAsset()
-        {
-            CreateAsset<JUVehicleInputAsset>("Classic Vehicle Input", instance =>
-            {
-                instance.ThrottleAction.AddCompositeBinding("Axis")
-                    .With("Positive", "<Gamepad>/leftStick/up")
-                    .With("Negative", "<Gamepad>/leftStick/down")
-                    .With("Positive", "<Keyboard>/w")
-                    .With("Negative", "<Keyboard>/s");
-
-                instance.SteerAction.AddCompositeBinding("Axis")
-                    .With("Positive", "<Gamepad>/leftStick/right")
-                    .With("Negative", "<Gamepad>/leftStick/left")
-                    .With("Positive", "<Keyboard>/d")
-                    .With("Negative", "<Keyboard>/a");
-
-                instance.BrakeAction.AddBinding("<Gamepad>/buttonEast");
-                instance.BrakeAction.AddBinding("<Keyboard>/space");
-
-                instance.NitroAction.AddBinding("<Keyboard>/shift");
-                instance.NitroAction.AddBinding("<Gamepad>/leftStickPress");
-            });
-        }
-
-        [MenuItem("Assets/Create/JU TPS/Vehicles/Advanced Vehicle Input", false, 1)]
-        private static void CreateAdvancedInputAsset()
-        {
-            CreateAsset<JUVehicleInputAsset>("Advanced Vehicle Input", instance =>
-            {
-                instance.ThrottleAction.AddCompositeBinding("Axis")
-                    .With("Positive", "<Gamepad>/rightTrigger")
-                    .With("Negative", "<Gamepad>/leftTrigger")
-                    .With("Positive", "<Keyboard>/w")
-                    .With("Negative", "<Keyboard>/s");
-
-                instance.SteerAction.AddCompositeBinding("Axis")
-                    .With("Positive", "<Gamepad>/leftStick/right")
-                    .With("Negative", "<Gamepad>/leftStick/left")
-                    .With("Positive", "<Keyboard>/d")
-                    .With("Negative", "<Keyboard>/a");
-
-                instance.BrakeAction.AddBinding("<Gamepad>/buttonEast");
-                instance.BrakeAction.AddBinding("<Keyboard>/space");
-
-                instance.NitroAction.AddBinding("<Keyboard>/shift");
-                instance.NitroAction.AddBinding("<Gamepad>/leftStickPress");
-            });
-        }
-#endif
     }
 }

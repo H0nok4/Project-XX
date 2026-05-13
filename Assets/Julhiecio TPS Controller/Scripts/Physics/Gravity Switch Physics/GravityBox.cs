@@ -23,7 +23,6 @@ namespace JUTPS.GravitySwitchSystem
             JUGravity.SimulateGravityBox(transform.position, transform.lossyScale, transform.rotation, -transform.up, GravityForce, AlignRigidbodies, AlignmentForce, DistanceToStopAligment, out colliders, TagsToIgnore);
             if (AlignCharacters) JUGravity.AlignJUTPSCharacterUpOrientation(colliders, transform.up);
         }
-#if UNITY_EDITOR
         private void OnDrawGizmos()
         {
             Matrix4x4 rotationMatrix = Matrix4x4.TRS(transform.position, transform.rotation, transform.localScale);
@@ -35,9 +34,10 @@ namespace JUTPS.GravitySwitchSystem
             Gizmos.color = new Color(1, 1, 1, 0.2f);
             Gizmos.DrawWireCube(Vector3.zero, transform.localScale);
 
-            UnityEditor.Handles.ArrowHandleCap(0, transform.position + transform.up * 0.5f, Quaternion.LookRotation(-transform.up), 1, EventType.Repaint);
+            Gizmos.matrix = Matrix4x4.identity;
+            Gizmos.color = Color.white;
+            Gizmos.DrawRay(transform.position + transform.up * 0.5f, -transform.up);
         }
-#endif
     }
 
 }

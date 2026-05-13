@@ -521,7 +521,6 @@ namespace JU.CharacterSystem.AI.EscapeSystem
 
         internal override void DrawGizmosSelected()
         {
-#if UNITY_EDITOR
             base.DrawGizmosSelected();
 
             if (_simplifiedAreasToEscape == null || _simplifiedAreasToEscape.Count == 0 || IsRunningAsync)
@@ -529,8 +528,7 @@ namespace JU.CharacterSystem.AI.EscapeSystem
 
             Gizmos.color = Color.red * 0.5f;
             foreach (KeyValuePair<Guid, EscapeAreaData> area in _simplifiedAreasToEscape)
-                UnityEditor.Handles.DrawWireCube(area.Value.AreaBounds.center, area.Value.AreaBounds.size);
-#endif
+                Gizmos.DrawWireCube(area.Value.AreaBounds.center, area.Value.AreaBounds.size);
         }
 
         private void RequestFindAreasToEscape()

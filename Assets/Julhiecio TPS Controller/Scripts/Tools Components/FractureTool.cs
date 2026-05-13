@@ -1,9 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 namespace JUTPS.DestructibleSystem
 {
     [AddComponentMenu("JU TPS/Tools/Fracture Tool")]
@@ -24,9 +21,7 @@ namespace JUTPS.DestructibleSystem
         [SerializeField]
         [Tooltip("Reference of the new fractured GameObject generated")]
         private GameObject NewFracturedObject;
-
-
-        public static string PathToSave;
+        public GameObject GeneratedFracturedObject => NewFracturedObject;
         public void DestroyMesh()
         {
 
@@ -318,83 +313,6 @@ namespace JUTPS.DestructibleSystem
                 }
             }
         }
-
-
-#if UNITY_EDITOR
-        public void SaveFracturedAssets()
-        {
-            GetPath();
-            if (NewFracturedObject != null)
-            {
-                int childs = NewFracturedObject.transform.childCount;
-                for (int i = childs - 1; i >= 0; i--)
-                {
-                    var childfracture = NewFracturedObject.transform.GetChild(i).gameObject;
-                    SaveFractureMeshes(childfracture.GetComponent<MeshFilter>().sharedMesh, childfracture.name + "_fracture_" + i.ToString(), false, true, childfracture.name);
-                }
-            }
-            else
-            {
-                Debug.LogError("There is no linked fractured game object. Click on ''Generate Fractured Object'' or link the fractured object and then click on ''Save Generated Meshes as asset''");
-            }
-        }
-        public void DestroyAllChilds()
-        {
-            int childs = transform.childCount;
-            for (int i = childs - 1; i >= 0; i--)
-            {
-                GameObject.DestroyImmediate(transform.GetChild(i).gameObject);
-            }
-        }
-        public static void SaveFractureMeshes(Mesh Fracture_mesh, string name, bool CreateNewInstance, bool MeshOptimization, string Path_Name)
-        {
-            if (System.IO.Directory.Exists(PathToSave + Path_Name + "_meshes_fractures/") == false)
-            {
-                System.IO.Directory.CreateDirectory(PathToSave + Path_Name + "_meshes_fractures/");
-            }
-            string path_to_save = PathToSave + Path_Name + "_meshes_fractures/" + name + ".asset";
-
-            if (string.IsNullOrEmpty(path_to_save)) return;
-
-            path_to_save = FileUtil.GetProjectRelativePath(path_to_save);
-
-            Mesh meshToSave = (CreateNewInstance) ? Object.Instantiate(Fracture_mesh) as Mesh : Fracture_mesh;
-
-            if (MeshOptimization)
-            {
-                MeshUtility.Optimize(meshToSave);
-            }
-
-            AssetDatabase.CreateAsset(meshToSave, path_to_save);
-            AssetDatabase.SaveAssets();
-            Application.OpenURL(path_to_save);
-            print("Meshes saved at: " + path_to_save);
-        }
-        public void GetPath()
-        {
-            PathToSave = Application.dataPath + "/Julhiecio TPS Controller/Generated Fractures/";
-            print("Path to save fractures: " + PathToSave);
-        }
-        [CustomEditor(typeof(FractureTool))]
-        public class FractureToolEditor : Editor
-        {
-            public override void OnInspectorGUI()
-            {
-                DrawDefaultInspector();
-
-                FractureTool fracture_tool = (FractureTool)target;
-
-                if (GUILayout.Button("Generate Fractured Object"))
-                {
-                    fracture_tool.DestroyMesh();
-                }
-                if (GUILayout.Button("Save Generated Meshes as asset"))
-                {
-                    fracture_tool.SaveFracturedAssets();
-                }
-            }
-        }
-#endif
     }
 
 }

@@ -14,14 +14,12 @@ namespace JUTPS.PowerUps
 
         void OnTriggerEnter(Collider other)
         {
-            if (other.gameObject.tag == "Player")
+            if (other.CompareTag("Player"))
             {
                 var juHealth = other.GetComponent<JUHealth>();
                 if (juHealth != null)
                 {
-                    if (juHealth.Health == juHealth.MaxHealth) return;
-
-                    juHealth.Health += HealthToAdd;
+                    if (!juHealth.TryApplyHealing(HealthToAdd, true)) return;
 
                     GameObject fx = Instantiate(Effect, transform.position, transform.rotation);
                     Destroy(fx, 5);

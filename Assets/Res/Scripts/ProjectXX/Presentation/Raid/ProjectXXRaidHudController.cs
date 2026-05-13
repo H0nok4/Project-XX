@@ -136,6 +136,12 @@ namespace ProjectXX.Presentation.Raid
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(sessionRuntime.InteractionPrompt))
+            {
+                promptLabel.text = sessionRuntime.InteractionPrompt;
+                return;
+            }
+
             promptLabel.text = sessionRuntime.PlayerInsideExtractionZone
                 ? "Press [E] to use the placeholder extraction point."
                 : "Move, aim, fire, survive, then reach the extraction cylinder.";

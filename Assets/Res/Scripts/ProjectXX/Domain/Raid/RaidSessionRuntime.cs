@@ -15,6 +15,7 @@ namespace ProjectXX.Domain.Raid
         [SerializeField] private int killedEnemyCount;
         [SerializeField] private bool playerInsideExtractionZone;
         [SerializeField] private bool extractedSuccessfully;
+        [SerializeField] private string interactionPrompt;
 
         private readonly HashSet<int> registeredEnemies = new HashSet<int>();
         private readonly HashSet<int> killedEnemies = new HashSet<int>();
@@ -28,6 +29,7 @@ namespace ProjectXX.Domain.Raid
         public int KilledEnemyCount => killedEnemyCount;
         public bool PlayerInsideExtractionZone => playerInsideExtractionZone;
         public bool ExtractedSuccessfully => extractedSuccessfully;
+        public string InteractionPrompt => interactionPrompt;
 
         public void UpdatePlayerState(
             string displayName,
@@ -101,6 +103,23 @@ namespace ProjectXX.Domain.Raid
 
             playerInsideExtractionZone = insideZone;
             NotifyStateChanged();
+        }
+
+        public void SetInteractionPrompt(string prompt)
+        {
+            string resolvedPrompt = string.IsNullOrWhiteSpace(prompt) ? string.Empty : prompt.Trim();
+            if (interactionPrompt == resolvedPrompt)
+            {
+                return;
+            }
+
+            interactionPrompt = resolvedPrompt;
+            NotifyStateChanged();
+        }
+
+        public void ClearInteractionPrompt()
+        {
+            SetInteractionPrompt(string.Empty);
         }
 
         public bool TryExtract()

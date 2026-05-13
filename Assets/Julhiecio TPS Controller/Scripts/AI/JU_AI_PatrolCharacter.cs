@@ -368,42 +368,12 @@ namespace JU.CharacterSystem.AI
         /// <inheritdoc/>
         protected override void OnDrawGizmosSelected()
         {
-#if UNITY_EDITOR
             base.OnDrawGizmosSelected();
 
             if (_currentAction != null)
                 _currentAction.DrawGizmosSelected();
 
             FieldOfView.DrawGizmos();
-
-            if (!Application.isPlaying)
-                return;
-
-            // Editor viewport camera.
-            Camera viewportCamera = UnityEditor.SceneView.currentDrawingSceneView?.camera;
-
-            // Game camera.
-            if (!viewportCamera)
-                viewportCamera = Camera.main;
-
-            if (viewportCamera)
-            {
-                Vector3 debugTextPosition = BodyCollider.bounds.center + (Vector3.up * BodyCollider.bounds.size.y);
-                float cameraDistance = Vector3.Distance(viewportCamera.transform.position, debugTextPosition);
-                float debugTextLineSpace = 0.02f * cameraDistance;
-                float line = 0f;
-
-                if (_currentAction != null)
-                {
-                    line += debugTextLineSpace;
-                    string actionName = _currentAction.GetType().Name;
-                    UnityEditor.Handles.Label(debugTextPosition + (Vector3.up * line), $"CURRENT ACTION: {actionName}");
-                }
-
-                line += debugTextLineSpace;
-                UnityEditor.Handles.Label(debugTextPosition + (Vector3.up * line), $"STATE: {CurrentState}");
-            }
-#endif
         }
 
         private void UpdateAlertMode()

@@ -4,10 +4,6 @@ using JUTPS.CrossPlataform;
 using JUTPS.ActionScripts;
 using JUTPS.InteractionSystem;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.UI
 {
     public class MobileRig : MonoBehaviour
@@ -81,7 +77,7 @@ namespace JUTPS.UI
             CharacterControls.ShowShotButtonIfHaveItem = true;
         }
 
-        internal void FindButtonsAndTouches()
+        public void FindButtonsAndTouches()
         {
             //Screen Panels
 
@@ -338,36 +334,4 @@ namespace JUTPS.UI
             }
         }
     }
-}
-
-namespace JUTPS.CustomEditors
-{
-#if UNITY_EDITOR
-    using MobileRig = JUTPS.UI.MobileRig;
-
-    /// <summary>
-    /// Custom editor for <see cref="MobileRig"/>.
-    /// </summary>
-    [CustomEditor(typeof(MobileRig))]
-    public class MobileRigEditor : Editor
-    {
-        private static readonly string[] _dontIncludeMe = new string[] { "m_Script" };
-
-        /// <inheritdoc/>
-        public override void OnInspectorGUI()
-        {
-            MobileRig mobileRig = (MobileRig)target;
-
-            serializedObject.Update();
-
-            if (GUILayout.Button(" ► Auto Setup", GUILayout.Height(30)))
-            {
-                mobileRig.FindButtonsAndTouches();
-                EditorUtility.SetDirty(mobileRig);
-            }
-            DrawPropertiesExcluding(serializedObject, _dontIncludeMe);
-            serializedObject.ApplyModifiedProperties();
-        }
-    }
-#endif
 }

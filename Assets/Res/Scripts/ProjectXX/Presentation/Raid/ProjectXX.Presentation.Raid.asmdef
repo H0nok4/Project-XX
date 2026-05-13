@@ -2,7 +2,9 @@
     "name": "ProjectXX.Presentation.Raid",
     "rootNamespace": "ProjectXX.Presentation.Raid",
     "references": [
+        "Akila.FPSFramework",
         "ProjectXX.Bridges.FPSFramework",
+        "ProjectXX.Domain.Meta",
         "ProjectXX.Domain.Raid",
         "ProjectXX.UI",
         "Unity.InputSystem",

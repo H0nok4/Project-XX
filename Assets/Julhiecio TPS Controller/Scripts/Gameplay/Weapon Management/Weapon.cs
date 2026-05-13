@@ -3,10 +3,6 @@ using JUTPS.ItemSystem;
 using UnityEngine;
 using UnityEngine.Events;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace JUTPS.WeaponSystem
 {
 
@@ -540,7 +536,6 @@ namespace JUTPS.WeaponSystem
             mAudioSource.PlayOneShot(ReloadAudio);
         }
 
-#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             // DRAW LEFT HAND PREVIEW PREVIEW
@@ -584,14 +579,13 @@ namespace JUTPS.WeaponSystem
                         Transform cam = Camera.current.transform;
                         Vector3 CamCenterPos = cam.position + cam.forward * 0.2f;
                         float LineLenght = 0.01f;
-                        Handles.color = Color.green;
-                        Handles.DrawLine(CamCenterPos + cam.right * LineLenght, CamCenterPos - cam.right * LineLenght);
-                        Handles.DrawLine(CamCenterPos + cam.up * LineLenght, CamCenterPos - cam.up * LineLenght);
+                        Gizmos.color = Color.green;
+                        Gizmos.DrawLine(CamCenterPos + cam.right * LineLenght, CamCenterPos - cam.right * LineLenght);
+                        Gizmos.DrawLine(CamCenterPos + cam.up * LineLenght, CamCenterPos - cam.up * LineLenght);
                     }
                 }
             }
         }
-#endif
     }
 
 }

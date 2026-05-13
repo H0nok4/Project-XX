@@ -2,7 +2,8 @@
     "name": "JUTPS.Editor",
     "rootNamespace": "JUTPSEditor",
     "references": [
-        "JUTPS.Runtime"
+        "JUTPS.Runtime",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"

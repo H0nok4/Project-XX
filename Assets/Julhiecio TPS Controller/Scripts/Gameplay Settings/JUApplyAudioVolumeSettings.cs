@@ -20,10 +20,7 @@ namespace JUTPS.GameSettings
 
         private void Reset()
         {
-#if UNITY_EDITOR
             AudioSource = GetComponent<AudioSource>();
-            AudioTag = UnityEditor.AssetDatabase.LoadAssetAtPath<JUTag>("Assets/Julhiecio TPS Controller/Audio/SFX Audio Tag.asset");
-#endif
         }
 
         private void Awake()
